@@ -5,6 +5,7 @@ import id.naturalsmp.naturalSchool.listener.PlayerListener;
 import id.naturalsmp.naturalSchool.profile.ProfileManager;
 import id.naturalsmp.naturalSchool.profile.StudentProfile;
 import id.naturalsmp.naturalSchool.command.NaturalSchoolCommand;
+import id.naturalsmp.naturalSchool.placeholder.NaturalSchoolExpansion;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class NaturalSchool extends JavaPlugin {
@@ -33,6 +34,12 @@ public final class NaturalSchool extends JavaPlugin {
         if (cmd != null) {
             cmd.setExecutor(mainCommand);
             cmd.setTabCompleter(mainCommand);
+        }
+
+        // Register PlaceholderAPI Expansion if PAPI is present on the server
+        if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
+            new NaturalSchoolExpansion(this).register();
+            getLogger().info("PlaceholderAPI integration registered successfully.");
         }
 
         getLogger().info("NaturalSchool has been enabled successfully.");
