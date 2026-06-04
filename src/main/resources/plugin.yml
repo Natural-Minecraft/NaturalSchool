@@ -5,3 +5,14 @@ api-version: '1.21'
 load: STARTUP
 authors: [ NaturalTechnologies ]
 website: https://naturalsmp.net
+
+commands:
+  naturalschool:
+    description: NaturalSchool administrative control command.
+    aliases: [nschool, ns]
+    permission: naturalschool.admin
+
+permissions:
+  naturalschool.admin:
+    description: Allows administrative access to NaturalSchool commands.
+    default: op

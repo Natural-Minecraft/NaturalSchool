@@ -38,6 +38,23 @@ academic-settings:
   default-start-stage: "SD"
 ```
 
+## Administrative Commands
+
+The plugin provides a central command `/naturalschool` (aliases: `/nschool`, `/ns`) to manage student academic profiles.
+
+* **Permission**: `naturalschool.admin` (Default: OP)
+* **Text Formatting**: Messages utilize Paper's modern Adventure API (`MiniMessage`) for formatting.
+
+| Command | Description |
+| :--- | :--- |
+| `/naturalschool reload` | Reloads `config.yml` from disk and safely refreshes database connections. |
+| `/naturalschool info <player>` | Displays the full academic profile of a player (Online: cached, Offline: queried asynchronously from DB). |
+| `/naturalschool setclass <player> <1-12>` | Updates the player's academic class (saves to DB asynchronously). |
+| `/naturalschool setstage <player> <SD\|SMP\|SMA>` | Updates the player's academic stage (saves to DB asynchronously). |
+| `/naturalschool setpractical <player> <true\|false>` | Toggles the player's practical exam completion status. |
+
+Smart tab completion is fully implemented, suggesting options dynamically based on the argument position.
+
 ## Compilation & Installation
 
 1. **Requirements**: Java 21+ and Apache Maven installed (since Paper 1.21.1 requires Java 21).
@@ -45,4 +62,4 @@ academic-settings:
    ```bash
    mvn clean package
    ```
-3. Copy the compiled JAR `NaturalSchool-1.0.1.jar` from the `target` folder into your Paper server's `plugins` folder.
+3. Copy the compiled JAR `NaturalSchool.jar` from the `target` folder into your Paper server's `plugins` folder.

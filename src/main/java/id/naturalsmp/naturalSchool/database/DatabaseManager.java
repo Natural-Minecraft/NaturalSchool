@@ -125,8 +125,18 @@ public class DatabaseManager {
     public void close() {
         if (dataSource != null && !dataSource.isClosed()) {
             dataSource.close();
+            dataSource = null;
             plugin.getLogger().info("MySQL Hikari Pool closed.");
         }
+    }
+
+    /**
+     * Safely reloads database connections and connection pools.
+     */
+    public synchronized void reload() {
+        plugin.getLogger().info("Reloading Database Manager...");
+        close();
+        initialize();
     }
 
     private void createTable() {

@@ -4,6 +4,7 @@ import id.naturalsmp.naturalSchool.database.DatabaseManager;
 import id.naturalsmp.naturalSchool.listener.PlayerListener;
 import id.naturalsmp.naturalSchool.profile.ProfileManager;
 import id.naturalsmp.naturalSchool.profile.StudentProfile;
+import id.naturalsmp.naturalSchool.command.NaturalSchoolCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class NaturalSchool extends JavaPlugin {
@@ -25,6 +26,14 @@ public final class NaturalSchool extends JavaPlugin {
 
         // Register Listeners
         getServer().getPluginManager().registerEvents(new PlayerListener(this, profileManager), this);
+
+        // Register Commands
+        NaturalSchoolCommand mainCommand = new NaturalSchoolCommand(this);
+        org.bukkit.command.PluginCommand cmd = getCommand("naturalschool");
+        if (cmd != null) {
+            cmd.setExecutor(mainCommand);
+            cmd.setTabCompleter(mainCommand);
+        }
 
         getLogger().info("NaturalSchool has been enabled successfully.");
     }
