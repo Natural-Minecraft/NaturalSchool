@@ -1,0 +1,32 @@
+# ==========================================
+# NaturalSchool Configuration File
+# ==========================================
+
+# Database Configuration Settings
+database:
+  # The storage type to use: SQLITE or MYSQL
+  storage-type: "SQLITE"
+  
+  # MySQL server details (Only used if storage-type is MYSQL)
+  host: "localhost"
+  port: 3306
+  database: "naturalschool"
+  username: "root"
+  password: "password"
+  
+  # Connection pool configuration tweaks (Only used if storage-type is MYSQL)
+  pool-settings:
+    maximum-pool-size: 10
+    connection-timeout: 30000 # in milliseconds (30 seconds)
+
+# Academic Configuration Settings
+academic-settings:
+  general-settings:
+    # Set to true to print debugging information into the console
+    enable-debug-logs: false
+    
+  # The default class a new player joins (e.g. 1)
+  default-start-class: 1
+  
+  # The default stage a new player starts at (e.g. SD, SMP, etc.)
+  default-start-stage: "SD"
