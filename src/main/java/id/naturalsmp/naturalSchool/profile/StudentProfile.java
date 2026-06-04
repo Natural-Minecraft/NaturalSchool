@@ -12,8 +12,9 @@ public class StudentProfile {
     private boolean practicalPassed;
     private int temporaryGrade;
     private Timestamp lastUpdated;
+    private SchoolRank rank;
 
-    public StudentProfile(UUID uuid, String nis, String academicStage, int academicClass, boolean practicalPassed, int temporaryGrade, Timestamp lastUpdated) {
+    public StudentProfile(UUID uuid, String nis, String academicStage, int academicClass, boolean practicalPassed, int temporaryGrade, Timestamp lastUpdated, SchoolRank rank) {
         this.uuid = uuid;
         this.nis = nis;
         this.academicStage = academicStage;
@@ -21,6 +22,7 @@ public class StudentProfile {
         this.practicalPassed = practicalPassed;
         this.temporaryGrade = temporaryGrade;
         this.lastUpdated = lastUpdated;
+        this.rank = rank;
     }
 
     public UUID getUuid() {
@@ -73,5 +75,27 @@ public class StudentProfile {
 
     public void setLastUpdated(Timestamp lastUpdated) {
         this.lastUpdated = lastUpdated;
+    }
+
+    public SchoolRank getRank() {
+        return rank;
+    }
+
+    public void setRank(SchoolRank rank) {
+        this.rank = rank;
+    }
+
+    public boolean isStaff() {
+        return rank != null && (rank.getType() == SchoolRank.RankType.STAFF || rank.getType() == SchoolRank.RankType.HELPER);
+    }
+
+    public boolean isManagement() {
+        return rank != null && rank.getType() == SchoolRank.RankType.MANAGEMENT;
+    }
+
+    public boolean hasHigherOrEqualRank(SchoolRank other) {
+        if (this.rank == null) return false;
+        if (other == null) return true;
+        return this.rank.getPriority() >= other.getPriority();
     }
 }

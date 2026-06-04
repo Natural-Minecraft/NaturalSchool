@@ -1,6 +1,7 @@
 package id.naturalsmp.naturalSchool.command;
 
 import id.naturalsmp.naturalSchool.NaturalSchool;
+import id.naturalsmp.naturalSchool.profile.SchoolRank;
 import id.naturalsmp.naturalSchool.profile.StudentProfile;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
@@ -28,9 +29,24 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
         this.plugin = plugin;
     }
 
+    private boolean checkPermission(CommandSender sender) {
+        if (sender.hasPermission("naturalschool.admin")) {
+            return true;
+        }
+        if (sender instanceof Player) {
+            Player player = (Player) sender;
+            StudentProfile profile = plugin.getProfileManager().getProfile(player.getUniqueId());
+            if (profile != null) {
+                SchoolRank rank = profile.getRank();
+                return rank == SchoolRank.KETUA_YAYASAN || rank == SchoolRank.WAKIL_KETUA_YAYASAN;
+            }
+        }
+        return false;
+    }
+
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        if (!sender.hasPermission("naturalschool.admin")) {
+        if (!checkPermission(sender)) {
             sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>No Permission!</red>"));
             return true;
         }
@@ -47,6 +63,9 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
                 break;
             case "info":
                 handleInfo(sender, args);
+                break;
+            case "setrank":
+                handleSetRank(sender, args);
                 break;
             case "setclass":
                 handleSetClass(sender, args);
@@ -70,6 +89,7 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
             "<gold>=== NaturalSchool Administrative Commands ===</gold>\n" +
             "<yellow>/naturalschool reload</yellow> - <gray>Reload configuration and database connections.</gray>\n" +
             "<yellow>/naturalschool info <player></yellow> - <gray>View player academic profile details.</gray>\n" +
+            "<yellow>/naturalschool setrank <player> <rank></yellow> - <gray>Set player internal school rank.</gray>\n" +
             "<yellow>/naturalschool setclass <player> <1-12></yellow> - <gray>Set student academic class.</gray>\n" +
             "<yellow>/naturalschool setstage <player> <SD|SMP|SMA></yellow> - <gray>Set student academic stage.</gray>\n" +
             "<yellow>/naturalschool setpractical <player> <true|false></yellow> - <gray>Set practical exam status.</gray>"
@@ -122,12 +142,59 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(MiniMessage.miniMessage().deserialize(
             "<gold>=== Student Profile: " + targetName + " (" + status + ") ===</gold>\n" +
             "<yellow>NIS:</yellow> <white>" + (profile.getNis() != null ? profile.getNis() : "Not Assigned") + "</white>\n" +
+            "<yellow>School Rank:</yellow> " + profile.getRank().getDisplayName() + " <gray>(" + profile.getRank().name() + ")</gray>\n" +
             "<yellow>Academic Stage:</yellow> <white>" + profile.getAcademicStage() + "</white>\n" +
             "<yellow>Academic Class:</yellow> <white>" + profile.getAcademicClass() + "</white>\n" +
             "<yellow>Practical Status:</yellow> " + (profile.isPracticalPassed() ? "<green>Passed</green>" : "<red>Failed/Pending</red>") + "\n" +
             "<yellow>Temporary Grade:</yellow> <white>" + profile.getTemporaryGrade() + "</white>\n" +
             "<yellow>Last Updated:</yellow> <gray>" + profile.getLastUpdated() + "</gray>"
         ));
+    }
+
+    private void handleSetRank(CommandSender sender, String[] args) {
+        if (args.length < 3) {
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Usage: /naturalschool setrank <player> <RANK_ID></red>"));
+            return;
+        }
+
+        String targetName = args[1];
+        String rawRank = args[2].toUpperCase();
+        SchoolRank newRank;
+        try {
+            newRank = SchoolRank.valueOf(rawRank);
+        } catch (IllegalArgumentException e) {
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Invalid rank ID. Use tab completion to see valid ranks.</red>"));
+            return;
+        }
+
+        Player targetPlayer = Bukkit.getPlayerExact(targetName);
+        if (targetPlayer != null) {
+            // Online player: Update cache, and save to DB asynchronously
+            StudentProfile profile = plugin.getProfileManager().getProfile(targetPlayer.getUniqueId());
+            if (profile != null) {
+                profile.setRank(newRank);
+                Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> plugin.getProfileManager().saveProfile(profile));
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>Set rank to </green>" + newRank.getDisplayName() + "<green> for " + targetPlayer.getName() + ".</green>"));
+            } else {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Profile cache not loaded for " + targetPlayer.getName() + ".</red>"));
+            }
+        } else {
+            // Offline player: Load from DB, modify, and save back asynchronously
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<yellow>Player is offline. Updating rank in database...</yellow>"));
+            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+                OfflinePlayer offlineTarget = Bukkit.getOfflinePlayer(targetName);
+                UUID uuid = offlineTarget.getUniqueId();
+                StudentProfile profile = plugin.getDatabaseManager().loadProfile(uuid);
+
+                if (profile != null) {
+                    profile.setRank(newRank);
+                    plugin.getDatabaseManager().saveProfile(profile);
+                    sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>Set rank to </green>" + newRank.getDisplayName() + "<green> for offline player " + (offlineTarget.getName() != null ? offlineTarget.getName() : targetName) + ".</green>"));
+                } else {
+                    sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Player profile not found in database.</red>"));
+                }
+            });
+        }
     }
 
     private void handleSetClass(CommandSender sender, String[] args) {
@@ -268,18 +335,18 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        if (!sender.hasPermission("naturalschool.admin")) {
+        if (!checkPermission(sender)) {
             return Collections.emptyList();
         }
 
         if (args.length == 1) {
-            List<String> subCommands = Arrays.asList("reload", "info", "setclass", "setstage", "setpractical");
+            List<String> subCommands = Arrays.asList("reload", "info", "setrank", "setclass", "setstage", "setpractical");
             return filterList(subCommands, args[0]);
         }
 
         if (args.length == 2) {
             String subCommand = args[0].toLowerCase();
-            if (Arrays.asList("info", "setclass", "setstage", "setpractical").contains(subCommand)) {
+            if (Arrays.asList("info", "setrank", "setclass", "setstage", "setpractical").contains(subCommand)) {
                 List<String> players = Bukkit.getOnlinePlayers().stream()
                         .map(Player::getName)
                         .collect(Collectors.toList());
@@ -289,7 +356,12 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
 
         if (args.length == 3) {
             String subCommand = args[0].toLowerCase();
-            if ("setclass".equals(subCommand)) {
+            if ("setrank".equals(subCommand)) {
+                List<String> ranks = Arrays.stream(SchoolRank.values())
+                        .map(SchoolRank::name)
+                        .collect(Collectors.toList());
+                return filterList(ranks, args[2]);
+            } else if ("setclass".equals(subCommand)) {
                 List<String> classes = new ArrayList<>();
                 for (int i = 1; i <= 12; i++) {
                     classes.add(String.valueOf(i));

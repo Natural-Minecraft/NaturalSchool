@@ -47,7 +47,7 @@ public class ProfileManager {
             String startStage = plugin.getConfig().getString("academic-settings.default-start-stage", "SD");
             Timestamp now = new Timestamp(System.currentTimeMillis());
 
-            profile = new StudentProfile(uuid, null, startStage, startClass, false, 0, now);
+            profile = new StudentProfile(uuid, null, startStage, startClass, false, 0, now, SchoolRank.NONE);
             databaseManager.saveProfile(profile);
         }
         
