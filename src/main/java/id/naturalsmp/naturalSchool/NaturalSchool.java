@@ -1,5 +1,8 @@
 package id.naturalsmp.naturalSchool;
 
+import id.naturalsmp.naturalSchool.api.NaturalSchoolAPI;
+import id.naturalsmp.naturalSchool.api.NaturalSchoolAPIImpl;
+import id.naturalsmp.naturalSchool.api.NaturalSchoolProvider;
 import id.naturalsmp.naturalSchool.database.DatabaseManager;
 import id.naturalsmp.naturalSchool.database.RankPrefixConfig;
 import id.naturalsmp.naturalSchool.listener.PlayerListener;
@@ -7,6 +10,7 @@ import id.naturalsmp.naturalSchool.profile.ProfileManager;
 import id.naturalsmp.naturalSchool.profile.StudentProfile;
 import id.naturalsmp.naturalSchool.command.NaturalSchoolCommand;
 import id.naturalsmp.naturalSchool.placeholder.NaturalSchoolExpansion;
+import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class NaturalSchool extends JavaPlugin {
@@ -14,11 +18,18 @@ public final class NaturalSchool extends JavaPlugin {
     private DatabaseManager databaseManager;
     private ProfileManager profileManager;
     private RankPrefixConfig rankPrefixConfig;
+    private NaturalSchoolAPI api;
 
     @Override
     public void onEnable() {
         // Load default config configuration
         saveDefaultConfig();
+
+        // Initialize & Register Developer API
+        NaturalSchoolAPIImpl apiImpl = new NaturalSchoolAPIImpl(this);
+        this.api = apiImpl;
+        getServer().getServicesManager().register(NaturalSchoolAPI.class, apiImpl, this, ServicePriority.Normal);
+        NaturalSchoolProvider.register(apiImpl);
 
         // Initialize Rank Prefix Configuration
         rankPrefixConfig = new RankPrefixConfig(this);
@@ -53,6 +64,9 @@ public final class NaturalSchool extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        // Unregister Developer API Provider
+        NaturalSchoolProvider.unregister();
+
         // Flush all cached profiles to database synchronously on shutdown
         if (profileManager != null && databaseManager != null) {
             getLogger().info("Flushing student profiles cache to the database...");
@@ -79,5 +93,9 @@ public final class NaturalSchool extends JavaPlugin {
 
     public RankPrefixConfig getRankPrefixConfig() {
         return rankPrefixConfig;
+    }
+
+    public NaturalSchoolAPI getNaturalSchoolAPI() {
+        return api;
     }
 }
