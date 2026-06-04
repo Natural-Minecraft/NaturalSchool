@@ -40,7 +40,7 @@ academic-settings:
 
 ## Compilation & Installation
 
-1. **Requirements**: Java 17+ and Apache Maven installed.
+1. **Requirements**: Java 21+ and Apache Maven installed (since Paper 1.21.1 requires Java 21).
 2. **Build package**:
    ```bash
    mvn clean package
