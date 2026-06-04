@@ -1,0 +1,84 @@
+# Configuration file for rank prefixes and name colors in NaturalSchool.
+# Supporting MiniMessage gradients/RGB colors and ItemsAdder font images/icons.
+# Example:
+# ranks:
+#   KETUA_YAYASAN:
+#     prefix: ":ia_owner_icon: <gradient:#ff0000:#ff7777><bold>[Ketua Yayasan]</bold></gradient> "
+#     name-color: "<white>"
+
+ranks:
+  KETUA_YAYASAN:
+    prefix: ":ia_owner_icon: <gradient:#ff0000:#ff7777><bold>[Ketua Yayasan]</bold></gradient> "
+    name-color: "<white>"
+  WAKIL_KETUA_YAYASAN:
+    prefix: "<red>[Dewan Pembina]</red> "
+    name-color: "<white>"
+  KEMENTERIAN_PENDIDIKAN_IT:
+    prefix: "<gold>[Kemendikbud & IT]</gold> "
+    name-color: "<white>"
+  PENGAWAS_SEKOLAH:
+    prefix: "<yellow>[Pengawas Sekolah]</yellow> "
+    name-color: "<white>"
+  KEPALA_SEKOLAH:
+    prefix: "<dark_green><bold>[Kepala Sekolah]</bold></dark_green> "
+    name-color: "<white>"
+  WAKEPSEK_KURIKULUM:
+    prefix: "<green>[Wakepsek Kurikulum]</green> "
+    name-color: "<white>"
+  WAKEPSEK_SARPRAS:
+    prefix: "<green>[Wakepsek Sarpras]</green> "
+    name-color: "<white>"
+  KOMISI_DISIPLIN:
+    prefix: "<dark_red>[Komisi Disiplin]</dark_red> "
+    name-color: "<white>"
+  KEPALA_TU:
+    prefix: "<blue>[Kepala TU]</blue> "
+    name-color: "<white>"
+  GURU_TETAP:
+    prefix: ":ia_teacher_badge: <gradient:blue:aqua>[Wali Kelas]</gradient> "
+    name-color: "<gray>"
+  GURU_BK:
+    prefix: "<aqua>[Guru BK]</aqua> "
+    name-color: "<white>"
+  GURU_HONORER:
+    prefix: "<gray>[Guru Honorer]</gray> "
+    name-color: "<white>"
+  SMA_12:
+    prefix: "<dark_purple>[Siswa XII SMA]</dark_purple> "
+    name-color: "<white>"
+  SMA_11:
+    prefix: "<dark_purple>[Siswa XI SMA]</dark_purple> "
+    name-color: "<white>"
+  SMA_10:
+    prefix: "<dark_purple>[Siswa X SMA]</dark_purple> "
+    name-color: "<white>"
+  SMP_9:
+    prefix: "<blue>[Siswa IX SMP]</blue> "
+    name-color: "<white>"
+  SMP_8:
+    prefix: "<blue>[Siswa VIII SMP]</blue> "
+    name-color: "<white>"
+  SMP_7:
+    prefix: "<blue>[Siswa VII SMP]</blue> "
+    name-color: "<white>"
+  SD_6:
+    prefix: "<green>[Siswa VI SD]</green> "
+    name-color: "<white>"
+  SD_5:
+    prefix: "<green>[Siswa V SD]</green> "
+    name-color: "<white>"
+  SD_4:
+    prefix: "<green>[Siswa IV SD]</green> "
+    name-color: "<white>"
+  SD_3:
+    prefix: "<green>[Siswa III SD]</green> "
+    name-color: "<white>"
+  SD_2:
+    prefix: "<green>[Siswa II SD]</green> "
+    name-color: "<white>"
+  SD_1:
+    prefix: "<green>[Siswa I SD]</green> "
+    name-color: "<white>"
+  NONE:
+    prefix: "<gray>[Belum Terdaftar]</gray> "
+    name-color: "<gray>"

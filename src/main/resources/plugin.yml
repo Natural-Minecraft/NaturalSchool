@@ -5,6 +5,7 @@ api-version: '1.21'
 load: STARTUP
 authors: [ NaturalTechnologies ]
 website: https://naturalsmp.net
+softdepend: [PlaceholderAPI, ItemsAdder]
 
 commands:
   naturalschool:

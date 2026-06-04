@@ -1,6 +1,7 @@
 package id.naturalsmp.naturalSchool;
 
 import id.naturalsmp.naturalSchool.database.DatabaseManager;
+import id.naturalsmp.naturalSchool.database.RankPrefixConfig;
 import id.naturalsmp.naturalSchool.listener.PlayerListener;
 import id.naturalsmp.naturalSchool.profile.ProfileManager;
 import id.naturalsmp.naturalSchool.profile.StudentProfile;
@@ -12,11 +13,16 @@ public final class NaturalSchool extends JavaPlugin {
 
     private DatabaseManager databaseManager;
     private ProfileManager profileManager;
+    private RankPrefixConfig rankPrefixConfig;
 
     @Override
     public void onEnable() {
         // Load default config configuration
         saveDefaultConfig();
+
+        // Initialize Rank Prefix Configuration
+        rankPrefixConfig = new RankPrefixConfig(this);
+        rankPrefixConfig.load();
 
         // Initialize Database Infrastructure
         databaseManager = new DatabaseManager(this);
@@ -69,5 +75,9 @@ public final class NaturalSchool extends JavaPlugin {
 
     public ProfileManager getProfileManager() {
         return profileManager;
+    }
+
+    public RankPrefixConfig getRankPrefixConfig() {
+        return rankPrefixConfig;
     }
 }

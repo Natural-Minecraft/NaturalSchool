@@ -57,9 +57,7 @@ public class NaturalSchoolExpansion extends PlaceholderExpansion {
             case "rank":
                 SchoolRank rank = profile.getRank();
                 if (rank == null) return "";
-                // Parse Adventure MiniMessage to Kyori Component and serialize to legacy Section formatting (§) for PAPI compatibility
-                net.kyori.adventure.text.Component comp = MiniMessage.miniMessage().deserialize(rank.getDisplayName());
-                return LegacyComponentSerializer.legacySection().serialize(comp);
+                return plugin.getRankPrefixConfig().getFormattedPrefix(rank);
 
             case "class":
                 return String.valueOf(profile.getAcademicClass());

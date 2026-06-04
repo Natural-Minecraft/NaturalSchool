@@ -99,6 +99,7 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
     private void handleReload(CommandSender sender) {
         sender.sendMessage(MiniMessage.miniMessage().deserialize("<yellow>Reloading configuration...</yellow>"));
         plugin.reloadConfig();
+        plugin.getRankPrefixConfig().load();
         plugin.getDatabaseManager().reload();
         sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>NaturalSchool configuration and database pool reloaded successfully.</green>"));
     }
