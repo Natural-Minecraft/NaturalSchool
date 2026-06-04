@@ -38,17 +38,28 @@ academic-settings:
   default-start-stage: "SD"
 ```
 
+## School Ranks
+
+The plugin implements an independent internal rank system (`SchoolRank`), stored directly in the database (`rank` column) and managed through profiles.
+
+* **Server Management**: `KETUA_YAYASAN` (Ketua Yayasan), `WAKIL_KETUA_YAYASAN` (Dewan Pembina), `KEMENTERIAN_PENDIDIKAN_IT` (Kemendikbud & IT), `PENGAWAS_SEKOLAH` (Pengawas Sekolah)
+* **Staff Admin**: `KEPALA_SEKOLAH` (Kepala Sekolah), `WAKEPSEK_KURIKULUM` (Wakepsek Kurikulum), `WAKEPSEK_SARPRAS` (Wakepsek Sarpras), `KOMISI_DISIPLIN` (Komisi Disiplin)
+* **Staff Helper**: `KEPALA_TU` (Kepala TU), `GURU_TETAP` (Wali Kelas), `GURU_BK` (Guru BK), `GURU_HONORER` (Guru Honorer)
+* **Student Academic**: `SMA_12` to `SMA_10` (Siswa X-XII SMA), `SMP_9` to `SMP_7` (Siswa VII-IX SMP), `SD_6` to `SD_1` (Siswa I-VI SD)
+* **Default**: `NONE` (Belum Terdaftar)
+
 ## Administrative Commands
 
 The plugin provides a central command `/naturalschool` (aliases: `/nschool`, `/ns`) to manage student academic profiles.
 
-* **Permission**: `naturalschool.admin` (Default: OP)
+* **Permission**: Requires `naturalschool.admin` OR a cached rank of `KETUA_YAYASAN` or `WAKIL_KETUA_YAYASAN`.
 * **Text Formatting**: Messages utilize Paper's modern Adventure API (`MiniMessage`) for formatting.
 
 | Command | Description |
 | :--- | :--- |
 | `/naturalschool reload` | Reloads `config.yml` from disk and safely refreshes database connections. |
-| `/naturalschool info <player>` | Displays the full academic profile of a player (Online: cached, Offline: queried asynchronously from DB). |
+| `/naturalschool info <player>` | Displays the full academic profile (including Rank) of a player (Online: cached, Offline: queried asynchronously from DB). |
+| `/naturalschool setrank <player> <rank>` | Updates the player's school rank (saves to DB asynchronously). |
 | `/naturalschool setclass <player> <1-12>` | Updates the player's academic class (saves to DB asynchronously). |
 | `/naturalschool setstage <player> <SD\|SMP\|SMA>` | Updates the player's academic stage (saves to DB asynchronously). |
 | `/naturalschool setpractical <player> <true\|false>` | Toggles the player's practical exam completion status. |
