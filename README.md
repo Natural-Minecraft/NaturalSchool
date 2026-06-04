@@ -66,6 +66,20 @@ The plugin provides a central command `/naturalschool` (aliases: `/nschool`, `/n
 
 Smart tab completion is fully implemented, suggesting options dynamically based on the argument position.
 
+## PlaceholderAPI Integration
+
+The plugin integrates with PlaceholderAPI to expose student academic details. 
+
+* **Identifier**: `naturalschool` (Syntax: `%naturalschool_<placeholder>%`)
+* **Anti-Lag Guard**: All placeholder requests are resolved strictly from the memory cache. Direct database queries are never made inside request processes.
+
+| Placeholder | Description | Output Example |
+| :--- | :--- | :--- |
+| `%naturalschool_rank%` | Returns the formatted legacy rank string from the hierarchy | `§c§lKetua Yayasan` |
+| `%naturalschool_class%` | Returns the player's academic class number (1-12) | `10` |
+| `%naturalschool_stage%` | Returns the player's academic stage | `SMA` |
+| `%naturalschool_nis%` | Returns the student's registration number (or `-` if none) | `2026-0004` |
+
 ## Compilation & Installation
 
 1. **Requirements**: Java 21+ and Apache Maven installed (since Paper 1.21.1 requires Java 21).
