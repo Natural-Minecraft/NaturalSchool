@@ -39,7 +39,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.info.outputs.artifact_version }}
-          name: NaturalCore v${{ steps.info.outputs.artifact_version }}
+          name: NaturalSchool v${{ steps.info.outputs.artifact_version }}
           body: |
             Automated Production Build from NaturalSMP CI/CD.
             Last Build Time: ${{ github.event.head_commit.timestamp }}
