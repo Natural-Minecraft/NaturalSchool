@@ -2,6 +2,17 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.5.1] - 2026-06-06
+### Changed
+- **GUI Code Refactor**: Split the monolithic `JavaDialogFactory` and `BedrockFormFactory` classes. Reorganized the GUI codebase into 5 self-contained, feature-oriented GUI classes containing both Java Dialogs and Bedrock Cumulus Forms in `id.naturalsmp.naturalSchool.ui.gui`:
+  - `RegistrationGui` (Onboarding/registration step flows)
+  - `ProfileGui` (Student profile UI)
+  - `StaffPanelGui` (Admin staff panel UI)
+  - `ExamVariantsGui` (Experimental creative exam variant layouts)
+  - `ExamGui` (Main /school exam portal, closed notification, sequential questions, and confirmation flows)
+- **Routing Update**: Updated `UIManager` and `BedrockHandlerImpl` to instantiate and delegate UI rendering to these new individual GUI classes.
+- **Cleanup**: Deleted legacy factory classes to keep the codebase clean.
+
 ## [1.5.0] - 2026-06-06
 ### Changed
 - **Bedrock — Exam Choice Buttons**: Selected answer buttons now display with `§a` green color prefix instead of a text label ("(Terpilih)"/"DIPILIH"). Unselected buttons remain plain text with no color — applies to Soal 1 (A/B/C/D), Soal 2 (BENAR/SALAH), and Soal 3 checklist (1./2./3.).
