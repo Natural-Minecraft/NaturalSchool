@@ -9,6 +9,8 @@ import org.bukkit.entity.Player;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 
@@ -73,58 +75,75 @@ public class SemesterManager {
             nextYear = advanceAcademicYear(previousYear); // Programmatically advance month
         }
 
-        // Run asynchronously
+        // Update local variables immediately on the main thread
+        synchronized (this) {
+            this.currentSemester = nextSemester;
+            this.currentAcademicYear = nextYear;
+        }
+
+        // Force cache update for all online players immediately on the main thread (Approach A)
+        final List<String> onlinePlayerUuidsStr = new ArrayList<>();
+        for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
+            String uuidStr = onlinePlayer.getUniqueId().toString();
+            onlinePlayerUuidsStr.add(uuidStr);
+            StudentProfile profile = plugin.getProfileManager().getProfile(onlinePlayer.getUniqueId());
+            if (profile != null) {
+                profile.setCurrentSemester(nextSemester);
+                plugin.getLogger().info("Synchronized online player cache for " + onlinePlayer.getName() + " to " + nextSemester + " during semester rotation.");
+            }
+        }
+
+        // Save config immediately on the main thread
+        plugin.getConfig().set("semester-settings.current-semester", nextSemester);
+        plugin.getConfig().set("semester-settings.current-academic-year", nextYear);
+        plugin.saveConfig();
+
+        // Run database queries asynchronously
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             int totalAffected = 0;
             try (Connection conn = plugin.getDatabaseManager().getConnection()) {
                 conn.setAutoCommit(false);
                 try {
-                    // Update all registered students who have an assigned NIS
-                    String updateSQL = "UPDATE nschool_students SET current_semester = ? WHERE nis IS NOT NULL;";
+                    // Update all registered students who have an assigned NIS, excluding online players to prevent race conditions (Approach A)
+                    StringBuilder queryBuilder = new StringBuilder("UPDATE nschool_students SET current_semester = ? WHERE nis IS NOT NULL");
+                    if (!onlinePlayerUuidsStr.isEmpty()) {
+                        queryBuilder.append(" AND uuid NOT IN (");
+                        for (int i = 0; i < onlinePlayerUuidsStr.size(); i++) {
+                            queryBuilder.append("?");
+                            if (i < onlinePlayerUuidsStr.size() - 1) {
+                                queryBuilder.append(",");
+                            }
+                        }
+                        queryBuilder.append(")");
+                    }
+                    String updateSQL = queryBuilder.toString();
+
                     try (PreparedStatement ps = conn.prepareStatement(updateSQL)) {
                         ps.setString(1, nextSemester);
+                        int paramIndex = 2;
+                        for (String uuidStr : onlinePlayerUuidsStr) {
+                            ps.setString(paramIndex++, uuidStr);
+                        }
                         totalAffected = ps.executeUpdate();
                     }
+
+                    // Total affected profiles includes both online players and database-updated players
+                    int totalStudentsAffected = totalAffected + onlinePlayerUuidsStr.size();
 
                     // Insert rotation log entry
                     String logSQL = "INSERT INTO nschool_semester_log (academic_year, semester, total_students_affected) VALUES (?, ?, ?);";
                     try (PreparedStatement ps = conn.prepareStatement(logSQL)) {
                         ps.setString(1, previousYear);
                         ps.setString(2, previousSemester);
-                        ps.setInt(3, totalAffected);
+                        ps.setInt(3, totalStudentsAffected);
                         ps.executeUpdate();
                     }
 
                     conn.commit();
-                } catch (SQLException e) {
-                    conn.rollback();
-                    throw e;
-                } finally {
-                    conn.setAutoCommit(true);
-                }
-
-                // Update configuration and runtime variables
-                synchronized (this) {
-                    this.currentSemester = nextSemester;
-                    this.currentAcademicYear = nextYear;
-                }
-
-                final int finalAffected = totalAffected;
-                // Run config save on the main thread safely
-                Bukkit.getScheduler().runTask(plugin, () -> {
-                    try {
-                        plugin.getConfig().set("semester-settings.current-semester", nextSemester);
-                        plugin.getConfig().set("semester-settings.current-academic-year", nextYear);
-                        plugin.saveConfig();
-
-                        // Force cache refresh for all online players
-                        for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
-                            StudentProfile profile = plugin.getProfileManager().getProfile(onlinePlayer.getUniqueId());
-                            if (profile != null) {
-                                profile.setCurrentSemester(nextSemester);
-                            }
-                        }
-
+                    
+                    final int finalAffected = totalStudentsAffected;
+                    // Run announcement safely back on the main thread
+                    Bukkit.getScheduler().runTask(plugin, () -> {
                         // Broadcast announcement message via MiniMessage detailing the transition
                         String broadcastMessage = "<gray>----------------------------------------</gray>\n" +
                                 "<gold><bold>PENGUMUMAN AKADEMIK</bold></gold>\n" +
@@ -136,10 +155,13 @@ public class SemesterManager {
                         Bukkit.broadcast(MiniMessage.miniMessage().deserialize(broadcastMessage));
 
                         future.complete(finalAffected);
-                    } catch (Throwable t) {
-                        future.completeExceptionally(t);
-                    }
-                });
+                    });
+                } catch (SQLException e) {
+                    conn.rollback();
+                    throw e;
+                } finally {
+                    conn.setAutoCommit(true);
+                }
             } catch (Exception e) {
                 plugin.getLogger().log(Level.SEVERE, "Error during semester rotation transaction!", e);
                 future.completeExceptionally(e);
@@ -163,58 +185,75 @@ public class SemesterManager {
         final String nextSemester = (day <= 14) ? "GANJIL" : "GENAP";
         final String nextYear = getIndonesianMonthYear();
 
+        // Update local variables immediately on the main thread
+        synchronized (this) {
+            this.currentSemester = nextSemester;
+            this.currentAcademicYear = nextYear;
+        }
+
+        // Force cache update for all online players immediately on the main thread (Approach A)
+        final List<String> onlinePlayerUuidsStr = new ArrayList<>();
+        for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
+            String uuidStr = onlinePlayer.getUniqueId().toString();
+            onlinePlayerUuidsStr.add(uuidStr);
+            StudentProfile profile = plugin.getProfileManager().getProfile(onlinePlayer.getUniqueId());
+            if (profile != null) {
+                profile.setCurrentSemester(nextSemester);
+                plugin.getLogger().info("Synchronized online player cache for " + onlinePlayer.getName() + " to " + nextSemester + " during semester reset.");
+            }
+        }
+
+        // Save config immediately on the main thread
+        plugin.getConfig().set("semester-settings.current-semester", nextSemester);
+        plugin.getConfig().set("semester-settings.current-academic-year", nextYear);
+        plugin.saveConfig();
+
         // Run asynchronously
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             int totalAffected = 0;
             try (Connection conn = plugin.getDatabaseManager().getConnection()) {
                 conn.setAutoCommit(false);
                 try {
-                    // Update all registered students who have an assigned NIS
-                    String updateSQL = "UPDATE nschool_students SET current_semester = ? WHERE nis IS NOT NULL;";
+                    // Update all registered students who have an assigned NIS, excluding online players to prevent race conditions (Approach A)
+                    StringBuilder queryBuilder = new StringBuilder("UPDATE nschool_students SET current_semester = ? WHERE nis IS NOT NULL");
+                    if (!onlinePlayerUuidsStr.isEmpty()) {
+                        queryBuilder.append(" AND uuid NOT IN (");
+                        for (int i = 0; i < onlinePlayerUuidsStr.size(); i++) {
+                            queryBuilder.append("?");
+                            if (i < onlinePlayerUuidsStr.size() - 1) {
+                                queryBuilder.append(",");
+                            }
+                        }
+                        queryBuilder.append(")");
+                    }
+                    String updateSQL = queryBuilder.toString();
+
                     try (PreparedStatement ps = conn.prepareStatement(updateSQL)) {
                         ps.setString(1, nextSemester);
+                        int paramIndex = 2;
+                        for (String uuidStr : onlinePlayerUuidsStr) {
+                            ps.setString(paramIndex++, uuidStr);
+                        }
                         totalAffected = ps.executeUpdate();
                     }
+
+                    // Total affected profiles includes both online players and database-updated players
+                    int totalStudentsAffected = totalAffected + onlinePlayerUuidsStr.size();
 
                     // Insert rotation log entry for RESET
                     String logSQL = "INSERT INTO nschool_semester_log (academic_year, semester, total_students_affected) VALUES (?, ?, ?);";
                     try (PreparedStatement ps = conn.prepareStatement(logSQL)) {
                         ps.setString(1, nextYear + " (RESET)");
                         ps.setString(2, nextSemester);
-                        ps.setInt(3, totalAffected);
+                        ps.setInt(3, totalStudentsAffected);
                         ps.executeUpdate();
                     }
 
                     conn.commit();
-                } catch (SQLException e) {
-                    conn.rollback();
-                    throw e;
-                } finally {
-                    conn.setAutoCommit(true);
-                }
 
-                // Update configuration and runtime variables
-                synchronized (this) {
-                    this.currentSemester = nextSemester;
-                    this.currentAcademicYear = nextYear;
-                }
-
-                final int finalAffected = totalAffected;
-                // Run config save on the main thread safely
-                Bukkit.getScheduler().runTask(plugin, () -> {
-                    try {
-                        plugin.getConfig().set("semester-settings.current-semester", nextSemester);
-                        plugin.getConfig().set("semester-settings.current-academic-year", nextYear);
-                        plugin.saveConfig();
-
-                        // Force cache refresh for all online players
-                        for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
-                            StudentProfile profile = plugin.getProfileManager().getProfile(onlinePlayer.getUniqueId());
-                            if (profile != null) {
-                                profile.setCurrentSemester(nextSemester);
-                            }
-                        }
-
+                    final int finalAffected = totalStudentsAffected;
+                    // Run announcement safely back on the main thread
+                    Bukkit.getScheduler().runTask(plugin, () -> {
                         // Broadcast announcement message via MiniMessage detailing the transition
                         String broadcastMessage = "<gray>----------------------------------------</gray>\n" +
                                 "<gold><bold>PENGUMUMAN AKADEMIK (RESET)</bold></gold>\n" +
@@ -226,10 +265,13 @@ public class SemesterManager {
                         Bukkit.broadcast(MiniMessage.miniMessage().deserialize(broadcastMessage));
 
                         future.complete(finalAffected);
-                    } catch (Throwable t) {
-                        future.completeExceptionally(t);
-                    }
-                });
+                    });
+                } catch (SQLException e) {
+                    conn.rollback();
+                    throw e;
+                } finally {
+                    conn.setAutoCommit(true);
+                }
             } catch (Exception e) {
                 plugin.getLogger().log(Level.SEVERE, "Error during semester reset transaction!", e);
                 future.completeExceptionally(e);

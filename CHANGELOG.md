@@ -2,6 +2,11 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.4.2] - 2026-06-05
+### Fixed
+- Fixed race condition during global batch updates by updating online player caches first on the primary server thread and excluding their UUIDs from the async database update query.
+- Added self-healing logic during profile loads to align out-of-sync student profile semesters with the global active semester.
+
 ## [1.4.1] - 2026-06-05
 ### Added
 - Added `/ns semester reset` command to reset the active semester back to align with the real-life system clock calendar.

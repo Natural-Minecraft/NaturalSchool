@@ -60,11 +60,18 @@ public class ProfileManager {
 
         try {
             StudentProfile profile = databaseManager.loadProfile(uuid);
+            String activeSemester = plugin.getSemesterManager().getCurrentSemester();
             if (profile == null) {
                 Timestamp now = new Timestamp(System.currentTimeMillis());
                 // username is safely passed in from the main thread — no Bukkit.getPlayer() call here
-                profile = new StudentProfile(uuid, username, null, "NONE", 0, "GANJIL", now, SchoolRank.NONE);
+                profile = new StudentProfile(uuid, username, null, "NONE", 0, activeSemester, now, SchoolRank.NONE);
                 databaseManager.saveProfile(profile);
+            } else {
+                if (!activeSemester.equalsIgnoreCase(profile.getCurrentSemester())) {
+                    profile.setCurrentSemester(activeSemester);
+                    databaseManager.saveProfile(profile);
+                    plugin.getLogger().info("Synchronized out-of-sync semester for player " + username + " (" + uuid + ") to " + activeSemester);
+                }
             }
             profileCache.put(uuid, profile);
         } catch (SQLException e) {
