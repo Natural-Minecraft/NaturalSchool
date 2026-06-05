@@ -2,6 +2,10 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.3.2] - 2026-06-05
+### Changed
+- Converted Bedrock onboarding Step 1 and Step 2 screens from `SimpleForm` to `CustomForm` utilizing a toggle switch for the cinematic cutscene offer.
+
 ## [1.3.1] - 2026-06-05
 ### Added
 - Implemented the complete **3-Step Onboarding UI Subsystem** for first-time/unregistered players.
