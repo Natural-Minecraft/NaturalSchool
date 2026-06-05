@@ -7,7 +7,11 @@ import io.papermc.paper.dialog.Dialog;
 import io.papermc.paper.registry.data.dialog.DialogBase;
 import io.papermc.paper.registry.data.dialog.body.DialogBody;
 import io.papermc.paper.registry.data.dialog.type.DialogType;
+import io.papermc.paper.registry.data.dialog.ActionButton;
+import io.papermc.paper.registry.data.dialog.action.DialogAction;
+import io.papermc.paper.registry.data.dialog.input.DialogInput;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickCallback;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.entity.Player;
 
@@ -33,46 +37,147 @@ public class JavaDialogFactory {
             return;
         }
 
-        Dialog dialog;
         switch (menuType) {
             case REGISTRATION:
-                dialog = createRegistrationDialog();
+                openStep1(player);
                 break;
             case PROFILE:
-                dialog = createProfileDialog(player);
+                player.showDialog(createProfileDialog(player));
                 break;
             case STAFF_PANEL:
-                dialog = createStaffPanelDialog();
+                player.showDialog(createStaffPanelDialog());
                 break;
             default:
                 throw new IllegalArgumentException("Unsupported menu type: " + menuType);
         }
-
-        player.showDialog(dialog);
     }
 
-    private Dialog createRegistrationDialog() {
+    /**
+     * STEP 1: Welcome & Info Dialog
+     */
+    public void openStep1(Player player) {
         List<String> rawLines = List.of(
-            "<green><bold>NaturalSchool Registration</bold></green>",
-            "<gray>Welcome to NaturalSchool registration page.</gray>",
-            "<gray>Please verify your status before proceeding.</gray>",
-            "<yellow>Note: You cannot close this window using ESC.</yellow>"
+            "<green><bold>NaturalSchool Onboarding</bold></green>",
+            "<gray>Welcome, " + player.getName() + "!</gray>",
+            "Username: " + player.getName(),
+            "NIS: Unregistered",
+            "Status: Belum Terdaftar"
         );
 
         List<String> alignedLines = DialogFormatter.alignLeft(rawLines);
         List<DialogBody> bodies = new ArrayList<>();
         for (String line : alignedLines) {
-            Component component = MiniMessage.miniMessage().deserialize(line);
-            bodies.add(DialogBody.plainMessage(component));
+            bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize(line)));
         }
 
-        return Dialog.create(builder -> builder.empty()
-            .base(DialogBase.builder(Component.text("Registration Form"))
+        ActionButton continueBtn = ActionButton.builder(Component.text("Continue"))
+            .action(DialogAction.customClick((view, audience) -> {
+                if (audience instanceof Player p) {
+                    plugin.getUiManager().openStep2(p);
+                }
+            }, ClickCallback.Options.builder().uses(1).build()))
+            .build();
+
+        Dialog dialog = Dialog.create(builder -> builder.empty()
+            .base(DialogBase.builder(Component.text("Welcome"))
                 .canCloseWithEscape(false)
                 .body(bodies)
                 .build())
-            .type(DialogType.notice())
+            .type(DialogType.notice(continueBtn))
         );
+
+        player.showDialog(dialog);
+    }
+
+    /**
+     * STEP 2: Cutscene Cinematic Offer Dialog
+     */
+    public void openStep2(Player player) {
+        List<DialogBody> bodies = List.of(
+            DialogBody.plainMessage(Component.text("Apakah anda ingin menonton cinematic perkenalan NaturalSchool?"))
+        );
+
+        ActionButton yesBtn = ActionButton.builder(Component.text("Tonton Sinematik"))
+            .action(DialogAction.customClick((view, audience) -> {
+                if (audience instanceof Player p) {
+                    p.sendMessage(MiniMessage.miniMessage().deserialize("<yellow>Fitur cutscene mendatang!</yellow>"));
+                    plugin.getUiManager().openStep3(p);
+                }
+            }, ClickCallback.Options.builder().uses(1).build()))
+            .build();
+
+        ActionButton noBtn = ActionButton.builder(Component.text("Lewati"))
+            .action(DialogAction.customClick((view, audience) -> {
+                if (audience instanceof Player p) {
+                    plugin.getUiManager().openStep3(p);
+                }
+            }, ClickCallback.Options.builder().uses(1).build()))
+            .build();
+
+        Dialog dialog = Dialog.create(builder -> builder.empty()
+            .base(DialogBase.builder(Component.text("Tonton Sinematik?"))
+                .canCloseWithEscape(false)
+                .body(bodies)
+                .build())
+            .type(DialogType.confirmation(yesBtn, noBtn))
+        );
+
+        player.showDialog(dialog);
+    }
+
+    /**
+     * STEP 3: Terms of Service & Rules Agreement Dialog
+     */
+    public void openStep3(Player player) {
+        List<DialogBody> bodies = List.of(
+            DialogBody.plainMessage(Component.text("Untuk mulai bermain, anda harus menyetujui ToS dan Rules kami.")),
+            DialogBody.plainMessage(MiniMessage.miniMessage().deserialize(
+                "Silakan baca aturan di: <click:open_url:'https://naturalsmp.net'><underlined><aqua>https://naturalsmp.net</aqua></underlined></click>"
+            ))
+        );
+
+        ActionButton agreeBtn = ActionButton.builder(Component.text("SAYA SETUJU & MASUK"))
+            .action(DialogAction.customClick((view, audience) -> {
+                if (audience instanceof Player p) {
+                    boolean acceptTos = view.getBoolean("accept_tos");
+                    boolean acceptRules = view.getBoolean("accept_rules");
+
+                    if (acceptTos && acceptRules) {
+                        plugin.getUiManager().completeRegistration(p);
+                    } else {
+                        p.sendActionBar(MiniMessage.miniMessage().deserialize(
+                            "<red>Anda harus mencentang KEDUA persetujuan untuk dapat bermain!</red>"
+                        ));
+                        // Re-open Step 3
+                        openStep3(p);
+                    }
+                }
+            }, ClickCallback.Options.builder().uses(1).build()))
+            .build();
+
+        ActionButton declineBtn = ActionButton.builder(Component.text("TOLAK"))
+            .action(DialogAction.customClick((view, audience) -> {
+                if (audience instanceof Player p) {
+                    p.kick(MiniMessage.miniMessage().deserialize(
+                        "<red>Anda harus menyetujui ToS dan Rules untuk bermain di server ini!</red>"
+                    ));
+                }
+            }, ClickCallback.Options.builder().uses(1).build()))
+            .build();
+
+        Dialog dialog = Dialog.create(builder -> builder.empty()
+            .base(DialogBase.builder(Component.text("ToS & Rules Agreement"))
+                .canCloseWithEscape(false)
+                .body(bodies)
+                .inputs(List.of(
+                    DialogInput.bool("accept_tos", Component.text("Saya Menyetujui Terms Of Service"), false, "Yes", "No"),
+                    DialogInput.bool("accept_rules", Component.text("Saya Menyetujui Rules Server"), false, "Yes", "No")
+                ))
+                .build())
+            .type(DialogType.confirmation(agreeBtn, declineBtn))
+        );
+
+        player.showDialog(dialog);
     }
 
     private Dialog createProfileDialog(Player player) {
@@ -86,8 +191,7 @@ public class JavaDialogFactory {
         List<String> alignedLines = DialogFormatter.alignLeft(rawLines);
         List<DialogBody> bodies = new ArrayList<>();
         for (String line : alignedLines) {
-            Component component = MiniMessage.miniMessage().deserialize(line);
-            bodies.add(DialogBody.plainMessage(component));
+            bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize(line)));
         }
 
         return Dialog.create(builder -> builder.empty()
@@ -110,8 +214,7 @@ public class JavaDialogFactory {
         List<String> alignedLines = DialogFormatter.alignLeft(rawLines);
         List<DialogBody> bodies = new ArrayList<>();
         for (String line : alignedLines) {
-            Component component = MiniMessage.miniMessage().deserialize(line);
-            bodies.add(DialogBody.plainMessage(component));
+            bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize(line)));
         }
 
         return Dialog.create(builder -> builder.empty()

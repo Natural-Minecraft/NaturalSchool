@@ -30,59 +30,120 @@ public class BedrockFormFactory {
             return;
         }
 
-        UUID uuid = player.getUniqueId();
         switch (menuType) {
             case REGISTRATION:
-                openRegistrationForm(player, uuid);
+                openStep1(player);
                 break;
             case PROFILE:
-                openProfileForm(player, uuid);
+                openProfileForm(player);
                 break;
             case STAFF_PANEL:
-                openStaffPanelForm(player, uuid);
+                openStaffPanelForm(player);
                 break;
             default:
                 throw new IllegalArgumentException("Unsupported menu type: " + menuType);
         }
     }
 
-    private void openRegistrationForm(Player player, UUID uuid) {
+    /**
+     * STEP 1: Welcome & Info SimpleForm
+     */
+    public void openStep1(Player player) {
         SimpleForm form = SimpleForm.builder()
-            .title("Registration Form")
-            .content("Welcome to NaturalSchool registration!\n\nPlease choose an action below:")
-            .button("Register Now")
-            .button("Exit")
+            .title("NaturalSchool Onboarding")
+            .content("Welcome, " + player.getName() + "!\n\n" +
+                "Username: " + player.getName() + "\n" +
+                "NIS: Unregistered\n" +
+                "Status: Belum Terdaftar\n\n" +
+                "Silakan klik Continue untuk melanjutkan.")
+            .button("Continue")
+            .validResultHandler(response -> {
+                plugin.getUiManager().openStep2(player);
+            })
+            .closedResultHandler(() -> {
+                // Prevent escape: reopen Step 1
+                openStep1(player);
+            })
+            .build();
+
+        FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
+    }
+
+    /**
+     * STEP 2: Cutscene cinematic offer SimpleForm
+     */
+    public void openStep2(Player player) {
+        SimpleForm form = SimpleForm.builder()
+            .title("Tonton Cinematic?")
+            .content("Apakah anda ingin menonton cinematic perkenalan NaturalSchool?")
+            .button("Tonton Sinematik")
+            .button("Lewati")
             .validResultHandler(response -> {
                 int clickedId = response.clickedButtonId();
                 if (clickedId == 0) {
-                    player.sendMessage("§aProcessing registration...");
+                    player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
+                        .deserialize("<yellow>Fitur cutscene mendatang!</yellow>"));
+                }
+                plugin.getUiManager().openStep3(player);
+            })
+            .closedResultHandler(() -> {
+                // Prevent escape: reopen Step 2
+                openStep2(player);
+            })
+            .build();
+
+        FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
+    }
+
+    /**
+     * STEP 3: ToS & Rules Agreement CustomForm
+     */
+    public void openStep3(Player player) {
+        CustomForm form = CustomForm.builder()
+            .title("ToS & Rules Agreement")
+            .label("Untuk mulai bermain, anda harus menyetujui ToS dan Rules kami.\nAturan di: https://naturalsmp.net")
+            .toggle("Saya Menyetujui Terms Of Service", false)
+            .toggle("Saya Menyetujui Rules Server", false)
+            .toggle("Tolak & Keluar dari Server", false)
+            .validResultHandler(response -> {
+                boolean acceptTos = response.asToggle(1);
+                boolean acceptRules = response.asToggle(2);
+                boolean decline = response.asToggle(3);
+
+                if (decline) {
+                    player.kick(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
+                        .deserialize("<red>Anda harus menyetujui ToS dan Rules untuk bermain di server ini!</red>"));
+                    return;
+                }
+
+                if (acceptTos && acceptRules) {
+                    plugin.getUiManager().completeRegistration(player);
                 } else {
-                    player.sendMessage("§cRegistration cancelled.");
+                    player.sendActionBar(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
+                        .deserialize("<red>Anda harus mencentang KEDUA persetujuan untuk dapat bermain!</red>"));
+                    openStep3(player);
                 }
             })
-            .closedResultHandler(() -> player.sendMessage("§cRegistration dialog dismissed."))
-            .build();
-
-        FloodgateApi.getInstance().sendForm(uuid, form);
-    }
-
-    private void openProfileForm(Player player, UUID uuid) {
-        CustomForm form = CustomForm.builder()
-            .title("Student Profile")
-            .label("Viewing details for: " + player.getName())
-            .input("Change Nickname", "Enter your preferred name...", player.getName())
-            .toggle("Receive Notifications", true)
-            .validResultHandler(response -> {
-                String newNickname = response.asInput(1);
-                boolean notify = response.asToggle(2);
-                player.sendMessage("§aProfile updated! Nickname: " + newNickname + " | Notifications: " + notify);
+            .closedResultHandler(() -> {
+                // Prevent escape: reopen Step 3
+                openStep3(player);
             })
             .build();
 
-        FloodgateApi.getInstance().sendForm(uuid, form);
+        FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
     }
 
-    private void openStaffPanelForm(Player player, UUID uuid) {
+    private void openProfileForm(Player player) {
+        SimpleForm form = SimpleForm.builder()
+            .title("Student Profile")
+            .content("Name: " + player.getName() + "\nUUID: " + player.getUniqueId())
+            .button("Close")
+            .build();
+
+        FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
+    }
+
+    private void openStaffPanelForm(Player player) {
         SimpleForm form = SimpleForm.builder()
             .title("Staff Control Panel")
             .content("Administrator management options:")
@@ -94,6 +155,6 @@ public class BedrockFormFactory {
             })
             .build();
 
-        FloodgateApi.getInstance().sendForm(uuid, form);
+        FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
     }
 }

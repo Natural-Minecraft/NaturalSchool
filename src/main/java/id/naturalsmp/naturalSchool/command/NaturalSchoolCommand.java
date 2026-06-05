@@ -81,6 +81,9 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
             case "nis":
                 handleNisCommand(sender, args);
                 break;
+            case "gui":
+                handleGuiCommand(sender, args);
+                break;
             default:
                 sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Unknown subcommand. Use /naturalschool for help.</red>"));
                 break;
@@ -97,7 +100,8 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
             "<yellow>/naturalschool setrank <player> <rank></yellow> - <gray>Set player internal school rank.</gray>\n" +
             "<yellow>/naturalschool setclass <player> <1-12></yellow> - <gray>Set student academic class.</gray>\n" +
             "<yellow>/naturalschool setstage <player> <SD|SMP|SMA></yellow> - <gray>Set student academic stage.</gray>\n" +
-            "<yellow>/naturalschool nis help</yellow> - <gray>View NIS Management System help.</gray>"
+            "<yellow>/naturalschool nis help</yellow> - <gray>View NIS Management System help.</gray>\n" +
+            "<yellow>/naturalschool gui welcome <player></yellow> - <gray>Manually trigger onboarding welcome GUI for player.</gray>"
         ));
     }
 
@@ -446,6 +450,31 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
         return "1" + String.format("%03d", sequence) + dateStr;
     }
 
+    private void handleGuiCommand(CommandSender sender, String[] args) {
+        if (args.length < 3) {
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Usage: /naturalschool gui welcome <player></red>"));
+            return;
+        }
+
+        String action = args[1].toLowerCase();
+        if (!action.equals("welcome")) {
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Unknown action. Usage: /naturalschool gui welcome <player></red>"));
+            return;
+        }
+
+        String targetName = args[2];
+        Player targetPlayer = Bukkit.getPlayer(targetName);
+        if (targetPlayer == null || !targetPlayer.isOnline()) {
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Player " + targetName + " is not online!</red>"));
+            return;
+        }
+
+        plugin.getUiManager().startOnboarding(targetPlayer);
+        sender.sendMessage(MiniMessage.miniMessage().deserialize(
+            "<green>Successfully started onboarding welcome GUI for " + targetPlayer.getName() + ".</green>"
+        ));
+    }
+
     private void handleNisUnregister(CommandSender sender, String[] args) {
         if (args.length < 3) {
             sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Usage: /naturalschool nis unregister <player></red>"));
@@ -629,7 +658,7 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 1) {
-            List<String> subCommands = Arrays.asList("reload", "info", "setrank", "setclass", "setstage", "nis");
+            List<String> subCommands = Arrays.asList("reload", "info", "setrank", "setclass", "setstage", "nis", "gui");
             return filterList(subCommands, args[0]);
         }
 
@@ -637,6 +666,8 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
             String subCommand = args[0].toLowerCase();
             if ("nis".equals(subCommand)) {
                 return filterList(Arrays.asList("register", "unregister", "set", "show", "help"), args[1]);
+            } else if ("gui".equals(subCommand)) {
+                return filterList(Collections.singletonList("welcome"), args[1]);
             } else if (Arrays.asList("info", "setrank", "setclass", "setstage").contains(subCommand)) {
                 List<String> players = Bukkit.getOnlinePlayers().stream()
                         .map(Player::getName)
@@ -650,6 +681,14 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
             if ("nis".equals(subCommand)) {
                 String subNis = args[1].toLowerCase();
                 if (Arrays.asList("register", "unregister", "set", "show").contains(subNis)) {
+                    List<String> players = Bukkit.getOnlinePlayers().stream()
+                            .map(Player::getName)
+                            .collect(Collectors.toList());
+                    return filterList(players, args[2]);
+                }
+            } else if ("gui".equals(subCommand)) {
+                String subGui = args[1].toLowerCase();
+                if ("welcome".equals(subGui)) {
                     List<String> players = Bukkit.getOnlinePlayers().stream()
                             .map(Player::getName)
                             .collect(Collectors.toList());
