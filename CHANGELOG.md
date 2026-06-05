@@ -2,6 +2,10 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.3.3] - 2026-06-05
+### Changed
+- Removed `<font:uniform>` tag wrappers from `DialogFormatter` to revert to standard/default Minecraft font rendering for Java Dialogs.
+
 ## [1.3.2] - 2026-06-05
 ### Changed
 - Converted Bedrock onboarding Step 1 and Step 2 screens from `SimpleForm` to `CustomForm` utilizing a toggle switch for the cinematic cutscene offer.

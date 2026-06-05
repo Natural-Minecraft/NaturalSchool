@@ -38,7 +38,7 @@ public final class DialogFormatter {
             for (int i = 0; i < diff; i++) {
                 sb.append(" ");
             }
-            formattedLines.add("<font:uniform>" + sb.toString() + "</font>");
+            formattedLines.add(sb.toString());
         }
 
         return formattedLines;
