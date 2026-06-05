@@ -486,10 +486,10 @@ public class BedrockFormFactory {
             return;
         }
 
-        // Gunakan SimpleForm murni dengan checklist teks standard [X] atau [ ]
-        String btnStmt1 = (session.isStmt1() ? "[X] 1. " : "[ ] 1. ") + questions.q3Stmt1;
-        String btnStmt2 = (session.isStmt2() ? "[X] 2. " : "[ ] 2. ") + questions.q3Stmt2;
-        String btnStmt3 = (session.isStmt3() ? "[X] 3. " : "[ ] 3. ") + questions.q3Stmt3;
+        // Gunakan FONT NORMAL pure alphanumeric: prefix DIPILIH/BELUM agar tidak trigger font tipis di Bedrock
+        String btnStmt1 = (session.isStmt1() ? "DIPILIH 1. " : "1. ") + questions.q3Stmt1;
+        String btnStmt2 = (session.isStmt2() ? "DIPILIH 2. " : "2. ") + questions.q3Stmt2;
+        String btnStmt3 = (session.isStmt3() ? "DIPILIH 3. " : "3. ") + questions.q3Stmt3;
 
         SimpleForm form = SimpleForm.builder()
             .title("Ujian: Soal 3/3")
@@ -565,12 +565,14 @@ public class BedrockFormFactory {
     }
 
     public void openExamClosed(Player player) {
+        // Strip legacy §-codes: Bedrock tidak mendukung format warna Minecraft legacy di Cumulus form content
+        String adminMessage = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(
+            net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().deserialize(plugin.getExamMessage())
+        );
+
         SimpleForm form = SimpleForm.builder()
             .title("Portal Ditutup")
-            .content("§c§lPortal Sedang ditutup!\n\n" + 
-                net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(
-                    net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().deserialize(plugin.getExamMessage())
-                ))
+            .content("Portal Sedang ditutup!\n\n" + adminMessage)
             .button("Tutup")
             .build();
 

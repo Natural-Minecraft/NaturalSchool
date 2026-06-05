@@ -2,6 +2,11 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.4.9] - 2026-06-06
+### Fixed
+- **Bedrock — openExamClosed**: Removed Minecraft legacy `§c§l` color codes from the closed-portal form content; Cumulus API does not render `§`-style formatting and the raw escape characters were being displayed as literal text on Bedrock clients.
+- **Bedrock — Soal 3 Checklist**: Replaced `[X]` / `[ ]` ASCII bracket symbols with pure alphanumeric prefixes (`DIPILIH 1.` / `1.`) to prevent Bedrock from switching to the thin/glitched unicode font layout.
+
 ## [1.4.8] - 2026-06-06
 ### Added
 - Implemented Notice dialogs for closed exam portals ("Portal Sedang ditutup!") displaying custom administrator messages on both Java and Bedrock.
