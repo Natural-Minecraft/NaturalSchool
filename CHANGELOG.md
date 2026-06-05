@@ -2,6 +2,15 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.3.1] - 2026-06-05
+### Added
+- Implemented the complete **3-Step Onboarding UI Subsystem** for first-time/unregistered players.
+  * *STEP 1*: Welcome notice showing player info (aligned via DialogFormatter for Java).
+  * *STEP 2*: Introductory cinematic offer dialog (confirms choice to watch or skip).
+  * *STEP 3*: Terms of Service and Rules agreement screen (incorporates native checkboxes/toggles and external web links).
+- Added `/naturalschool gui welcome <player>` administrative command to manually trigger the onboarding welcome flow, with tab completions.
+- Integrated automated login hooks in `PlayerListener` that freezes unregistered players (where NIS is null) and automatically triggers the onboarding flow after a 1-second delay.
+
 ## [1.3.0] - 2026-06-05
 ### Added
 - Created the **Unified UI Subsystem** to route player interface rendering dynamically by connection platform.
@@ -9,12 +18,6 @@ All notable changes to the NaturalSchool project will be documented in this file
 - Created cross-platform `UIManager` routing Java players to native client-side Dialogs and Bedrock players to Cumulus Simple/Custom Forms.
 - Added `JavaDialogFactory` using Paper's native experimental Dialog API and `BedrockFormFactory` using Geyser/Floodgate's Cumulus Forms API.
 - Integrated the subsystem into `NaturalSchool`'s startup initialization and exposed `getUiManager()`.
-- Implemented the complete **3-Step Onboarding UI Subsystem** for first-time/unregistered players.
-  * *STEP 1*: Welcome notice showing player info (aligned via DialogFormatter for Java).
-  * *STEP 2*: Introductory cinematic offer dialog (confirms choice to watch or skip).
-  * *STEP 3*: Terms of Service and Rules agreement screen (incorporates native checkboxes/toggles and external web links).
-- Added `/naturalschool gui welcome <player>` administrative command to manually trigger the onboarding welcome flow, with tab completions.
-- Integrated automated login hooks in `PlayerListener` that freezes unregistered players (where NIS is null) and automatically triggers the onboarding flow after a 1-second delay.
 
 ## [1.2.0] - 2026-06-05
 ### Added
