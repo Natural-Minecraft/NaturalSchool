@@ -1,5 +1,5 @@
 name: NaturalSchool
-version: '1.0.0'
+version: '1.1.0'
 main: id.naturalsmp.naturalSchool.NaturalSchool
 api-version: '1.21'
 load: STARTUP
@@ -11,7 +11,6 @@ commands:
   naturalschool:
     description: NaturalSchool administrative control command.
     aliases: [nschool, ns]
-    permission: naturalschool.admin
 
 permissions:
   naturalschool.admin:

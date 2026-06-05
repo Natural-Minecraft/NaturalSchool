@@ -116,7 +116,13 @@ public class DatabaseManager {
             }
             return dataSource.getConnection();
         } else {
-            return DriverManager.getConnection("jdbc:sqlite:" + sqliteFile.getAbsolutePath());
+            Connection conn = DriverManager.getConnection("jdbc:sqlite:" + sqliteFile.getAbsolutePath());
+            try (Statement stmt = conn.createStatement()) {
+                stmt.execute("PRAGMA busy_timeout = 5000;");
+                stmt.execute("PRAGMA journal_mode = WAL;");
+                stmt.execute("PRAGMA synchronous = NORMAL;");
+            }
+            return conn;
         }
     }
 
@@ -200,7 +206,7 @@ public class DatabaseManager {
      * Loads a StudentProfile from the database by UUID.
      * This query runs synchronously within the method and should be executed on an async scheduler thread.
      */
-    public StudentProfile loadProfile(UUID uuid) {
+    public StudentProfile loadProfile(UUID uuid) throws SQLException {
         String query = "SELECT * FROM naturalsmp_students WHERE uuid = ?;";
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(query)) {
@@ -228,8 +234,6 @@ public class DatabaseManager {
                     return new StudentProfile(uuid, nis, stage, academicClass, practicalPassed, tempGrade, lastUpdated, rank);
                 }
             }
-        } catch (SQLException e) {
-            plugin.getLogger().log(Level.SEVERE, "Error loading profile for UUID: " + uuid, e);
         }
         return null;
     }

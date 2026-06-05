@@ -127,12 +127,15 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
             Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
                 OfflinePlayer offlineTarget = Bukkit.getOfflinePlayer(targetName);
                 UUID uuid = offlineTarget.getUniqueId();
-                StudentProfile profile = plugin.getDatabaseManager().loadProfile(uuid);
-
-                if (profile != null) {
-                    displayProfile(sender, offlineTarget.getName() != null ? offlineTarget.getName() : targetName, profile, false);
-                } else {
-                    sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Player profile not found in cache or database.</red>"));
+                try {
+                    StudentProfile profile = plugin.getDatabaseManager().loadProfile(uuid);
+                    if (profile != null) {
+                        displayProfile(sender, offlineTarget.getName() != null ? offlineTarget.getName() : targetName, profile, false);
+                    } else {
+                        sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Player profile not found in cache or database.</red>"));
+                    }
+                } catch (Exception e) {
+                    sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Failed to query database: " + e.getMessage() + "</red>"));
                 }
             });
         }
@@ -284,30 +287,39 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
 
         Player targetPlayer = Bukkit.getPlayerExact(targetName);
         if (targetPlayer != null) {
-            // Online player: Update cache, and save to DB asynchronously
             StudentProfile profile = plugin.getProfileManager().getProfile(targetPlayer.getUniqueId());
             if (profile != null) {
-                profile.setAcademicStage(stage);
-                Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> plugin.getProfileManager().saveProfile(profile));
-                sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>Set academic stage to " + stage + " for " + targetPlayer.getName() + ".</green>"));
+                String oldStage = profile.getAcademicStage();
+                if (stage.equals(oldStage)) {
+                    sender.sendMessage(MiniMessage.miniMessage().deserialize("<yellow>" + targetPlayer.getName() + " is already in stage " + stage + ".</yellow>"));
+                    return;
+                }
+
+                plugin.getNaturalSchoolAPI().setPlayerStage(targetPlayer.getUniqueId(), stage);
+
+                if (!stage.equals(profile.getAcademicStage())) {
+                    sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Stage change for " + targetPlayer.getName() + " was cancelled by another plugin.</red>"));
+                } else {
+                    sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>Set academic stage to " + stage + " for " + targetPlayer.getName() + ".</green>"));
+                }
             } else {
                 sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Profile cache not loaded for " + targetPlayer.getName() + ".</red>"));
             }
         } else {
-            // Offline player: Load from DB, modify, and save back asynchronously
             sender.sendMessage(MiniMessage.miniMessage().deserialize("<yellow>Player is offline. Updating profile in database...</yellow>"));
-            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-                OfflinePlayer offlineTarget = Bukkit.getOfflinePlayer(targetName);
-                UUID uuid = offlineTarget.getUniqueId();
-                StudentProfile profile = plugin.getDatabaseManager().loadProfile(uuid);
+            OfflinePlayer offlineTarget = Bukkit.getOfflinePlayer(targetName);
+            UUID uuid = offlineTarget.getUniqueId();
 
-                if (profile != null) {
-                    profile.setAcademicStage(stage);
-                    plugin.getDatabaseManager().saveProfile(profile);
+            plugin.getNaturalSchoolAPI().getOfflineProfile(uuid).thenAccept(optProfile -> {
+                if (optProfile.isPresent()) {
+                    plugin.getNaturalSchoolAPI().setPlayerStage(uuid, stage);
                     sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>Set academic stage to " + stage + " for offline player " + (offlineTarget.getName() != null ? offlineTarget.getName() : targetName) + ".</green>"));
                 } else {
                     sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Player profile not found in database.</red>"));
                 }
+            }).exceptionally(ex -> {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Failed to update offline player stage: " + ex.getMessage() + "</red>"));
+                return null;
             });
         }
     }

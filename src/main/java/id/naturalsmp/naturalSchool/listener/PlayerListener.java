@@ -49,13 +49,8 @@ public class PlayerListener implements Listener {
     private void handleDisconnect(UUID uuid) {
         StudentProfile profile = profileManager.getProfile(uuid);
         if (profile != null) {
-            // Strictly clear the cache entry first to avoid RAM bloat
             profileManager.removeProfile(uuid);
-            
-            // Asynchronously save the cached data back to the database
-            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-                profileManager.saveProfile(profile);
-            });
+            profileManager.saveProfileAsync(profile);
         }
     }
 }

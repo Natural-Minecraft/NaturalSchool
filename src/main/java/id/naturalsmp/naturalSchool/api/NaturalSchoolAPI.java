@@ -75,6 +75,16 @@ public interface NaturalSchoolAPI {
     String getPlayerStage(UUID uuid);
 
     /**
+     * Sets the academic stage (SD, SMP, SMA) of a player.
+     * If the player is online, it will fire StudentStageChangeEvent.
+     * The profile is saved to the database asynchronously.
+     *
+     * @param uuid  Player UUID
+     * @param stage new academic stage (SD, SMP, SMA)
+     */
+    void setPlayerStage(UUID uuid, String stage);
+
+    /**
      * Checks if the player has passed the practical exam.
      * Returns false if uncached.
      *

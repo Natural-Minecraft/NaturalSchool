@@ -4,6 +4,7 @@ import id.naturalsmp.naturalSchool.NaturalSchool;
 import id.naturalsmp.naturalSchool.api.event.StudentClassChangeEvent;
 import id.naturalsmp.naturalSchool.api.event.StudentPracticalToggleEvent;
 import id.naturalsmp.naturalSchool.api.event.StudentRankChangeEvent;
+import id.naturalsmp.naturalSchool.api.event.StudentStageChangeEvent;
 import id.naturalsmp.naturalSchool.profile.SchoolRank;
 import id.naturalsmp.naturalSchool.profile.StudentProfile;
 import org.bukkit.Bukkit;
@@ -75,15 +76,19 @@ public class NaturalSchoolAPIImpl implements NaturalSchoolAPI {
                 }
 
                 profile.setRank(rank);
-                Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> plugin.getProfileManager().saveProfile(profile));
+                plugin.getProfileManager().saveProfileAsync(profile);
             }
         } else {
             // Offline player: load, modify, and save to DB asynchronously
             Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-                StudentProfile profile = plugin.getDatabaseManager().loadProfile(uuid);
-                if (profile != null) {
-                    profile.setRank(rank);
-                    plugin.getDatabaseManager().saveProfile(profile);
+                try {
+                    StudentProfile profile = plugin.getDatabaseManager().loadProfile(uuid);
+                    if (profile != null) {
+                        profile.setRank(rank);
+                        plugin.getDatabaseManager().saveProfile(profile);
+                    }
+                } catch (Exception e) {
+                    plugin.getLogger().warning("Failed to update offline player rank: " + e.getMessage());
                 }
             });
         }
@@ -120,15 +125,19 @@ public class NaturalSchoolAPIImpl implements NaturalSchoolAPI {
                 }
 
                 profile.setAcademicClass(academicClass);
-                Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> plugin.getProfileManager().saveProfile(profile));
+                plugin.getProfileManager().saveProfileAsync(profile);
             }
         } else {
             // Offline player: load, modify, and save to DB asynchronously
             Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-                StudentProfile profile = plugin.getDatabaseManager().loadProfile(uuid);
-                if (profile != null) {
-                    profile.setAcademicClass(academicClass);
-                    plugin.getDatabaseManager().saveProfile(profile);
+                try {
+                    StudentProfile profile = plugin.getDatabaseManager().loadProfile(uuid);
+                    if (profile != null) {
+                        profile.setAcademicClass(academicClass);
+                        plugin.getDatabaseManager().saveProfile(profile);
+                    }
+                } catch (Exception e) {
+                    plugin.getLogger().warning("Failed to update offline player class: " + e.getMessage());
                 }
             });
         }
@@ -171,15 +180,59 @@ public class NaturalSchoolAPIImpl implements NaturalSchoolAPI {
                 }
 
                 profile.setPracticalPassed(passed);
-                Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> plugin.getProfileManager().saveProfile(profile));
+                plugin.getProfileManager().saveProfileAsync(profile);
             }
         } else {
             // Offline player: load, modify, and save to DB asynchronously
             Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-                StudentProfile profile = plugin.getDatabaseManager().loadProfile(uuid);
-                if (profile != null) {
-                    profile.setPracticalPassed(passed);
-                    plugin.getDatabaseManager().saveProfile(profile);
+                try {
+                    StudentProfile profile = plugin.getDatabaseManager().loadProfile(uuid);
+                    if (profile != null) {
+                        profile.setPracticalPassed(passed);
+                        plugin.getDatabaseManager().saveProfile(profile);
+                    }
+                } catch (Exception e) {
+                    plugin.getLogger().warning("Failed to update offline player practical status: " + e.getMessage());
+                }
+            });
+        }
+    }
+
+    @Override
+    public void setPlayerStage(UUID uuid, String stage) {
+        if (uuid == null || stage == null) return;
+
+        Player player = Bukkit.getPlayer(uuid);
+        if (player != null) {
+            if (!Bukkit.isPrimaryThread()) {
+                Bukkit.getScheduler().runTask(plugin, () -> setPlayerStage(uuid, stage));
+                return;
+            }
+
+            StudentProfile profile = plugin.getProfileManager().getProfile(uuid);
+            if (profile != null) {
+                String oldStage = profile.getAcademicStage();
+                if (stage.equals(oldStage)) return;
+
+                StudentStageChangeEvent event = new StudentStageChangeEvent(player, oldStage != null ? oldStage : "", stage);
+                Bukkit.getPluginManager().callEvent(event);
+                if (event.isCancelled()) {
+                    return;
+                }
+
+                profile.setAcademicStage(stage);
+                plugin.getProfileManager().saveProfileAsync(profile);
+            }
+        } else {
+            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+                try {
+                    StudentProfile profile = plugin.getDatabaseManager().loadProfile(uuid);
+                    if (profile != null) {
+                        profile.setAcademicStage(stage);
+                        plugin.getDatabaseManager().saveProfile(profile);
+                    }
+                } catch (Exception e) {
+                    plugin.getLogger().warning("Failed to save offline player stage: " + e.getMessage());
                 }
             });
         }

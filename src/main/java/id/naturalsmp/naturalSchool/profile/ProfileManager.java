@@ -2,10 +2,15 @@ package id.naturalsmp.naturalSchool.profile;
 
 import id.naturalsmp.naturalSchool.NaturalSchool;
 import id.naturalsmp.naturalSchool.database.DatabaseManager;
+import net.kyori.adventure.text.minimessage.MiniMessage;
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ProfileManager {
@@ -13,11 +18,13 @@ public class ProfileManager {
     private final NaturalSchool plugin;
     private final DatabaseManager databaseManager;
     private final Map<UUID, StudentProfile> profileCache;
+    private final Map<UUID, CompletableFuture<Void>> pendingSaves;
 
     public ProfileManager(NaturalSchool plugin, DatabaseManager databaseManager) {
         this.plugin = plugin;
         this.databaseManager = databaseManager;
         this.profileCache = new ConcurrentHashMap<>();
+        this.pendingSaves = new ConcurrentHashMap<>();
     }
 
     /**
@@ -41,25 +48,56 @@ public class ProfileManager {
     public void loadProfile(UUID uuid) {
         if (uuid == null) return;
 
-        StudentProfile profile = databaseManager.loadProfile(uuid);
-        if (profile == null) {
-            int startClass = plugin.getConfig().getInt("academic-settings.default-start-class", 1);
-            String startStage = plugin.getConfig().getString("academic-settings.default-start-stage", "SD");
-            Timestamp now = new Timestamp(System.currentTimeMillis());
-
-            profile = new StudentProfile(uuid, null, startStage, startClass, false, 0, now, SchoolRank.NONE);
-            databaseManager.saveProfile(profile);
+        CompletableFuture<Void> pendingSave = pendingSaves.get(uuid);
+        if (pendingSave != null) {
+            try {
+                pendingSave.join();
+            } catch (Exception ignored) {
+            }
         }
-        
-        profileCache.put(uuid, profile);
+
+        try {
+            StudentProfile profile = databaseManager.loadProfile(uuid);
+            if (profile == null) {
+                int startClass = plugin.getConfig().getInt("academic-settings.default-start-class", 1);
+                String startStage = plugin.getConfig().getString("academic-settings.default-start-stage", "SD");
+                Timestamp now = new Timestamp(System.currentTimeMillis());
+
+                profile = new StudentProfile(uuid, null, startStage, startClass, false, 0, now, SchoolRank.NONE);
+                databaseManager.saveProfile(profile);
+            }
+            profileCache.put(uuid, profile);
+        } catch (SQLException e) {
+            plugin.getLogger().log(java.util.logging.Level.SEVERE, "Database error loading profile for UUID: " + uuid + ". Player will be kicked.", e);
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                Player player = Bukkit.getPlayer(uuid);
+                if (player != null && player.isOnline()) {
+                    player.kick(MiniMessage.miniMessage().deserialize("<red>Failed to load your academic profile due to database error. Please try reconnecting.</red>"));
+                }
+            });
+        }
     }
 
-    /**
-     * Saves the cached StudentProfile for a player to the database.
-     * This method contains database calls and must be executed asynchronously.
-     *
-     * @param uuid Player UUID
-     */
+    public CompletableFuture<Void> saveProfileAsync(StudentProfile profile) {
+        if (profile == null) return CompletableFuture.completedFuture(null);
+        UUID uuid = profile.getUuid();
+
+        CompletableFuture<Void> saveFuture = new CompletableFuture<>();
+        pendingSaves.put(uuid, saveFuture);
+
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            try {
+                databaseManager.saveProfile(profile);
+                saveFuture.complete(null);
+            } catch (Throwable t) {
+                saveFuture.completeExceptionally(t);
+            } finally {
+                pendingSaves.remove(uuid, saveFuture);
+            }
+        });
+        return saveFuture;
+    }
+
     public void saveProfile(UUID uuid) {
         if (uuid == null) return;
 
@@ -69,12 +107,6 @@ public class ProfileManager {
         }
     }
 
-    /**
-     * Directly saves a given StudentProfile to the database.
-     * This method contains database calls and must be executed asynchronously.
-     *
-     * @param profile The StudentProfile object
-     */
     public void saveProfile(StudentProfile profile) {
         if (profile != null) {
             databaseManager.saveProfile(profile);
