@@ -2,6 +2,13 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.4.1] - 2026-06-05
+### Added
+- Added `/ns semester reset` command to reset the active semester back to align with the real-life system clock calendar.
+
+### Fixed
+- Fixed the academic year month not advancing programmatically during `processSemesterEnd()` when force-rotating multiple times in the same real-life month.
+
 ## [1.4.0] - 2026-06-05
 ### Added
 - Upgraded the database schema for `nschool_students` table (SQLite and MySQL) to include `current_semester` column with a non-destructive migration.
