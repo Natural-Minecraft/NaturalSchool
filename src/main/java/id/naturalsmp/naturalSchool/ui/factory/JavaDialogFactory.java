@@ -275,4 +275,223 @@ public class JavaDialogFactory {
 
         player.showDialog(dialog);
     }
+
+    public void openExam1(Player player, boolean showMoreThanOneWarning) {
+        List<DialogBody> bodies = new ArrayList<>();
+        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>Ujian Kelulusan - Sejarah</bold></gold>")));
+        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gray>Pertanyaan:</gray> <white>Siapa pencipta NaturalSMP?</white>")));
+
+        if (showMoreThanOneWarning) {
+            bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<red><bold>Pilih hanya satu jawaban!</bold></red>")));
+        } else {
+            bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Pilih satu jawaban yang benar di bawah ini:</yellow>")));
+        }
+
+        ActionButton submitBtn = ActionButton.builder(Component.text("Kirim Jawaban"))
+            .action(DialogAction.customClick((view, audience) -> {
+                if (audience instanceof Player p) {
+                    boolean ansA = view.getBoolean("option_a");
+                    boolean ansB = view.getBoolean("option_b");
+                    boolean ansC = view.getBoolean("option_c");
+                    boolean ansD = view.getBoolean("option_d");
+
+                    int selectedCount = (ansA ? 1 : 0) + (ansB ? 1 : 0) + (ansC ? 1 : 0) + (ansD ? 1 : 0);
+
+                    if (selectedCount > 1) {
+                        plugin.getUiManager().openExam1(p, true);
+                    } else if (selectedCount == 1 && ansC) {
+                        p.sendTitle("§a§lJAWABAN BENAR", "§7Selamat, kamu lulus!", 10, 70, 20);
+                        p.playSound(p.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
+                    } else {
+                        p.sendTitle("§c§lJAWABAN SALAH", "§7Coba belajar lagi ya!", 10, 70, 20);
+                        p.playSound(p.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                    }
+                }
+            }, ClickCallback.Options.builder().uses(1).build()))
+            .build();
+
+        Dialog dialog = Dialog.create(builder -> builder.empty()
+            .base(DialogBase.builder(Component.text("Ujian 1: Pilihan Ganda"))
+                .canCloseWithEscape(true)
+                .body(bodies)
+                .inputs(List.of(
+                    DialogInput.bool("option_a", Component.text("A. Saya"), false, "Pilih", "Kosong"),
+                    DialogInput.bool("option_b", Component.text("B. Jopeh"), false, "Pilih", "Kosong"),
+                    DialogInput.bool("option_c", Component.text("C. AnakTentara"), false, "Pilih", "Kosong"),
+                    DialogInput.bool("option_d", Component.text("D. Gua"), false, "Pilih", "Kosong")
+                ))
+                .build())
+            .type(DialogType.notice(submitBtn))
+        );
+
+        player.showDialog(dialog);
+    }
+
+    public void openExam2(Player player) {
+        List<DialogBody> bodies = List.of(
+            DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>Ujian Kelulusan - Kebijakan</bold></gold>")),
+            DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gray>Pertanyaan:</gray> <white>Apakah 1 Semester di NaturalSchool sama dengan 14 hari real-life?</white>"))
+        );
+
+        ActionButton yesBtn = ActionButton.builder(Component.text("YA, Benar"))
+            .action(DialogAction.customClick((view, audience) -> {
+                if (audience instanceof Player p) {
+                    p.sendTitle("§a§lJAWABAN BENAR", "§7Selamat, jawaban Anda benar!", 10, 70, 20);
+                    p.playSound(p.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
+                }
+            }, ClickCallback.Options.builder().uses(1).build()))
+            .build();
+
+        ActionButton noBtn = ActionButton.builder(Component.text("TIDAK, Salah"))
+            .action(DialogAction.customClick((view, audience) -> {
+                if (audience instanceof Player p) {
+                    p.sendTitle("§c§lJAWABAN SALAH", "§7Silakan baca panduan kembali!", 10, 70, 20);
+                    p.playSound(p.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                }
+            }, ClickCallback.Options.builder().uses(1).build()))
+            .build();
+
+        Dialog dialog = Dialog.create(builder -> builder.empty()
+            .base(DialogBase.builder(Component.text("Ujian 2: Benar / Salah"))
+                .canCloseWithEscape(true)
+                .body(bodies)
+                .build())
+            .type(DialogType.confirmation(yesBtn, noBtn))
+        );
+
+        player.showDialog(dialog);
+    }
+
+    public void openExam3(Player player, boolean showMoreThanOneWarning) {
+        List<DialogBody> bodies = new ArrayList<>();
+        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>Ujian Kelulusan - Matematika</bold></gold>")));
+        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gray>Pertanyaan:</gray> <white>Jika 1 Semester = 14 hari, berapa hari untuk menyelesaikan 2 Semester?</white>")));
+
+        if (showMoreThanOneWarning) {
+            bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<red><bold>Pilih hanya satu jawaban!</bold></red>")));
+        } else {
+            bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Pilih satu jawaban yang benar di bawah ini:</yellow>")));
+        }
+
+        ActionButton submitBtn = ActionButton.builder(Component.text("Kirim Jawaban"))
+            .action(DialogAction.customClick((view, audience) -> {
+                if (audience instanceof Player p) {
+                    boolean ansA = view.getBoolean("option_a");
+                    boolean ansB = view.getBoolean("option_b");
+                    boolean ansC = view.getBoolean("option_c");
+                    boolean ansD = view.getBoolean("option_d");
+
+                    int selectedCount = (ansA ? 1 : 0) + (ansB ? 1 : 0) + (ansC ? 1 : 0) + (ansD ? 1 : 0);
+
+                    if (selectedCount > 1) {
+                        plugin.getUiManager().openExam3(p, true);
+                    } else if (selectedCount == 1 && ansC) {
+                        p.sendTitle("§a§lJAWABAN BENAR", "§7Selamat, jawaban Anda benar!", 10, 70, 20);
+                        p.playSound(p.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
+                    } else {
+                        p.sendTitle("§c§lJAWABAN SALAH", "§7Coba hitung kembali ya!", 10, 70, 20);
+                        p.playSound(p.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                    }
+                }
+            }, ClickCallback.Options.builder().uses(1).build()))
+            .build();
+
+        Dialog dialog = Dialog.create(builder -> builder.empty()
+            .base(DialogBase.builder(Component.text("Ujian 3: Pilihan Ganda"))
+                .canCloseWithEscape(true)
+                .body(bodies)
+                .inputs(List.of(
+                    DialogInput.bool("option_a", Component.text("A. 7 Hari"), false, "Pilih", "Kosong"),
+                    DialogInput.bool("option_b", Component.text("B. 14 Hari"), false, "Pilih", "Kosong"),
+                    DialogInput.bool("option_c", Component.text("C. 28 Hari"), false, "Pilih", "Kosong"),
+                    DialogInput.bool("option_d", Component.text("D. 30 Hari"), false, "Pilih", "Kosong")
+                ))
+                .build())
+            .type(DialogType.notice(submitBtn))
+        );
+
+        player.showDialog(dialog);
+    }
+
+    public void openExam4(Player player) {
+        List<DialogBody> bodies = List.of(
+            DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>Ujian Kelulusan - Logika Kelas</bold></gold>")),
+            DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gray>Pertanyaan:</gray> <white>Manakah dari pernyataan berikut yang BENAR mengenai kenaikan kelas?</white>")),
+            DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Pilih semua pernyataan yang benar:</yellow>"))
+        );
+
+        ActionButton submitBtn = ActionButton.builder(Component.text("Kirim Jawaban"))
+            .action(DialogAction.customClick((view, audience) -> {
+                if (audience instanceof Player p) {
+                    boolean stmt1 = view.getBoolean("stmt_1");
+                    boolean stmt2 = view.getBoolean("stmt_2");
+                    boolean stmt3 = view.getBoolean("stmt_3");
+
+                    // stmt_1 and stmt_2 are correct, stmt_3 (auto-promotion without exam) is incorrect
+                    if (stmt1 && stmt2 && !stmt3) {
+                        p.sendTitle("§a§lJAWABAN BENAR", "§7Pemahaman logika Anda sangat baik!", 10, 70, 20);
+                        p.playSound(p.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
+                    } else {
+                        p.sendTitle("§c§lJAWABAN SALAH", "§7Ada pernyataan salah yang Anda pilih!", 10, 70, 20);
+                        p.playSound(p.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                    }
+                }
+            }, ClickCallback.Options.builder().uses(1).build()))
+            .build();
+
+        Dialog dialog = Dialog.create(builder -> builder.empty()
+            .base(DialogBase.builder(Component.text("Ujian 4: Pernyataan Majemuk"))
+                .canCloseWithEscape(true)
+                .body(bodies)
+                .inputs(List.of(
+                    DialogInput.bool("stmt_1", Component.text("1. Kelas dikunci sebelum lulus ujian"), false, "Benar", "Salah"),
+                    DialogInput.bool("stmt_2", Component.text("2. Semester otomatis berputar tiap 14 hari"), false, "Benar", "Salah"),
+                    DialogInput.bool("stmt_3", Component.text("3. Kelas otomatis naik tanpa perlu ujian"), false, "Benar", "Salah")
+                ))
+                .build())
+            .type(DialogType.notice(submitBtn))
+        );
+
+        player.showDialog(dialog);
+    }
+
+    public void openExam5(Player player, boolean showWarning) {
+        List<DialogBody> bodies = new ArrayList<>();
+        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>Ujian Kelulusan - Pakta Integritas</bold></gold>")));
+        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gray>Deklarasi Komitmen:</gray> <white>Harap setujui pakta integritas di bawah ini.</white>")));
+
+        if (showWarning) {
+            bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<red><bold>Anda wajib mencentang seluruh pakta integritas untuk melanjutkan!</bold></red>")));
+        }
+
+        ActionButton submitBtn = ActionButton.builder(Component.text("Kirim Jawaban"))
+            .action(DialogAction.customClick((view, audience) -> {
+                if (audience instanceof Player p) {
+                    boolean agreeRules = view.getBoolean("agree_rules");
+                    boolean agreeHonesty = view.getBoolean("agree_honesty");
+
+                    if (agreeRules && agreeHonesty) {
+                        p.sendTitle("§a§lJAWABAN BENAR", "§7Terima kasih atas komitmen Anda!", 10, 70, 20);
+                        p.playSound(p.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
+                    } else {
+                        plugin.getUiManager().openExam5(p, true);
+                    }
+                }
+            }, ClickCallback.Options.builder().uses(1).build()))
+            .build();
+
+        Dialog dialog = Dialog.create(builder -> builder.empty()
+            .base(DialogBase.builder(Component.text("Ujian 5: Pakta Integritas"))
+                .canCloseWithEscape(true)
+                .body(bodies)
+                .inputs(List.of(
+                    DialogInput.bool("agree_rules", Component.text("Saya berjanji menaati seluruh peraturan server"), false, "Setuju", "Batal"),
+                    DialogInput.bool("agree_honesty", Component.text("Saya menyatakan siap mengikuti ujian dengan jujur"), false, "Setuju", "Batal")
+                ))
+                .build())
+            .type(DialogType.notice(submitBtn))
+        );
+
+        player.showDialog(dialog);
+    }
 }

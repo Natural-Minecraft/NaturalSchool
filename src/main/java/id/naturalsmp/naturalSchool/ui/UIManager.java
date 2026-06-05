@@ -215,4 +215,44 @@ public class UIManager {
             javaDialogFactory.openTestExam(player);
         }
     }
+
+    public void openExam1(Player player, boolean showWarning) {
+        if (isBedrockPlayer(player)) {
+            bedrockHandler.openExam1(player, showWarning);
+        } else {
+            javaDialogFactory.openExam1(player, showWarning);
+        }
+    }
+
+    public void openExam2(Player player) {
+        if (isBedrockPlayer(player)) {
+            bedrockHandler.openExam2(player);
+        } else {
+            javaDialogFactory.openExam2(player);
+        }
+    }
+
+    public void openExam3(Player player, boolean showWarning) {
+        if (isBedrockPlayer(player)) {
+            bedrockHandler.openExam3(player, showWarning);
+        } else {
+            javaDialogFactory.openExam3(player, showWarning);
+        }
+    }
+
+    public void openExam4(Player player) {
+        if (isBedrockPlayer(player)) {
+            bedrockHandler.openExam4(player);
+        } else {
+            javaDialogFactory.openExam4(player);
+        }
+    }
+
+    public void openExam5(Player player, boolean showWarning) {
+        if (isBedrockPlayer(player)) {
+            bedrockHandler.openExam5(player, showWarning);
+        } else {
+            javaDialogFactory.openExam5(player, showWarning);
+        }
+    }
 }

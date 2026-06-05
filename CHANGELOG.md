@@ -2,6 +2,11 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.4.5] - 2026-06-05
+### Added
+- Added five creative layout variants for the Exam Subsystem GUI via command `/ns gui <exam1|exam2|exam3|exam4|exam5> <player>`.
+- Added input validation logic for multiple-choice checkbox dialogs (Exam 1 and Exam 3): choosing more than 1 option triggers a reopen loop with a bold red error warning ("Pilih hanya satu jawaban!").
+
 ## [1.4.4] - 2026-06-05
 ### Changed
 - Replaced the temporary Java Edition chest inventory GUI quiz layout with the native Paper Dialog system.

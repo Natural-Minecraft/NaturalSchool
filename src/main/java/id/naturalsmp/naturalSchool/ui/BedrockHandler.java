@@ -11,4 +11,9 @@ public interface BedrockHandler {
     void openStep3(Player player, boolean showWarning);
     void openForm(Player player, SchoolMenuType menuType);
     void openTestExam(Player player);
+    void openExam1(Player player, boolean showWarning);
+    void openExam2(Player player);
+    void openExam3(Player player, boolean showWarning);
+    void openExam4(Player player);
+    void openExam5(Player player, boolean showWarning);
 }

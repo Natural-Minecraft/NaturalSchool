@@ -192,4 +192,155 @@ public class BedrockFormFactory {
 
         FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
     }
+
+    public void openExam1(Player player, boolean showWarning) {
+        CustomForm.Builder builder = CustomForm.builder()
+            .title("Ujian 1: Pilihan Ganda");
+
+        if (showWarning) {
+            builder.label("§c§lPilih hanya satu jawaban!");
+        } else {
+            builder.label("Pertanyaan: Siapa pencipta NaturalSMP?\nPilih satu jawaban yang benar:");
+        }
+
+        CustomForm form = builder
+            .toggle("A. Saya", false)
+            .toggle("B. Jopeh", false)
+            .toggle("C. AnakTentara", false)
+            .toggle("D. Gua", false)
+            .validResultHandler(response -> {
+                boolean ansA = response.asToggle(0);
+                boolean ansB = response.asToggle(1);
+                boolean ansC = response.asToggle(2);
+                boolean ansD = response.asToggle(3);
+
+                int selectedCount = (ansA ? 1 : 0) + (ansB ? 1 : 0) + (ansC ? 1 : 0) + (ansD ? 1 : 0);
+
+                if (selectedCount > 1) {
+                    plugin.getUiManager().openExam1(player, true);
+                } else if (selectedCount == 1 && ansC) {
+                    player.sendTitle("§a§lJAWABAN BENAR", "§7Selamat, kamu lulus!", 10, 70, 20);
+                    player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
+                } else {
+                    player.sendTitle("§c§lJAWABAN SALAH", "§7Coba belajar lagi ya!", 10, 70, 20);
+                    player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                }
+            })
+            .build();
+
+        FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
+    }
+
+    public void openExam2(Player player) {
+        SimpleForm form = SimpleForm.builder()
+            .title("Ujian 2: Benar / Salah")
+            .content("Apakah 1 Semester di NaturalSchool sama dengan 14 hari real-life?")
+            .button("YA, Benar")
+            .button("TIDAK, Salah")
+            .validResultHandler(response -> {
+                int clickedId = response.clickedButtonId();
+                if (clickedId == 0) { // YA, Benar
+                    player.sendTitle("§a§lJAWABAN BENAR", "§7Selamat, jawaban Anda benar!", 10, 70, 20);
+                    player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
+                } else {
+                    player.sendTitle("§c§lJAWABAN SALAH", "§7Silakan baca panduan kembali!", 10, 70, 20);
+                    player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                }
+            })
+            .build();
+
+        FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
+    }
+
+    public void openExam3(Player player, boolean showWarning) {
+        CustomForm.Builder builder = CustomForm.builder()
+            .title("Ujian 3: Pilihan Ganda");
+
+        if (showWarning) {
+            builder.label("§c§lPilih hanya satu jawaban!");
+        } else {
+            builder.label("Pertanyaan: Jika 1 Semester = 14 hari, berapa hari untuk menyelesaikan 2 Semester?\nPilih satu:");
+        }
+
+        CustomForm form = builder
+            .toggle("A. 7 Hari", false)
+            .toggle("B. 14 Hari", false)
+            .toggle("C. 28 Hari", false)
+            .toggle("D. 30 Hari", false)
+            .validResultHandler(response -> {
+                boolean ansA = response.asToggle(0);
+                boolean ansB = response.asToggle(1);
+                boolean ansC = response.asToggle(2);
+                boolean ansD = response.asToggle(3);
+
+                int selectedCount = (ansA ? 1 : 0) + (ansB ? 1 : 0) + (ansC ? 1 : 0) + (ansD ? 1 : 0);
+
+                if (selectedCount > 1) {
+                    plugin.getUiManager().openExam3(player, true);
+                } else if (selectedCount == 1 && ansC) {
+                    player.sendTitle("§a§lJAWABAN BENAR", "§7Selamat, jawaban Anda benar!", 10, 70, 20);
+                    player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
+                } else {
+                    player.sendTitle("§c§lJAWABAN SALAH", "§7Coba hitung kembali ya!", 10, 70, 20);
+                    player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                }
+            })
+            .build();
+
+        FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
+    }
+
+    public void openExam4(Player player) {
+        CustomForm form = CustomForm.builder()
+            .title("Ujian 4: Pernyataan Majemuk")
+            .label("Pertanyaan: Manakah dari pernyataan berikut yang BENAR mengenai kenaikan kelas?\nPilih semua pernyataan yang benar:")
+            .toggle("1. Kelas dikunci sebelum lulus ujian", false)
+            .toggle("2. Semester otomatis berputar tiap 14 hari", false)
+            .toggle("3. Kelas otomatis naik tanpa perlu ujian", false)
+            .validResultHandler(response -> {
+                boolean stmt1 = response.asToggle(0);
+                boolean stmt2 = response.asToggle(1);
+                boolean stmt3 = response.asToggle(2);
+
+                if (stmt1 && stmt2 && !stmt3) {
+                    player.sendTitle("§a§lJAWABAN BENAR", "§7Pemahaman logika Anda sangat baik!", 10, 70, 20);
+                    player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
+                } else {
+                    player.sendTitle("§c§lJAWABAN SALAH", "§7Ada pernyataan salah yang Anda pilih!", 10, 70, 20);
+                    player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                }
+            })
+            .build();
+
+        FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
+    }
+
+    public void openExam5(Player player, boolean showWarning) {
+        CustomForm.Builder builder = CustomForm.builder()
+            .title("Ujian 5: Pakta Integritas");
+
+        if (showWarning) {
+            builder.label("§c§lAnda wajib mencentang seluruh pakta integritas untuk melanjutkan!");
+        } else {
+            builder.label("Deklarasi Komitmen: Harap setujui pakta integritas di bawah ini.");
+        }
+
+        CustomForm form = builder
+            .toggle("Saya berjanji menaati seluruh peraturan server", false)
+            .toggle("Saya menyatakan siap mengikuti ujian dengan jujur", false)
+            .validResultHandler(response -> {
+                boolean agreeRules = response.asToggle(0);
+                boolean agreeHonesty = response.asToggle(1);
+
+                if (agreeRules && agreeHonesty) {
+                    player.sendTitle("§a§lJAWABAN BENAR", "§7Terima kasih atas komitmen Anda!", 10, 70, 20);
+                    player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
+                } else {
+                    plugin.getUiManager().openExam5(player, true);
+                }
+            })
+            .build();
+
+        FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
+    }
 }

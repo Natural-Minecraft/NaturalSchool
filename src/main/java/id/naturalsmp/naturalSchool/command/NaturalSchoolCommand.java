@@ -104,7 +104,7 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
             "<yellow>/naturalschool setclass <player> <1-12></yellow> - <gray>Set student academic class.</gray>\n" +
             "<yellow>/naturalschool setstage <player> <SD|SMP|SMA></yellow> - <gray>Set student academic stage.</gray>\n" +
             "<yellow>/naturalschool nis help</yellow> - <gray>View NIS Management System help.</gray>\n" +
-            "<yellow>/naturalschool gui welcome <player></yellow> - <gray>Manually trigger onboarding welcome GUI for player.</gray>\n" +
+            "<yellow>/naturalschool gui <welcome|exam1|exam2|exam3|exam4|exam5> <player></yellow> - <gray>Manually trigger school GUI dialogs for player.</gray>\n" +
             "<yellow>/naturalschool semester <info|end></yellow> - <gray>Manage and rotate active school semesters.</gray>"
         ));
     }
@@ -505,13 +505,14 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
 
     private void handleGuiCommand(CommandSender sender, String[] args) {
         if (args.length < 3) {
-            sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Usage: /naturalschool gui welcome <player></red>"));
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Usage: /naturalschool gui <welcome|exam1|exam2|exam3|exam4|exam5> <player></red>"));
             return;
         }
 
         String action = args[1].toLowerCase();
-        if (!action.equals("welcome")) {
-            sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Unknown action. Usage: /naturalschool gui welcome <player></red>"));
+        List<String> validActions = Arrays.asList("welcome", "exam1", "exam2", "exam3", "exam4", "exam5");
+        if (!validActions.contains(action)) {
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Unknown action. Usage: /naturalschool gui <welcome|exam1|exam2|exam3|exam4|exam5> <player></red>"));
             return;
         }
 
@@ -522,10 +523,44 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        plugin.getUiManager().startOnboarding(targetPlayer);
-        sender.sendMessage(MiniMessage.miniMessage().deserialize(
-            "<green>Successfully started onboarding welcome GUI for " + targetPlayer.getName() + ".</green>"
-        ));
+        switch (action) {
+            case "welcome":
+                plugin.getUiManager().startOnboarding(targetPlayer);
+                sender.sendMessage(MiniMessage.miniMessage().deserialize(
+                    "<green>Successfully started onboarding welcome GUI for " + targetPlayer.getName() + ".</green>"
+                ));
+                break;
+            case "exam1":
+                plugin.getUiManager().openExam1(targetPlayer, false);
+                sender.sendMessage(MiniMessage.miniMessage().deserialize(
+                    "<green>Successfully opened Exam 1 GUI for " + targetPlayer.getName() + ".</green>"
+                ));
+                break;
+            case "exam2":
+                plugin.getUiManager().openExam2(targetPlayer);
+                sender.sendMessage(MiniMessage.miniMessage().deserialize(
+                    "<green>Successfully opened Exam 2 GUI for " + targetPlayer.getName() + ".</green>"
+                ));
+                break;
+            case "exam3":
+                plugin.getUiManager().openExam3(targetPlayer, false);
+                sender.sendMessage(MiniMessage.miniMessage().deserialize(
+                    "<green>Successfully opened Exam 3 GUI for " + targetPlayer.getName() + ".</green>"
+                ));
+                break;
+            case "exam4":
+                plugin.getUiManager().openExam4(targetPlayer);
+                sender.sendMessage(MiniMessage.miniMessage().deserialize(
+                    "<green>Successfully opened Exam 4 GUI for " + targetPlayer.getName() + ".</green>"
+                ));
+                break;
+            case "exam5":
+                plugin.getUiManager().openExam5(targetPlayer, false);
+                sender.sendMessage(MiniMessage.miniMessage().deserialize(
+                    "<green>Successfully opened Exam 5 GUI for " + targetPlayer.getName() + ".</green>"
+                ));
+                break;
+        }
     }
 
     private void handleNisUnregister(CommandSender sender, String[] args) {
@@ -722,7 +757,7 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
             } else if ("semester".equals(subCommand)) {
                 return filterList(Arrays.asList("info", "end", "reset"), args[1]);
             } else if ("gui".equals(subCommand)) {
-                return filterList(Collections.singletonList("welcome"), args[1]);
+                return filterList(Arrays.asList("welcome", "exam1", "exam2", "exam3", "exam4", "exam5"), args[1]);
             } else if (Arrays.asList("info", "setrank", "setclass", "setstage").contains(subCommand)) {
                 List<String> players = Bukkit.getOnlinePlayers().stream()
                         .map(Player::getName)
@@ -743,7 +778,7 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
                 }
             } else if ("gui".equals(subCommand)) {
                 String subGui = args[1].toLowerCase();
-                if ("welcome".equals(subGui)) {
+                if (Arrays.asList("welcome", "exam1", "exam2", "exam3", "exam4", "exam5").contains(subGui)) {
                     List<String> players = Bukkit.getOnlinePlayers().stream()
                             .map(Player::getName)
                             .collect(Collectors.toList());
