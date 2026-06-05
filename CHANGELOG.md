@@ -11,6 +11,10 @@ All notable changes to the NaturalSchool project will be documented in this file
 - Added `/naturalschool gui welcome <player>` administrative command to manually trigger the onboarding welcome flow, with tab completions.
 - Integrated automated login hooks in `PlayerListener` that freezes unregistered players (where NIS is null) and automatically triggers the onboarding flow after a 1-second delay.
 
+### Fixed
+- Fixed a startup crash (`NoClassDefFoundError: org/geysermc/cumulus/form/Form`) by refactoring `UIManager` to lazily instantiate `BedrockFormFactory` via an abstract `BedrockHandler` interface using reflection, ensuring that Geyser/Floodgate classes are not resolved when Floodgate is missing.
+- Updated `plugin.yml` to include `floodgate` and `Geyser-Spigot` under `softdepend` to guarantee proper plugin initialization order when they are present.
+
 ## [1.3.0] - 2026-06-05
 ### Added
 - Created the **Unified UI Subsystem** to route player interface rendering dynamically by connection platform.

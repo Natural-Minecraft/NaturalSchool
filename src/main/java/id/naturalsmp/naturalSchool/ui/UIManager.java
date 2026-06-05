@@ -3,11 +3,9 @@ package id.naturalsmp.naturalSchool.ui;
 import id.naturalsmp.naturalSchool.NaturalSchool;
 import id.naturalsmp.naturalSchool.profile.StudentProfile;
 import id.naturalsmp.naturalSchool.profile.SchoolRank;
-import id.naturalsmp.naturalSchool.ui.factory.BedrockFormFactory;
 import id.naturalsmp.naturalSchool.ui.factory.JavaDialogFactory;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
-import org.geysermc.floodgate.api.FloodgateApi;
 
 import java.util.Set;
 import java.util.UUID;
@@ -18,15 +16,27 @@ public class UIManager {
 
     private final NaturalSchool plugin;
     private final JavaDialogFactory javaDialogFactory;
-    private final BedrockFormFactory bedrockFormFactory;
+    private BedrockHandler bedrockHandler;
     private final boolean floodgateEnabled;
     private final Set<UUID> frozenPlayers = ConcurrentHashMap.newKeySet();
 
     public UIManager(NaturalSchool plugin) {
         this.plugin = plugin;
         this.javaDialogFactory = new JavaDialogFactory(plugin);
-        this.bedrockFormFactory = new BedrockFormFactory(plugin);
         this.floodgateEnabled = Bukkit.getPluginManager().isPluginEnabled("floodgate");
+        if (this.floodgateEnabled) {
+            BedrockHandler handler = null;
+            try {
+                handler = (BedrockHandler) Class.forName("id.naturalsmp.naturalSchool.ui.BedrockHandlerImpl")
+                        .getConstructor(NaturalSchool.class)
+                        .newInstance(plugin);
+            } catch (Exception e) {
+                plugin.getLogger().warning("Failed to initialize Bedrock Handler: " + e.getMessage());
+            }
+            this.bedrockHandler = handler;
+        } else {
+            this.bedrockHandler = null;
+        }
     }
 
     /**
@@ -51,7 +61,7 @@ public class UIManager {
 
     public void openStep1(Player player) {
         if (isBedrockPlayer(player)) {
-            bedrockFormFactory.openStep1(player);
+            bedrockHandler.openStep1(player);
         } else {
             javaDialogFactory.openStep1(player);
         }
@@ -59,7 +69,7 @@ public class UIManager {
 
     public void openStep2(Player player) {
         if (isBedrockPlayer(player)) {
-            bedrockFormFactory.openStep2(player);
+            bedrockHandler.openStep2(player);
         } else {
             javaDialogFactory.openStep2(player);
         }
@@ -67,7 +77,7 @@ public class UIManager {
 
     public void openStep3(Player player) {
         if (isBedrockPlayer(player)) {
-            bedrockFormFactory.openStep3(player);
+            bedrockHandler.openStep3(player);
         } else {
             javaDialogFactory.openStep3(player);
         }
@@ -143,7 +153,7 @@ public class UIManager {
         }
 
         if (isBedrockPlayer(player)) {
-            bedrockFormFactory.openForm(player, menuType);
+            bedrockHandler.openForm(player, menuType);
         } else {
             javaDialogFactory.openDialog(player, menuType);
         }
@@ -156,13 +166,9 @@ public class UIManager {
      * @return true if the player is connected via Floodgate, false otherwise
      */
     private boolean isBedrockPlayer(Player player) {
-        if (!floodgateEnabled) {
+        if (!floodgateEnabled || bedrockHandler == null) {
             return false;
         }
-        try {
-            return FloodgateApi.getInstance().isFloodgatePlayer(player.getUniqueId());
-        } catch (Throwable t) {
-            return false;
-        }
+        return bedrockHandler.isBedrockPlayer(player.getUniqueId());
     }
 }
