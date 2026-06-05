@@ -4,13 +4,11 @@ All notable changes to the NaturalSchool project will be documented in this file
 
 ## [1.3.0] - 2026-06-05
 ### Added
-- Created a **Unified UI Subsystem** to route player interface requests dynamically.
-- Implemented **DialogFormatter** utility featuring `alignLeft` to automatically pad lines to uniform length and apply `<font:uniform>` Kyori MiniMessage formatting for pixel-perfect alignment on Java Edition dialogs.
-- Created `SchoolMenuType` enum containing `REGISTRATION`, `PROFILE`, and `STAFF_PANEL`.
-- Created cross-platform **UIManager** using the Floodgate API to automatically detect player connection source and route requests.
-- Implemented **JavaDialogFactory** skeleton class using Paper's native experimental Dialog API (`Audience#showDialog`) with `.canCloseWithEscape(false)` support.
-- Implemented **BedrockFormFactory** skeleton class utilizing Geyser's Cumulus API (`SimpleForm` and `CustomForm` builders with result handlers and type-safe data getters).
-- Integrated `UIManager` initialization in `NaturalSchool` onEnable phase and exposed it via `getUiManager()`.
+- Created the **Unified UI Subsystem** to route player interface rendering dynamically by connection platform.
+- Implemented `DialogFormatter` with a pixel-perfect auto-alignment engine (`alignLeft`) using uniform monospaced font tag wrappers.
+- Created cross-platform `UIManager` routing Java players to native client-side Dialogs and Bedrock players to Cumulus Simple/Custom Forms.
+- Added `JavaDialogFactory` using Paper's native experimental Dialog API and `BedrockFormFactory` using Geyser/Floodgate's Cumulus Forms API.
+- Integrated the subsystem into `NaturalSchool`'s startup initialization and exposed `getUiManager()`.
 
 ## [1.2.0] - 2026-06-05
 ### Added
