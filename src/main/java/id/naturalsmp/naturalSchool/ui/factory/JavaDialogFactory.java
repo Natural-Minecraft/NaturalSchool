@@ -780,4 +780,27 @@ public class JavaDialogFactory {
 
         player.showDialog(dialog);
     }
+
+    public void openExamClosed(Player player) {
+        List<DialogBody> bodies = new ArrayList<>();
+        bodies.add(DialogBody.item(new ItemStack(Material.BARRIER)).build());
+        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<red><bold>Portal Sedang ditutup!</bold></red>")));
+        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize(plugin.getExamMessage())));
+
+        ActionButton closeBtn = ActionButton.builder(Component.text("Tutup"))
+            .action(DialogAction.customClick((view, audience) -> {
+                // Returns to gameplay
+            }, ClickCallback.Options.builder().uses(1).build()))
+            .build();
+
+        Dialog dialog = Dialog.create(builder -> builder.empty()
+            .base(DialogBase.builder(Component.text("Portal Ditutup"))
+                .canCloseWithEscape(true)
+                .body(bodies)
+                .build())
+            .type(DialogType.notice(closeBtn))
+        );
+
+        player.showDialog(dialog);
+    }
 }

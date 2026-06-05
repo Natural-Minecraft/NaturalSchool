@@ -58,7 +58,7 @@ public class SchoolCommand implements CommandExecutor, TabCompleter {
             return true;
         } else if (subCommand.equals("exam")) {
             if (!plugin.isExamOpen()) {
-                player.sendMessage(MiniMessage.miniMessage().deserialize("<red>Portal Ujian saat ini sedang DITUTUP oleh administrator!</red>"));
+                plugin.getUiManager().openExamClosed(player);
                 return true;
             }
             plugin.getUiManager().openExamPortal(player);

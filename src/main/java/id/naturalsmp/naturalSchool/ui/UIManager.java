@@ -280,6 +280,14 @@ public class UIManager {
         }
     }
 
+    public void openExamClosed(Player player) {
+        if (isBedrockPlayer(player)) {
+            bedrockHandler.openExamClosed(player);
+        } else {
+            javaDialogFactory.openExamClosed(player);
+        }
+    }
+
     // Stateful Exam Questions Routing
     public void openExamQuestion1(Player player, String subject, boolean showWarning) {
         if (isBedrockPlayer(player)) {

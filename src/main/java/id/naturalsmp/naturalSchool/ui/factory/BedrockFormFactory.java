@@ -347,22 +347,24 @@ public class BedrockFormFactory {
     }
 
     public void openExamPortal(Player player) {
-        SimpleForm form = SimpleForm.builder()
+        CustomForm form = CustomForm.builder()
             .title("Portal Ujian")
-            .content(net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(
+            .label(net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(
                 net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().deserialize(plugin.getExamMessage())
-            ) + "\n\nSilakan pilih mata pelajaran untuk memulai ujian:")
-            .button("Pengetahuan Umum")
-            .button("IPA")
-            .button("IPS")
-            .button("Matematika (MTK)")
-            .button("Bahasa Indonesia")
-            .button("PKN")
-            .button("Bahasa Inggris")
+            ))
+            .dropdown("Pilih Mata Pelajaran", 
+                "Pengetahuan Umum",
+                "IPA",
+                "IPS",
+                "Matematika (MTK)",
+                "Bahasa Indonesia",
+                "PKN",
+                "Bahasa Inggris"
+            )
             .validResultHandler(response -> {
-                int clickedId = response.clickedButtonId();
+                int selectedIndex = response.asDropdown(0);
                 String selectedSubject = "";
-                switch (clickedId) {
+                switch (selectedIndex) {
                     case 0: selectedSubject = "pengetahuan_umum"; break;
                     case 1: selectedSubject = "ipa"; break;
                     case 2: selectedSubject = "ips"; break;
@@ -393,10 +395,11 @@ public class BedrockFormFactory {
             return;
         }
 
-        String btnA = session.isAnsA() ? "§a§l● A. " + questions.q1A + " (Terpilih)" : "§7○ A. " + questions.q1A;
-        String btnB = session.isAnsB() ? "§a§l● B. " + questions.q1B + " (Terpilih)" : "§7○ B. " + questions.q1B;
-        String btnC = session.isAnsC() ? "§a§l● C. " + questions.q1C + " (Terpilih)" : "§7○ C. " + questions.q1C;
-        String btnD = session.isAnsD() ? "§a§l● D. " + questions.q1D + " (Terpilih)" : "§7○ D. " + questions.q1D;
+        // Gunakan FONT NORMAL dan warna DEFAULT tanpa simbol non-alfabet khusus (mencegah font tipis di Bedrock)
+        String btnA = "A. " + questions.q1A + (session.isAnsA() ? " (Terpilih)" : "");
+        String btnB = "B. " + questions.q1B + (session.isAnsB() ? " (Terpilih)" : "");
+        String btnC = "C. " + questions.q1C + (session.isAnsC() ? " (Terpilih)" : "");
+        String btnD = "D. " + questions.q1D + (session.isAnsD() ? " (Terpilih)" : "");
 
         SimpleForm form = SimpleForm.builder()
             .title("Ujian: Soal 1/3")
@@ -405,7 +408,7 @@ public class BedrockFormFactory {
             .button(btnB)
             .button(btnC)
             .button(btnD)
-            .button("§c§lKembali ke Portal")
+            .button("Kembali ke Portal")
             .validResultHandler(response -> {
                 int clickedId = response.clickedButtonId();
                 if (clickedId == 4) { // Kembali ke Portal
@@ -421,7 +424,6 @@ public class BedrockFormFactory {
                 plugin.getUiManager().openExamQuestion2(player, subject);
             })
             .closedResultHandler(() -> {
-                // Prevent escape (ESC equivalent)
                 openExamQuestion1(player, subject, showWarning);
             })
             .build();
@@ -442,19 +444,16 @@ public class BedrockFormFactory {
             return;
         }
 
-        String trueBtn = (session.getTrueOrFalse() != null && session.getTrueOrFalse()) 
-            ? "§a§l● BENAR (Terpilih)" 
-            : "§7○ BENAR";
-        String falseBtn = (session.getTrueOrFalse() != null && !session.getTrueOrFalse()) 
-            ? "§c§l● SALAH (Terpilih)" 
-            : "§7○ SALAH";
+        // Gunakan FONT NORMAL dan warna DEFAULT tanpa simbol non-alfabet khusus (mencegah font tipis di Bedrock)
+        String trueBtn = "BENAR" + ((session.getTrueOrFalse() != null && session.getTrueOrFalse()) ? " (Terpilih)" : "");
+        String falseBtn = "SALAH" + ((session.getTrueOrFalse() != null && !session.getTrueOrFalse()) ? " (Terpilih)" : "");
 
         SimpleForm form = SimpleForm.builder()
             .title("Ujian: Soal 2/3")
             .content("Mata Pelajaran: " + ExamQuestions.getSubjectDisplayName(subject) + "\n\nPertanyaan (Benar / Salah):\n" + questions.q2Text + "\n\nPilih jawaban Anda:")
             .button(trueBtn)
             .button(falseBtn)
-            .button("§c§lKembali ke Soal 1")
+            .button("Kembali ke Soal 1")
             .validResultHandler(response -> {
                 int clickedId = response.clickedButtonId();
                 if (clickedId == 2) { // Kembali ke Soal 1
@@ -467,7 +466,6 @@ public class BedrockFormFactory {
                 plugin.getUiManager().openExamQuestion3(player, subject, false);
             })
             .closedResultHandler(() -> {
-                // Prevent escape
                 openExamQuestion2(player, subject);
             })
             .build();
@@ -488,33 +486,45 @@ public class BedrockFormFactory {
             return;
         }
 
-        CustomForm form = CustomForm.builder()
-            .title("Ujian: Soal 3/3")
-            .label("Mata Pelajaran: " + ExamQuestions.getSubjectDisplayName(subject) + "\n\nPertanyaan (Pernyataan Majemuk):\n" + questions.q3Text + "\n\nPilih semua pernyataan yang menurut Anda benar, lalu tekan Submit. Centang toggle paling bawah jika Anda ingin kembali ke Soal 2.")
-            .toggle("1. " + questions.q3Stmt1, session.isStmt1())
-            .toggle("2. " + questions.q3Stmt2, session.isStmt2())
-            .toggle("3. " + questions.q3Stmt3, session.isStmt3())
-            .toggle("§c§lKembali ke Soal 2 (Centang untuk kembali)", false)
-            .validResultHandler(response -> {
-                boolean stmt1 = response.asToggle(0);
-                boolean stmt2 = response.asToggle(1);
-                boolean stmt3 = response.asToggle(2);
-                boolean goBack = response.asToggle(3);
+        // Gunakan SimpleForm murni dengan checklist teks standard [X] atau [ ]
+        String btnStmt1 = (session.isStmt1() ? "[X] 1. " : "[ ] 1. ") + questions.q3Stmt1;
+        String btnStmt2 = (session.isStmt2() ? "[X] 2. " : "[ ] 2. ") + questions.q3Stmt2;
+        String btnStmt3 = (session.isStmt3() ? "[X] 3. " : "[ ] 3. ") + questions.q3Stmt3;
 
-                if (goBack) {
+        SimpleForm form = SimpleForm.builder()
+            .title("Ujian: Soal 3/3")
+            .content("Mata Pelajaran: " + ExamQuestions.getSubjectDisplayName(subject) + "\n\nPertanyaan (Pernyataan Majemuk):\n" + questions.q3Text + "\n\nKlik pernyataan untuk mencentang/membatalkan centang, lalu pilih 'Berikutnya' jika sudah selesai:")
+            .button(btnStmt1)
+            .button(btnStmt2)
+            .button(btnStmt3)
+            .button("Berikutnya")
+            .button("Kembali ke Soal 2")
+            .validResultHandler(response -> {
+                int clickedId = response.clickedButtonId();
+                if (clickedId == 4) { // Kembali ke Soal 2
                     session.setCurrentQuestion(2);
                     plugin.getUiManager().openExamQuestion2(player, subject);
                     return;
                 }
-
-                session.setStmt1(stmt1);
-                session.setStmt2(stmt2);
-                session.setStmt3(stmt3);
-                session.setCurrentQuestion(4);
-                plugin.getUiManager().openExamConfirmation(player, subject);
+                if (clickedId == 3) { // Berikutnya
+                    session.setCurrentQuestion(4);
+                    plugin.getUiManager().openExamConfirmation(player, subject);
+                    return;
+                }
+                
+                // Toggle state
+                if (clickedId == 0) {
+                    session.setStmt1(!session.isStmt1());
+                } else if (clickedId == 1) {
+                    session.setStmt2(!session.isStmt2());
+                } else if (clickedId == 2) {
+                    session.setStmt3(!session.isStmt3());
+                }
+                
+                // Refresh form to show updated checklist
+                openExamQuestion3(player, subject, showWarning);
             })
             .closedResultHandler(() -> {
-                // Prevent escape
                 openExamQuestion3(player, subject, showWarning);
             })
             .build();
@@ -547,9 +557,21 @@ public class BedrockFormFactory {
                 }
             })
             .closedResultHandler(() -> {
-                // Prevent escape
                 openExamConfirmation(player, subject);
             })
+            .build();
+
+        FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
+    }
+
+    public void openExamClosed(Player player) {
+        SimpleForm form = SimpleForm.builder()
+            .title("Portal Ditutup")
+            .content("§c§lPortal Sedang ditutup!\n\n" + 
+                net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(
+                    net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().deserialize(plugin.getExamMessage())
+                ))
+            .button("Tutup")
             .build();
 
         FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);

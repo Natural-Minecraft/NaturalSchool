@@ -2,6 +2,14 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.4.8] - 2026-06-06
+### Added
+- Implemented Notice dialogs for closed exam portals ("Portal Sedang ditutup!") displaying custom administrator messages on both Java and Bedrock.
+- Refactored Bedrock Edition's Portal Ujian layout to use a `CustomForm` dropdown menu instead of buttons.
+- Refactored Bedrock's Soal 3 (Multiple Statement Checklist) to use a button-based `SimpleForm` checklist (using normal `[X]` / `[ ]` ASCII tags), removing dropdown menus and CustomForm limits.
+- Added two distinct navigation buttons ("Berikutnya" and "Kembali ke Soal 2") for Bedrock's Soal 3.
+- Standardized Bedrock buttons (MCQ, True/False, and Checklist) to use font normal, default colors, and clean ASCII/alphanumeric strings to prevent Bedrock from rendering thin/glitched custom fonts.
+
 ## [1.4.7] - 2026-06-05
 ### Added
 - Improvised the Exam Subsystem UI for both Java Edition (Dialogs) and Bedrock Edition (Geyser/Floodgate Forms):

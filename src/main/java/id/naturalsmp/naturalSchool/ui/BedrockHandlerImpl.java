@@ -98,4 +98,9 @@ public class BedrockHandlerImpl implements BedrockHandler {
     public void openExamConfirmation(Player player, String subject) {
         bedrockFormFactory.openExamConfirmation(player, subject);
     }
+
+    @Override
+    public void openExamClosed(Player player) {
+        bedrockFormFactory.openExamClosed(player);
+    }
 }
