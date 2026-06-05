@@ -10,6 +10,7 @@ import id.naturalsmp.naturalSchool.profile.ProfileManager;
 import id.naturalsmp.naturalSchool.profile.StudentProfile;
 import id.naturalsmp.naturalSchool.command.NaturalSchoolCommand;
 import id.naturalsmp.naturalSchool.placeholder.NaturalSchoolExpansion;
+import id.naturalsmp.naturalSchool.ui.UIManager;
 import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -18,6 +19,7 @@ public final class NaturalSchool extends JavaPlugin {
     private DatabaseManager databaseManager;
     private ProfileManager profileManager;
     private RankPrefixConfig rankPrefixConfig;
+    private UIManager uiManager;
     private NaturalSchoolAPI api;
 
     @Override
@@ -41,6 +43,9 @@ public final class NaturalSchool extends JavaPlugin {
 
         // Initialize Profile Cache Manager
         profileManager = new ProfileManager(this, databaseManager);
+
+        // Initialize UI Subsystem
+        uiManager = new UIManager(this);
 
         // Register Listeners
         getServer().getPluginManager().registerEvents(new PlayerListener(this, profileManager), this);
@@ -93,6 +98,10 @@ public final class NaturalSchool extends JavaPlugin {
 
     public RankPrefixConfig getRankPrefixConfig() {
         return rankPrefixConfig;
+    }
+
+    public UIManager getUiManager() {
+        return uiManager;
     }
 
     public NaturalSchoolAPI getNaturalSchoolAPI() {
