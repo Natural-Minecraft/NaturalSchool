@@ -122,7 +122,8 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage(MiniMessage.miniMessage().deserialize(
                 "<gold>=== NaturalSchool Semester Management ===</gold>\n" +
                 "<yellow>/naturalschool semester info</yellow> - <gray>Tampilkan status semester saat ini.</gray>\n" +
-                "<yellow>/naturalschool semester end</yellow> - <gray>Paksa rotasi semester baru (asynchronous).</gray>"
+                "<yellow>/naturalschool semester end</yellow> - <gray>Paksa rotasi semester baru (asynchronous).</gray>\n" +
+                "<yellow>/naturalschool semester reset</yellow> - <gray>Reset semester kembali ke kalender real-life.</gray>"
             ));
             return;
         }
@@ -148,8 +149,20 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
                 ));
                 return null;
             });
+        } else if ("reset".equals(sub)) {
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<yellow>Memulai transaksi reset semester secara asynchronous...</yellow>"));
+            plugin.getSemesterManager().resetSemesterState().thenAccept(affected -> {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize(
+                    "<green>Transaksi reset semester selesai! Total pelajar terdampak: </green><aqua>" + affected + "</aqua>"
+                ));
+            }).exceptionally(ex -> {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize(
+                    "<red>Gagal melakukan reset semester: " + ex.getMessage() + "</red>"
+                ));
+                return null;
+            });
         } else {
-            sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Subcommand tidak dikenal. Gunakan info atau end.</red>"));
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Subcommand tidak dikenal. Gunakan info, end, atau reset.</red>"));
         }
     }
 
@@ -707,7 +720,7 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
             if ("nis".equals(subCommand)) {
                 return filterList(Arrays.asList("register", "unregister", "set", "show", "help"), args[1]);
             } else if ("semester".equals(subCommand)) {
-                return filterList(Arrays.asList("info", "end"), args[1]);
+                return filterList(Arrays.asList("info", "end", "reset"), args[1]);
             } else if ("gui".equals(subCommand)) {
                 return filterList(Collections.singletonList("welcome"), args[1]);
             } else if (Arrays.asList("info", "setrank", "setclass", "setstage").contains(subCommand)) {
