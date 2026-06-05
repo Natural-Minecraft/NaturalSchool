@@ -2,6 +2,8 @@
 
 NaturalSchool is a high-performance core plugin for Paper servers (targeting Java Edition 1.21.1 and Java 17+) built with a Core-Infrastructure architectural pattern. It manages player academic student profiles smoothly with direct SQLite support and a MySQL connection pool powered by HikariCP.
 
+### 📄 [Read the CHANGELOG.md](CHANGELOG.md) for recent updates and security patches.
+
 ## Key Features
 
 - **Core-Infrastructure Pattern**: Decoupled modules. Configuration and Database act as global core components, while student player data runs under a separate caching manager module.
