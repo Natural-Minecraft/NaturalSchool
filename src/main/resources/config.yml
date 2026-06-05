@@ -30,3 +30,8 @@ academic-settings:
   
   # The default stage a new player starts at (e.g. SD, SMP, etc.)
   default-start-stage: "SD"
+
+# Exam Subsystem Settings
+exam-settings:
+  open: true
+  message: "<yellow>Silakan pilih mata pelajaran untuk memulai ujian.</yellow>"

@@ -10,6 +10,8 @@ import org.geysermc.cumulus.response.CustomFormResponse;
 import org.geysermc.cumulus.response.SimpleFormResponse;
 import org.geysermc.floodgate.api.FloodgateApi;
 
+import id.naturalsmp.naturalSchool.ui.ExamSession;
+import id.naturalsmp.naturalSchool.ui.ExamQuestions;
 import java.util.UUID;
 
 public class BedrockFormFactory {
@@ -338,6 +340,226 @@ public class BedrockFormFactory {
                 } else {
                     plugin.getUiManager().openExam5(player, true);
                 }
+            })
+            .build();
+
+        FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
+    }
+
+    public void openExamPortal(Player player) {
+        SimpleForm form = SimpleForm.builder()
+            .title("Portal Ujian")
+            .content(net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(
+                net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().deserialize(plugin.getExamMessage())
+            ) + "\n\nSilakan pilih mata pelajaran untuk memulai ujian:")
+            .button("Pengetahuan Umum")
+            .button("IPA")
+            .button("IPS")
+            .button("Matematika (MTK)")
+            .button("Bahasa Indonesia")
+            .button("PKN")
+            .button("Bahasa Inggris")
+            .validResultHandler(response -> {
+                int clickedId = response.clickedButtonId();
+                String selectedSubject = "";
+                switch (clickedId) {
+                    case 0: selectedSubject = "pengetahuan_umum"; break;
+                    case 1: selectedSubject = "ipa"; break;
+                    case 2: selectedSubject = "ips"; break;
+                    case 3: selectedSubject = "mtk"; break;
+                    case 4: selectedSubject = "b_indo"; break;
+                    case 5: selectedSubject = "pkn"; break;
+                    case 6: selectedSubject = "b_inggris"; break;
+                }
+
+                plugin.getUiManager().startExamSession(player, selectedSubject);
+                plugin.getUiManager().openExamQuestion1(player, selectedSubject, false);
+            })
+            .build();
+
+        FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
+    }
+
+    public void openExamQuestion1(Player player, String subject, boolean showWarning) {
+        ExamSession session = plugin.getUiManager().getExamSession(player.getUniqueId());
+        if (session == null) {
+            openExamPortal(player);
+            return;
+        }
+
+        ExamQuestions.QuestionSet questions = ExamQuestions.getQuestions(subject);
+        if (questions == null) {
+            openExamPortal(player);
+            return;
+        }
+
+        CustomForm.Builder builder = CustomForm.builder()
+            .title("Ujian: Soal 1/3");
+
+        if (showWarning) {
+            builder.label("§c§lPilih hanya satu jawaban!");
+        } else {
+            builder.label("Pertanyaan: " + questions.q1Text + "\n\nPilih satu jawaban yang benar:");
+        }
+
+        CustomForm form = builder
+            .toggle("A. " + questions.q1A, session.isAnsA())
+            .toggle("B. " + questions.q1B, session.isAnsB())
+            .toggle("C. " + questions.q1C, session.isAnsC())
+            .toggle("D. " + questions.q1D, session.isAnsD())
+            .toggle("§c§lKembali ke Portal (Centang jika ingin kembali)", false)
+            .validResultHandler(response -> {
+                boolean ansA = response.asToggle(0);
+                boolean ansB = response.asToggle(1);
+                boolean ansC = response.asToggle(2);
+                boolean ansD = response.asToggle(3);
+                boolean goBack = response.asToggle(4);
+
+                if (goBack) {
+                    plugin.getUiManager().clearExamSession(player);
+                    plugin.getUiManager().openExamPortal(player);
+                    return;
+                }
+
+                int selectedCount = (ansA ? 1 : 0) + (ansB ? 1 : 0) + (ansC ? 1 : 0) + (ansD ? 1 : 0);
+
+                if (selectedCount > 1) {
+                    plugin.getUiManager().openExamQuestion1(player, subject, true);
+                } else {
+                    session.setAnsA(ansA);
+                    session.setAnsB(ansB);
+                    session.setAnsC(ansC);
+                    session.setAnsD(ansD);
+                    session.setCurrentQuestion(2);
+                    plugin.getUiManager().openExamQuestion2(player, subject);
+                }
+            })
+            .closedResultHandler(() -> {
+                // Prevent escape (ESC equivalent)
+                openExamQuestion1(player, subject, showWarning);
+            })
+            .build();
+
+        FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
+    }
+
+    public void openExamQuestion2(Player player, String subject) {
+        ExamSession session = plugin.getUiManager().getExamSession(player.getUniqueId());
+        if (session == null) {
+            openExamPortal(player);
+            return;
+        }
+
+        ExamQuestions.QuestionSet questions = ExamQuestions.getQuestions(subject);
+        if (questions == null) {
+            openExamPortal(player);
+            return;
+        }
+
+        boolean defVal = session.getTrueOrFalse() != null && session.getTrueOrFalse();
+
+        CustomForm form = CustomForm.builder()
+            .title("Ujian: Soal 2/3")
+            .label("Pertanyaan (Benar / Salah):\n" + questions.q2Text)
+            .toggle("Centang jika pernyataan BENAR (matikan jika SALAH)", defVal)
+            .toggle("§c§lKembali ke Soal 1 (Centang jika ingin kembali)", false)
+            .validResultHandler(response -> {
+                boolean ansTf = response.asToggle(0);
+                boolean goBack = response.asToggle(1);
+
+                if (goBack) {
+                    session.setCurrentQuestion(1);
+                    plugin.getUiManager().openExamQuestion1(player, subject, false);
+                    return;
+                }
+
+                session.setTrueOrFalse(ansTf);
+                session.setCurrentQuestion(3);
+                plugin.getUiManager().openExamQuestion3(player, subject, false);
+            })
+            .closedResultHandler(() -> {
+                // Prevent escape
+                openExamQuestion2(player, subject);
+            })
+            .build();
+
+        FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
+    }
+
+    public void openExamQuestion3(Player player, String subject, boolean showWarning) {
+        ExamSession session = plugin.getUiManager().getExamSession(player.getUniqueId());
+        if (session == null) {
+            openExamPortal(player);
+            return;
+        }
+
+        ExamQuestions.QuestionSet questions = ExamQuestions.getQuestions(subject);
+        if (questions == null) {
+            openExamPortal(player);
+            return;
+        }
+
+        CustomForm form = CustomForm.builder()
+            .title("Ujian: Soal 3/3")
+            .label("Pertanyaan (Pernyataan Majemuk):\n" + questions.q3Text + "\n\nPilih semua pernyataan yang benar:")
+            .toggle("1. " + questions.q3Stmt1, session.isStmt1())
+            .toggle("2. " + questions.q3Stmt2, session.isStmt2())
+            .toggle("3. " + questions.q3Stmt3, session.isStmt3())
+            .toggle("§c§lKembali ke Soal 2 (Centang jika ingin kembali)", false)
+            .validResultHandler(response -> {
+                boolean stmt1 = response.asToggle(0);
+                boolean stmt2 = response.asToggle(1);
+                boolean stmt3 = response.asToggle(2);
+                boolean goBack = response.asToggle(3);
+
+                if (goBack) {
+                    session.setCurrentQuestion(2);
+                    plugin.getUiManager().openExamQuestion2(player, subject);
+                    return;
+                }
+
+                session.setStmt1(stmt1);
+                session.setStmt2(stmt2);
+                session.setStmt3(stmt3);
+                session.setCurrentQuestion(4);
+                plugin.getUiManager().openExamConfirmation(player, subject);
+            })
+            .closedResultHandler(() -> {
+                // Prevent escape
+                openExamQuestion3(player, subject, showWarning);
+            })
+            .build();
+
+        FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
+    }
+
+    public void openExamConfirmation(Player player, String subject) {
+        ExamSession session = plugin.getUiManager().getExamSession(player.getUniqueId());
+        if (session == null) {
+            openExamPortal(player);
+            return;
+        }
+
+        SimpleForm form = SimpleForm.builder()
+            .title("Konfirmasi Akhir")
+            .content("Apakah Anda yakin ingin menyelesaikan ujian dan mengirimkan jawaban Anda sekarang?")
+            .button("Kirim Jawaban")
+            .button("Kembali ke Soal 3")
+            .validResultHandler(response -> {
+                int clickedId = response.clickedButtonId();
+                if (clickedId == 0) { // Kirim Jawaban
+                    int[] score = ExamQuestions.evaluateExam(session);
+                    player.sendTitle("§a§lUJIAN SELESAI", "§7Benar: §a" + score[0] + " §f| Salah: §c" + score[1], 20, 100, 20);
+                    player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
+                    plugin.getUiManager().clearExamSession(player);
+                } else { // Kembali ke Soal 3
+                    session.setCurrentQuestion(3);
+                    plugin.getUiManager().openExamQuestion3(player, subject, false);
+                }
+            })
+            .closedResultHandler(() -> {
+                // Prevent escape
+                openExamConfirmation(player, subject);
             })
             .build();
 

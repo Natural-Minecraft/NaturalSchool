@@ -9,6 +9,7 @@ import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -25,6 +26,7 @@ public class UIManager {
     private BedrockHandler bedrockHandler;
     private final boolean floodgateEnabled;
     private final Set<UUID> frozenPlayers = ConcurrentHashMap.newKeySet();
+    private final Map<UUID, ExamSession> activeExamSessions = new ConcurrentHashMap<>();
 
     // Prevents simultaneous NIS registrations from causing duplicate sequence numbers
     private final AtomicBoolean registrationInProgress = new AtomicBoolean(false);
@@ -253,6 +255,61 @@ public class UIManager {
             bedrockHandler.openExam5(player, showWarning);
         } else {
             javaDialogFactory.openExam5(player, showWarning);
+        }
+    }
+
+    // Exam Sessions Management
+    public ExamSession getExamSession(UUID uuid) {
+        return activeExamSessions.get(uuid);
+    }
+
+    public void startExamSession(Player player, String subject) {
+        activeExamSessions.put(player.getUniqueId(), new ExamSession(player.getUniqueId(), subject));
+    }
+
+    public void clearExamSession(Player player) {
+        activeExamSessions.remove(player.getUniqueId());
+    }
+
+    // Portal Ujian Routing
+    public void openExamPortal(Player player) {
+        if (isBedrockPlayer(player)) {
+            bedrockHandler.openExamPortal(player);
+        } else {
+            javaDialogFactory.openExamPortal(player);
+        }
+    }
+
+    // Stateful Exam Questions Routing
+    public void openExamQuestion1(Player player, String subject, boolean showWarning) {
+        if (isBedrockPlayer(player)) {
+            bedrockHandler.openExamQuestion1(player, subject, showWarning);
+        } else {
+            javaDialogFactory.openExamQuestion1(player, subject, showWarning);
+        }
+    }
+
+    public void openExamQuestion2(Player player, String subject) {
+        if (isBedrockPlayer(player)) {
+            bedrockHandler.openExamQuestion2(player, subject);
+        } else {
+            javaDialogFactory.openExamQuestion2(player, subject);
+        }
+    }
+
+    public void openExamQuestion3(Player player, String subject, boolean showWarning) {
+        if (isBedrockPlayer(player)) {
+            bedrockHandler.openExamQuestion3(player, subject, showWarning);
+        } else {
+            javaDialogFactory.openExamQuestion3(player, subject, showWarning);
+        }
+    }
+
+    public void openExamConfirmation(Player player, String subject) {
+        if (isBedrockPlayer(player)) {
+            bedrockHandler.openExamConfirmation(player, subject);
+        } else {
+            javaDialogFactory.openExamConfirmation(player, subject);
         }
     }
 }

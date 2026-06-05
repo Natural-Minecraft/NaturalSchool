@@ -87,6 +87,9 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
             case "semester":
                 handleSemesterCommand(sender, args);
                 break;
+            case "exam":
+                handleExamCommand(sender, args);
+                break;
             default:
                 sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Unknown subcommand. Use /naturalschool for help.</red>"));
                 break;
@@ -105,7 +108,8 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
             "<yellow>/naturalschool setstage <player> <SD|SMP|SMA></yellow> - <gray>Set student academic stage.</gray>\n" +
             "<yellow>/naturalschool nis help</yellow> - <gray>View NIS Management System help.</gray>\n" +
             "<yellow>/naturalschool gui <welcome|exam1|exam2|exam3|exam4|exam5> <player></yellow> - <gray>Manually trigger school GUI dialogs for player.</gray>\n" +
-            "<yellow>/naturalschool semester <info|end></yellow> - <gray>Manage and rotate active school semesters.</gray>"
+            "<yellow>/naturalschool semester <info|end></yellow> - <gray>Manage and rotate active school semesters.</gray>\n" +
+            "<yellow>/naturalschool exam <open|close|message> [msg]</yellow> - <gray>Manage exam portal status and messages.</gray>"
         ));
     }
 
@@ -163,6 +167,41 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
             });
         } else {
             sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Subcommand tidak dikenal. Gunakan info, end, atau reset.</red>"));
+        }
+    }
+
+    private void handleExamCommand(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            sender.sendMessage(MiniMessage.miniMessage().deserialize(
+                "<gold>=== NaturalSchool Exam Management ===</gold>\n" +
+                "<yellow>/naturalschool exam open</yellow> - <gray>Membuka akses portal ujian.</gray>\n" +
+                "<yellow>/naturalschool exam close</yellow> - <gray>Menutup akses portal ujian.</gray>\n" +
+                "<yellow>/naturalschool exam message <message></yellow> - <gray>Mengatur pesan portal ujian.</gray>"
+            ));
+            return;
+        }
+
+        String sub = args[1].toLowerCase();
+        if ("open".equals(sub)) {
+            plugin.setExamOpen(true);
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>Portal Ujian berhasil DIBUKA.</green>"));
+        } else if ("close".equals(sub)) {
+            plugin.setExamOpen(false);
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Portal Ujian berhasil DITUTUP.</red>"));
+        } else if ("message".equals(sub)) {
+            if (args.length < 3) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Harap masukkan pesan! /ns exam message <message></red>"));
+                return;
+            }
+            StringBuilder sb = new StringBuilder();
+            for (int i = 2; i < args.length; i++) {
+                sb.append(args[i]).append(" ");
+            }
+            String msg = sb.toString().trim();
+            plugin.setExamMessage(msg);
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>Pesan portal ujian berhasil diubah menjadi:</green>\n" + msg));
+        } else {
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Subcommand tidak dikenal. Gunakan open, close, atau message.</red>"));
         }
     }
 
@@ -746,7 +785,7 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 1) {
-            List<String> subCommands = Arrays.asList("reload", "info", "setrank", "setclass", "setstage", "nis", "gui", "semester");
+            List<String> subCommands = Arrays.asList("reload", "info", "setrank", "setclass", "setstage", "nis", "gui", "semester", "exam");
             return filterList(subCommands, args[0]);
         }
 
@@ -756,6 +795,8 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
                 return filterList(Arrays.asList("register", "unregister", "set", "show", "help"), args[1]);
             } else if ("semester".equals(subCommand)) {
                 return filterList(Arrays.asList("info", "end", "reset"), args[1]);
+            } else if ("exam".equals(subCommand)) {
+                return filterList(Arrays.asList("open", "close", "message"), args[1]);
             } else if ("gui".equals(subCommand)) {
                 return filterList(Arrays.asList("welcome", "exam1", "exam2", "exam3", "exam4", "exam5"), args[1]);
             } else if (Arrays.asList("info", "setrank", "setclass", "setstage").contains(subCommand)) {

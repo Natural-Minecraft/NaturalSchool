@@ -2,6 +2,15 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.4.6] - 2026-06-05
+### Added
+- Added the `/school exam` Command to open the Portal Ujian dialog.
+- Added administrative controls via `/ns exam <open|close|message>` to toggle the exam portal state and set a custom description.
+- Implemented stateful navigation across a 3-question sequence (Multiple Choice, True/False, Multiple Statement) with a final confirmation card:
+  - Added a "Kembali ke soal sebelumnya" button/toggle that remembers previous answers (stateful tracking).
+  - Disabled the ESC escape key in all exam question dialogs.
+  - Added automatic exam score calculation (correct and incorrect answers) showing up on submission.
+
 ## [1.4.5] - 2026-06-05
 ### Added
 - Added five creative layout variants for the Exam Subsystem GUI via command `/ns gui <exam1|exam2|exam3|exam4|exam5> <player>`.

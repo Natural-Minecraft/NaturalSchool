@@ -73,4 +73,29 @@ public class BedrockHandlerImpl implements BedrockHandler {
     public void openExam5(Player player, boolean showWarning) {
         bedrockFormFactory.openExam5(player, showWarning);
     }
+
+    @Override
+    public void openExamPortal(Player player) {
+        bedrockFormFactory.openExamPortal(player);
+    }
+
+    @Override
+    public void openExamQuestion1(Player player, String subject, boolean showWarning) {
+        bedrockFormFactory.openExamQuestion1(player, subject, showWarning);
+    }
+
+    @Override
+    public void openExamQuestion2(Player player, String subject) {
+        bedrockFormFactory.openExamQuestion2(player, subject);
+    }
+
+    @Override
+    public void openExamQuestion3(Player player, String subject, boolean showWarning) {
+        bedrockFormFactory.openExamQuestion3(player, subject, showWarning);
+    }
+
+    @Override
+    public void openExamConfirmation(Player player, String subject) {
+        bedrockFormFactory.openExamConfirmation(player, subject);
+    }
 }

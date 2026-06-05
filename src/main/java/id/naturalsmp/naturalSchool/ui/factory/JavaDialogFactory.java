@@ -16,6 +16,8 @@ import net.kyori.adventure.text.event.ClickCallback;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.entity.Player;
 
+import id.naturalsmp.naturalSchool.ui.ExamSession;
+import id.naturalsmp.naturalSchool.ui.ExamQuestions;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -490,6 +492,294 @@ public class JavaDialogFactory {
                 ))
                 .build())
             .type(DialogType.notice(submitBtn))
+        );
+
+        player.showDialog(dialog);
+    }
+
+    public void openExamPortal(Player player) {
+        List<DialogBody> bodies = new ArrayList<>();
+        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>Portal Ujian</bold></gold>")));
+        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize(plugin.getExamMessage())));
+        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Pilih mata pelajaran untuk diuji:</yellow>")));
+
+        ActionButton submitBtn = ActionButton.builder(Component.text("Mulai Ujian"))
+            .action(DialogAction.customClick((view, audience) -> {
+                if (audience instanceof Player p) {
+                    boolean pUmum = view.getBoolean("p_umum");
+                    boolean ipa = view.getBoolean("ipa");
+                    boolean ips = view.getBoolean("ips");
+                    boolean mtk = view.getBoolean("mtk");
+                    boolean bIndo = view.getBoolean("b_indo");
+                    boolean pkn = view.getBoolean("pkn");
+                    boolean bInggris = view.getBoolean("b_inggris");
+
+                    int selectedCount = (pUmum ? 1 : 0) + (ipa ? 1 : 0) + (ips ? 1 : 0) + (mtk ? 1 : 0) + (bIndo ? 1 : 0) + (pkn ? 1 : 0) + (bInggris ? 1 : 0);
+
+                    if (selectedCount != 1) {
+                        p.sendMessage(MiniMessage.miniMessage().deserialize("<red><bold>Harap pilih tepat satu mata pelajaran!</bold></red>"));
+                        openExamPortal(p); // Reopen portal
+                        return;
+                    }
+
+                    String selectedSubject = "";
+                    if (pUmum) selectedSubject = "pengetahuan_umum";
+                    else if (ipa) selectedSubject = "ipa";
+                    else if (ips) selectedSubject = "ips";
+                    else if (mtk) selectedSubject = "mtk";
+                    else if (bIndo) selectedSubject = "b_indo";
+                    else if (pkn) selectedSubject = "pkn";
+                    else if (bInggris) selectedSubject = "b_inggris";
+
+                    plugin.getUiManager().startExamSession(p, selectedSubject);
+                    plugin.getUiManager().openExamQuestion1(p, selectedSubject, false);
+                }
+            }, ClickCallback.Options.builder().uses(1).build()))
+            .build();
+
+        Dialog dialog = Dialog.create(builder -> builder.empty()
+            .base(DialogBase.builder(Component.text("Portal Ujian"))
+                .canCloseWithEscape(true)
+                .body(bodies)
+                .inputs(List.of(
+                    DialogInput.bool("p_umum", Component.text("Pengetahuan Umum"), false, "Pilih", "Kosong"),
+                    DialogInput.bool("ipa", Component.text("IPA"), false, "Pilih", "Kosong"),
+                    DialogInput.bool("ips", Component.text("IPS"), false, "Pilih", "Kosong"),
+                    DialogInput.bool("mtk", Component.text("Matematika (MTK)"), false, "Pilih", "Kosong"),
+                    DialogInput.bool("b_indo", Component.text("Bahasa Indonesia"), false, "Pilih", "Kosong"),
+                    DialogInput.bool("pkn", Component.text("PKN"), false, "Pilih", "Kosong"),
+                    DialogInput.bool("b_inggris", Component.text("Bahasa Inggris"), false, "Pilih", "Kosong")
+                ))
+                .build())
+            .type(DialogType.notice(submitBtn))
+        );
+
+        player.showDialog(dialog);
+    }
+
+    public void openExamQuestion1(Player player, String subject, boolean showWarning) {
+        ExamSession session = plugin.getUiManager().getExamSession(player.getUniqueId());
+        if (session == null) {
+            openExamPortal(player);
+            return;
+        }
+
+        ExamQuestions.QuestionSet questions = ExamQuestions.getQuestions(subject);
+        if (questions == null) {
+            openExamPortal(player);
+            return;
+        }
+
+        List<DialogBody> bodies = new ArrayList<>();
+        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>Ujian: " + ExamQuestions.getSubjectDisplayName(subject) + " (Soal 1/3)</bold></gold>")));
+        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gray>Pertanyaan:</gray> <white>" + questions.q1Text + "</white>")));
+
+        if (showWarning) {
+            bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<red><bold>Pilih hanya satu jawaban!</bold></red>")));
+        } else {
+            bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Pilih satu jawaban yang benar:</yellow>")));
+        }
+
+        ActionButton nextBtn = ActionButton.builder(Component.text("Lanjut ke Soal 2"))
+            .action(DialogAction.customClick((view, audience) -> {
+                if (audience instanceof Player p) {
+                    boolean ansA = view.getBoolean("option_a");
+                    boolean ansB = view.getBoolean("option_b");
+                    boolean ansC = view.getBoolean("option_c");
+                    boolean ansD = view.getBoolean("option_d");
+
+                    int selectedCount = (ansA ? 1 : 0) + (ansB ? 1 : 0) + (ansC ? 1 : 0) + (ansD ? 1 : 0);
+
+                    if (selectedCount > 1) {
+                        openExamQuestion1(p, subject, true);
+                    } else {
+                        session.setAnsA(ansA);
+                        session.setAnsB(ansB);
+                        session.setAnsC(ansC);
+                        session.setAnsD(ansD);
+                        session.setCurrentQuestion(2);
+                        plugin.getUiManager().openExamQuestion2(p, subject);
+                    }
+                }
+            }, ClickCallback.Options.builder().uses(1).build()))
+            .build();
+
+        ActionButton backBtn = ActionButton.builder(Component.text("Kembali ke Portal"))
+            .action(DialogAction.customClick((view, audience) -> {
+                if (audience instanceof Player p) {
+                    plugin.getUiManager().clearExamSession(p);
+                    plugin.getUiManager().openExamPortal(p);
+                }
+            }, ClickCallback.Options.builder().uses(1).build()))
+            .build();
+
+        Dialog dialog = Dialog.create(builder -> builder.empty()
+            .base(DialogBase.builder(Component.text("Ujian - Soal 1"))
+                .canCloseWithEscape(false)
+                .body(bodies)
+                .inputs(List.of(
+                    DialogInput.bool("option_a", Component.text("A. " + questions.q1A), session.isAnsA(), "Pilih", "Kosong"),
+                    DialogInput.bool("option_b", Component.text("B. " + questions.q1B), session.isAnsB(), "Pilih", "Kosong"),
+                    DialogInput.bool("option_c", Component.text("C. " + questions.q1C), session.isAnsC(), "Pilih", "Kosong"),
+                    DialogInput.bool("option_d", Component.text("D. " + questions.q1D), session.isAnsD(), "Pilih", "Kosong")
+                ))
+                .build())
+            .type(DialogType.confirmation(nextBtn, backBtn))
+        );
+
+        player.showDialog(dialog);
+    }
+
+    public void openExamQuestion2(Player player, String subject) {
+        ExamSession session = plugin.getUiManager().getExamSession(player.getUniqueId());
+        if (session == null) {
+            openExamPortal(player);
+            return;
+        }
+
+        ExamQuestions.QuestionSet questions = ExamQuestions.getQuestions(subject);
+        if (questions == null) {
+            openExamPortal(player);
+            return;
+        }
+
+        List<DialogBody> bodies = new ArrayList<>();
+        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>Ujian: " + ExamQuestions.getSubjectDisplayName(subject) + " (Soal 2/3)</bold></gold>")));
+        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gray>Pertanyaan (Benar / Salah):</gray> <white>" + questions.q2Text + "</white>")));
+
+        boolean defVal = session.getTrueOrFalse() != null && session.getTrueOrFalse();
+
+        ActionButton nextBtn = ActionButton.builder(Component.text("Lanjut ke Soal 3"))
+            .action(DialogAction.customClick((view, audience) -> {
+                if (audience instanceof Player p) {
+                    boolean ansTf = view.getBoolean("ans_tf");
+                    session.setTrueOrFalse(ansTf);
+                    session.setCurrentQuestion(3);
+                    plugin.getUiManager().openExamQuestion3(p, subject, false);
+                }
+            }, ClickCallback.Options.builder().uses(1).build()))
+            .build();
+
+        ActionButton backBtn = ActionButton.builder(Component.text("Kembali ke Soal 1"))
+            .action(DialogAction.customClick((view, audience) -> {
+                if (audience instanceof Player p) {
+                    session.setCurrentQuestion(1);
+                    plugin.getUiManager().openExamQuestion1(p, subject, false);
+                }
+            }, ClickCallback.Options.builder().uses(1).build()))
+            .build();
+
+        Dialog dialog = Dialog.create(builder -> builder.empty()
+            .base(DialogBase.builder(Component.text("Ujian - Soal 2"))
+                .canCloseWithEscape(false)
+                .body(bodies)
+                .inputs(List.of(
+                    DialogInput.bool("ans_tf", Component.text("Centang jika pernyataan BENAR (kosongkan jika SALAH)"), defVal, "Benar", "Salah")
+                ))
+                .build())
+            .type(DialogType.confirmation(nextBtn, backBtn))
+        );
+
+        player.showDialog(dialog);
+    }
+
+    public void openExamQuestion3(Player player, String subject, boolean showWarning) {
+        ExamSession session = plugin.getUiManager().getExamSession(player.getUniqueId());
+        if (session == null) {
+            openExamPortal(player);
+            return;
+        }
+
+        ExamQuestions.QuestionSet questions = ExamQuestions.getQuestions(subject);
+        if (questions == null) {
+            openExamPortal(player);
+            return;
+        }
+
+        List<DialogBody> bodies = new ArrayList<>();
+        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>Ujian: " + ExamQuestions.getSubjectDisplayName(subject) + " (Soal 3/3)</bold></gold>")));
+        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gray>Pertanyaan (Pernyataan Majemuk):</gray> <white>" + questions.q3Text + "</white>")));
+        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Pilih semua pernyataan yang benar:</yellow>")));
+
+        ActionButton nextBtn = ActionButton.builder(Component.text("Lanjut ke Konfirmasi"))
+            .action(DialogAction.customClick((view, audience) -> {
+                if (audience instanceof Player p) {
+                    boolean stmt1 = view.getBoolean("stmt_1");
+                    boolean stmt2 = view.getBoolean("stmt_2");
+                    boolean stmt3 = view.getBoolean("stmt_3");
+
+                    session.setStmt1(stmt1);
+                    session.setStmt2(stmt2);
+                    session.setStmt3(stmt3);
+                    session.setCurrentQuestion(4);
+                    plugin.getUiManager().openExamConfirmation(p, subject);
+                }
+            }, ClickCallback.Options.builder().uses(1).build()))
+            .build();
+
+        ActionButton backBtn = ActionButton.builder(Component.text("Kembali ke Soal 2"))
+            .action(DialogAction.customClick((view, audience) -> {
+                if (audience instanceof Player p) {
+                    session.setCurrentQuestion(2);
+                    plugin.getUiManager().openExamQuestion2(p, subject);
+                }
+            }, ClickCallback.Options.builder().uses(1).build()))
+            .build();
+
+        Dialog dialog = Dialog.create(builder -> builder.empty()
+            .base(DialogBase.builder(Component.text("Ujian - Soal 3"))
+                .canCloseWithEscape(false)
+                .body(bodies)
+                .inputs(List.of(
+                    DialogInput.bool("stmt_1", Component.text("1. " + questions.q3Stmt1), session.isStmt1(), "Benar", "Salah"),
+                    DialogInput.bool("stmt_2", Component.text("2. " + questions.q3Stmt2), session.isStmt2(), "Benar", "Salah"),
+                    DialogInput.bool("stmt_3", Component.text("3. " + questions.q3Stmt3), session.isStmt3(), "Benar", "Salah")
+                ))
+                .build())
+            .type(DialogType.confirmation(nextBtn, backBtn))
+        );
+
+        player.showDialog(dialog);
+    }
+
+    public void openExamConfirmation(Player player, String subject) {
+        ExamSession session = plugin.getUiManager().getExamSession(player.getUniqueId());
+        if (session == null) {
+            openExamPortal(player);
+            return;
+        }
+
+        List<DialogBody> bodies = List.of(
+            DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>Portal Ujian: Konfirmasi Kirim</bold></gold>")),
+            DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Apakah Anda yakin ingin menyelesaikan ujian dan mengirimkan jawaban Anda sekarang?</yellow>"))
+        );
+
+        ActionButton confirmBtn = ActionButton.builder(Component.text("Kirim Jawaban"))
+            .action(DialogAction.customClick((view, audience) -> {
+                if (audience instanceof Player p) {
+                    int[] score = ExamQuestions.evaluateExam(session);
+                    p.sendTitle("§a§lUJIAN SELESAI", "§7Benar: §a" + score[0] + " §f| Salah: §c" + score[1], 20, 100, 20);
+                    p.playSound(p.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
+                    plugin.getUiManager().clearExamSession(p);
+                }
+            }, ClickCallback.Options.builder().uses(1).build()))
+            .build();
+
+        ActionButton backBtn = ActionButton.builder(Component.text("Kembali ke Soal 3"))
+            .action(DialogAction.customClick((view, audience) -> {
+                if (audience instanceof Player p) {
+                    session.setCurrentQuestion(3);
+                    plugin.getUiManager().openExamQuestion3(p, subject, false);
+                }
+            }, ClickCallback.Options.builder().uses(1).build()))
+            .build();
+
+        Dialog dialog = Dialog.create(builder -> builder.empty()
+            .base(DialogBase.builder(Component.text("Konfirmasi Akhir"))
+                .canCloseWithEscape(false)
+                .body(bodies)
+                .build())
+            .type(DialogType.confirmation(confirmBtn, backBtn))
         );
 
         player.showDialog(dialog);

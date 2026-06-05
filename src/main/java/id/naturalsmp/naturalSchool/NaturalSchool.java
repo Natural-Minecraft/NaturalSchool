@@ -124,4 +124,22 @@ public final class NaturalSchool extends JavaPlugin {
     public SemesterManager getSemesterManager() {
         return semesterManager;
     }
+
+    public boolean isExamOpen() {
+        return getConfig().getBoolean("exam-settings.open", true);
+    }
+
+    public void setExamOpen(boolean open) {
+        getConfig().set("exam-settings.open", open);
+        saveConfig();
+    }
+
+    public String getExamMessage() {
+        return getConfig().getString("exam-settings.message", "<yellow>Silakan pilih mata pelajaran untuk memulai ujian.</yellow>");
+    }
+
+    public void setExamMessage(String message) {
+        getConfig().set("exam-settings.message", message);
+        saveConfig();
+    }
 }
