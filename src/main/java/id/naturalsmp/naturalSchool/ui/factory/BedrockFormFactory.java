@@ -46,17 +46,16 @@ public class BedrockFormFactory {
     }
 
     /**
-     * STEP 1: Welcome & Info SimpleForm
+     * STEP 1: Welcome & Info CustomForm
      */
     public void openStep1(Player player) {
-        SimpleForm form = SimpleForm.builder()
+        CustomForm form = CustomForm.builder()
             .title("NaturalSchool Onboarding")
-            .content("Welcome, " + player.getName() + "!\n\n" +
+            .label("Welcome, " + player.getName() + "!\n\n" +
                 "Username: " + player.getName() + "\n" +
                 "NIS: Unregistered\n" +
                 "Status: Belum Terdaftar\n\n" +
-                "Silakan klik Continue untuk melanjutkan.")
-            .button("Continue")
+                "Silakan klik Submit untuk melanjutkan.")
             .validResultHandler(response -> {
                 plugin.getUiManager().openStep2(player);
             })
@@ -70,17 +69,16 @@ public class BedrockFormFactory {
     }
 
     /**
-     * STEP 2: Cutscene cinematic offer SimpleForm
+     * STEP 2: Cutscene cinematic offer CustomForm
      */
     public void openStep2(Player player) {
-        SimpleForm form = SimpleForm.builder()
+        CustomForm form = CustomForm.builder()
             .title("Tonton Cinematic?")
-            .content("Apakah anda ingin menonton cinematic perkenalan NaturalSchool?")
-            .button("Tonton Sinematik")
-            .button("Lewati")
+            .label("Apakah anda ingin menonton cinematic perkenalan NaturalSchool?")
+            .toggle("Tonton Sinematik", false)
             .validResultHandler(response -> {
-                int clickedId = response.clickedButtonId();
-                if (clickedId == 0) {
+                boolean watchCinematic = response.asToggle(1);
+                if (watchCinematic) {
                     player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
                         .deserialize("<yellow>Fitur cutscene mendatang!</yellow>"));
                 }
