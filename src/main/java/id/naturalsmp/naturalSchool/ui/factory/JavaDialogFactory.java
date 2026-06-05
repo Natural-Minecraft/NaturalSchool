@@ -231,4 +231,48 @@ public class JavaDialogFactory {
             .type(DialogType.notice())
         );
     }
+
+    public void openTestExam(Player player) {
+        List<DialogBody> bodies = List.of(
+            DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>Ujian Kelulusan</bold></gold>")),
+            DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gray>Pertanyaan:</gray> <white>Siapa pencipta NaturalSMP?</white>")),
+            DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Pilih satu jawaban yang benar di bawah ini:</yellow>"))
+        );
+
+        ActionButton submitBtn = ActionButton.builder(Component.text("Kirim Jawaban"))
+            .action(DialogAction.customClick((view, audience) -> {
+                if (audience instanceof Player p) {
+                    boolean ansA = view.getBoolean("option_a");
+                    boolean ansB = view.getBoolean("option_b");
+                    boolean ansC = view.getBoolean("option_c");
+                    boolean ansD = view.getBoolean("option_d");
+
+                    // Correct answer is ONLY Option C
+                    if (ansC && !ansA && !ansB && !ansD) {
+                        p.sendTitle("§a§lJAWABAN BENAR", "§7Selamat, kamu lulus!", 10, 70, 20);
+                        p.playSound(p.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
+                    } else {
+                        p.sendTitle("§c§lJAWABAN SALAH", "§7Coba belajar lagi ya!", 10, 70, 20);
+                        p.playSound(p.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                    }
+                }
+            }, ClickCallback.Options.builder().uses(1).build()))
+            .build();
+
+        Dialog dialog = Dialog.create(builder -> builder.empty()
+            .base(DialogBase.builder(Component.text("Ujian: Pilihan Ganda"))
+                .canCloseWithEscape(true)
+                .body(bodies)
+                .inputs(List.of(
+                    DialogInput.bool("option_a", Component.text("A. Saya"), false, "Pilih", "Kosong"),
+                    DialogInput.bool("option_b", Component.text("B. Jopeh"), false, "Pilih", "Kosong"),
+                    DialogInput.bool("option_c", Component.text("C. AnakTentara"), false, "Pilih", "Kosong"),
+                    DialogInput.bool("option_d", Component.text("D. Gua"), false, "Pilih", "Kosong")
+                ))
+                .build())
+            .type(DialogType.notice(submitBtn))
+        );
+
+        player.showDialog(dialog);
+    }
 }

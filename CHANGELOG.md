@@ -2,9 +2,13 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.4.4] - 2026-06-05
+### Changed
+- Replaced the temporary Java Edition chest inventory GUI quiz layout with the native Paper Dialog system.
+
 ## [1.4.3] - 2026-06-05
 ### Added
-- Added temporary creative prototype Exam GUI quiz dialog for testing the Exam Subsystem. Works on both Java Edition (Immersive school desk Chest Inventory layout) and Bedrock Edition (Geyser/Floodgate SimpleForm layout) via command `/school testexam`.
+- Added temporary creative prototype Exam GUI quiz dialog for testing the Exam Subsystem. Works on both Java Edition and Bedrock Edition via command `/school testexam`.
 
 ## [1.4.2] - 2026-06-05
 ### Fixed

@@ -119,30 +119,6 @@ public class PlayerListener implements Listener {
         }
     }
 
-    @EventHandler
-    public void onInventoryClick(org.bukkit.event.inventory.InventoryClickEvent event) {
-        if (event.getView().title().equals(net.kyori.adventure.text.Component.text("Ujian: Pilihan Ganda"))) {
-            event.setCancelled(true);
-            
-            if (!(event.getWhoClicked() instanceof Player player)) {
-                return;
-            }
-            
-            int slot = event.getRawSlot();
-            if (slot == 28 || slot == 30 || slot == 34) {
-                // Incorrect Choice
-                player.sendTitle("§c§lJAWABAN SALAH", "§7Coba belajar lagi ya!", 10, 70, 20);
-                player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
-                player.closeInventory();
-            } else if (slot == 32) {
-                // Correct Choice (C)
-                player.sendTitle("§a§lJAWABAN BENAR", "§7Selamat, kamu lulus!", 10, 70, 20);
-                player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
-                player.closeInventory();
-            }
-        }
-    }
-
     private void handleDisconnect(UUID uuid) {
         StudentProfile profile = profileManager.getProfile(uuid);
         if (profile != null) {
