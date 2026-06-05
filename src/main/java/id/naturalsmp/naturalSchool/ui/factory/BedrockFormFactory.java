@@ -1,6 +1,7 @@
 package id.naturalsmp.naturalSchool.ui.factory;
 
 import id.naturalsmp.naturalSchool.NaturalSchool;
+import id.naturalsmp.naturalSchool.profile.StudentProfile;
 import id.naturalsmp.naturalSchool.ui.SchoolMenuType;
 import org.bukkit.entity.Player;
 import org.geysermc.cumulus.form.CustomForm;
@@ -49,7 +50,7 @@ public class BedrockFormFactory {
      * STEP 1: Welcome & Info CustomForm
      */
     public void openStep1(Player player) {
-        id.naturalsmp.naturalSchool.profile.StudentProfile profile = plugin.getProfileManager().getProfile(player.getUniqueId());
+        StudentProfile profile = plugin.getProfileManager().getProfile(player.getUniqueId());
         String nis = (profile == null || profile.getNis() == null) ? "Unregistered" : profile.getNis();
         String status = (profile == null || profile.getNis() == null) ? "Belum Terdaftar" : "Terdaftar";
 
@@ -113,9 +114,10 @@ public class BedrockFormFactory {
             .toggle("Saya Menyetujui Rules Server", false);
 
         CustomForm form = builder.validResultHandler(response -> {
-                int offset = showWarning ? 1 : 0;
-                boolean acceptTos = response.asToggle(offset + 1);
-                boolean acceptRules = response.asToggle(offset + 2);
+                // Cumulus asToggle(n) is 0-indexed by toggle elements only, not by all form elements.
+                // The warning label prepended does NOT shift toggle indices.
+                boolean acceptTos = response.asToggle(0);
+                boolean acceptRules = response.asToggle(1);
 
                 if (acceptTos && acceptRules) {
                     plugin.getUiManager().completeRegistration(player);

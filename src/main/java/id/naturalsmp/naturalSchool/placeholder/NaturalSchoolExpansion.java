@@ -30,7 +30,7 @@ public class NaturalSchoolExpansion extends PlaceholderExpansion {
 
     @Override
     public @NotNull String getVersion() {
-        return "1.2.0";
+        return plugin.getDescription().getVersion();
     }
 
     @Override

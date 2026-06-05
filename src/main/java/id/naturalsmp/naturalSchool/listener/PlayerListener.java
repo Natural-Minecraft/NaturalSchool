@@ -10,7 +10,6 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.event.player.PlayerKickEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.block.BlockBreakEvent;
@@ -34,11 +33,13 @@ public class PlayerListener implements Listener {
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
         UUID uuid = player.getUniqueId();
-        
+        // Capture name on main thread before going async — Bukkit API is not thread-safe
+        String playerName = player.getName();
+
         // Asynchronously load the student profile from the database to the cache
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            profileManager.loadProfile(uuid);
-            
+            profileManager.loadProfile(uuid, playerName);
+
             StudentProfile profile = profileManager.getProfile(uuid);
             if (profile != null && profile.getNis() == null) {
                 // Freezing and onboarding trigger must be synchronous
@@ -46,7 +47,7 @@ public class PlayerListener implements Listener {
                     if (player.isOnline()) {
                         // Freeze player immediately
                         plugin.getUiManager().freezePlayer(player);
-                        
+
                         // Schedule 20-tick (1 second) delayed synchronous task to call openMenu
                         Bukkit.getScheduler().runTaskLater(plugin, () -> {
                             if (player.isOnline()) {
@@ -66,12 +67,8 @@ public class PlayerListener implements Listener {
         handleDisconnect(uuid);
     }
 
-    @EventHandler
-    public void onPlayerKick(PlayerKickEvent event) {
-        UUID uuid = event.getPlayer().getUniqueId();
-        plugin.getUiManager().unfreezePlayer(event.getPlayer());
-        handleDisconnect(uuid);
-    }
+    // NOTE: No separate onPlayerKick handler — on Paper, PlayerKickEvent also fires
+    // PlayerQuitEvent, so onPlayerQuit handles both cases to prevent double-save.
 
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {

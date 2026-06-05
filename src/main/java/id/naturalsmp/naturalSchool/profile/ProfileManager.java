@@ -42,10 +42,12 @@ public class ProfileManager {
      * Loads a profile from the database. If it doesn't exist, creates a default profile
      * and saves it to the database. Finally, stores the profile in the runtime cache.
      * This method contains database calls and must be executed asynchronously.
+     * The username must be obtained on the main thread before calling this.
      *
-     * @param uuid Player UUID
+     * @param uuid     Player UUID
+     * @param username Player's current in-game name (captured on main thread before async call)
      */
-    public void loadProfile(UUID uuid) {
+    public void loadProfile(UUID uuid, String username) {
         if (uuid == null) return;
 
         CompletableFuture<Void> pendingSave = pendingSaves.get(uuid);
@@ -60,13 +62,7 @@ public class ProfileManager {
             StudentProfile profile = databaseManager.loadProfile(uuid);
             if (profile == null) {
                 Timestamp now = new Timestamp(System.currentTimeMillis());
-
-                String username = "Unknown";
-                Player p = Bukkit.getPlayer(uuid);
-                if (p != null) {
-                    username = p.getName();
-                }
-
+                // username is safely passed in from the main thread — no Bukkit.getPlayer() call here
                 profile = new StudentProfile(uuid, username, null, "NONE", 0, now, SchoolRank.NONE);
                 databaseManager.saveProfile(profile);
             }
@@ -134,5 +130,19 @@ public class ProfileManager {
      */
     public Map<UUID, StudentProfile> getProfileCache() {
         return profileCache;
+    }
+    /**
+     * Generates a unique NIS string based on the current registered count.
+     * Format: 1 + 3-digit sequence + DDMMYY date
+     *
+     * @param registeredCount current count of registered NIS entries
+     * @return generated NIS string
+     */
+    public static String generateNis(int registeredCount) {
+        java.time.LocalDate now = java.time.LocalDate.now();
+        java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("ddMMyy");
+        String dateStr = now.format(formatter);
+        int sequence = registeredCount + 1;
+        return "1" + String.format("%03d", sequence) + dateStr;
     }
 }

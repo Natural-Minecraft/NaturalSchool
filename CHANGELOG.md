@@ -2,6 +2,25 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.3.5] - 2026-06-05
+### Fixed (Critical)
+- **UIManager:** Fixed premature in-memory mutation bug — `StudentProfile` fields (NIS, rank, stage, class) are now only committed after the async database save succeeds. On save failure, the in-memory state is rolled back to prevent a corrupted cache.
+- **UIManager:** Fixed NIS race condition — added an `AtomicBoolean` registration lock to prevent two simultaneous players from being assigned the same NIS sequence number.
+- **BedrockFormFactory:** Fixed incorrect Cumulus toggle index calculation in Step 3. `asToggle(n)` is 0-indexed per toggle element only (not all elements). Removed the incorrect `offset` logic; indices are now always `0` and `1`.
+- **PlayerListener:** Fixed unsafe `Bukkit.getPlayer(uuid)` call inside the async profile load thread. Player name is now captured on the main thread before the async task and passed as a parameter.
+- **ProfileManager:** Updated `loadProfile` signature to accept `username` as a parameter (captured on main thread) instead of calling `Bukkit.getPlayer()` asynchronously.
+- **PlayerListener:** Removed duplicate `onPlayerKick` event handler. Paper fires `PlayerQuitEvent` alongside `PlayerKickEvent`, so the previous implementation caused double profile saves on player kick.
+
+### Fixed (Security)
+- **UIManager:** Exception messages from database failures are no longer shown in player-facing chat. Internal errors are now logged server-side only; players receive a generic localized message.
+
+### Changed (Optimization)
+- **NaturalSchoolExpansion:** Replaced hardcoded version string `"1.2.0"` with `plugin.getDescription().getVersion()` so the PAPI expansion always reports the correct plugin version.
+- **BedrockFormFactory:** Added proper `import id.naturalsmp.naturalSchool.profile.StudentProfile` declaration, removing the inline fully-qualified class name workaround.
+- **ProfileManager:** Extracted `generateNis(int count)` as a canonical static utility method.
+- **UIManager:** Removed duplicated NIS generation logic — now delegates to `ProfileManager.generateNis()`.
+- **UIManager:** Extracted `MiniMessage.miniMessage()` as a static constant to avoid repeated static method calls.
+
 ## [1.3.4] - 2026-06-05
 ### Added
 - Implemented real-time dynamic querying of player NIS and Status in onboarding Step 1 for both Java and Bedrock.

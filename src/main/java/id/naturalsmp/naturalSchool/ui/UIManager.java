@@ -4,6 +4,7 @@ import id.naturalsmp.naturalSchool.NaturalSchool;
 import id.naturalsmp.naturalSchool.profile.StudentProfile;
 import id.naturalsmp.naturalSchool.profile.SchoolRank;
 import id.naturalsmp.naturalSchool.ui.factory.JavaDialogFactory;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
@@ -11,14 +12,21 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Level;
 
 public class UIManager {
+
+    private static final MiniMessage MM = MiniMessage.miniMessage();
 
     private final NaturalSchool plugin;
     private final JavaDialogFactory javaDialogFactory;
     private BedrockHandler bedrockHandler;
     private final boolean floodgateEnabled;
     private final Set<UUID> frozenPlayers = ConcurrentHashMap.newKeySet();
+
+    // Prevents simultaneous NIS registrations from causing duplicate sequence numbers
+    private final AtomicBoolean registrationInProgress = new AtomicBoolean(false);
 
     public UIManager(NaturalSchool plugin) {
         this.plugin = plugin;
@@ -91,21 +99,25 @@ public class UIManager {
         UUID uuid = player.getUniqueId();
         StudentProfile profile = plugin.getProfileManager().getProfile(uuid);
         if (profile == null) {
-            player.kick(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                .deserialize("<red>Failed to load profile. Please reconnect!</red>"));
+            player.kick(MM.deserialize("<red>Failed to load profile. Please reconnect!</red>"));
             return;
         }
 
-        // JANGAN REGISTER DENGAN PLAYER YANG SUDAH ADA NIS NYA!
+        // Guard: skip if player already has a NIS
         if (profile.getNis() != null && !profile.getNis().isEmpty()) {
             unfreezePlayer(player);
-            player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                .deserialize("<yellow>Pendaftaran dilewati. Anda sudah terdaftar dengan NIS: " + profile.getNis() + "</yellow>"));
+            player.sendMessage(MM.deserialize("<yellow>Pendaftaran dilewati. Anda sudah terdaftar dengan NIS: "
+                    + profile.getNis() + "</yellow>"));
             return;
         }
 
-        player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-            .deserialize("<yellow>Registering your profile...</yellow>"));
+        // Guard: prevent race condition — only one registration at a time
+        if (!registrationInProgress.compareAndSet(false, true)) {
+            player.sendMessage(MM.deserialize("<yellow>Sistem sedang memproses pendaftaran lain. Silakan coba lagi sebentar.</yellow>"));
+            return;
+        }
+
+        player.sendMessage(MM.deserialize("<yellow>Mendaftarkan profil Anda...</yellow>"));
 
         CompletableFuture.supplyAsync(() -> {
             try {
@@ -115,35 +127,41 @@ public class UIManager {
             }
         }, runnable -> Bukkit.getScheduler().runTaskAsynchronously(plugin, runnable))
         .thenAccept(count -> {
-            java.time.LocalDate now = java.time.LocalDate.now();
-            java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("ddMMyy");
-            String dateStr = now.format(formatter);
-            int sequence = count + 1;
-            String generatedNis = "1" + String.format("%03d", sequence) + dateStr;
+            String generatedNis = plugin.getProfileManager().generateNis(count);
 
+            // Apply mutations and save — mutations are committed ONLY inside the success callback
             profile.setNis(generatedNis);
             profile.setAcademicStage("SD");
             profile.setAcademicClass(1);
             profile.setRank(SchoolRank.SD_1);
 
             plugin.getProfileManager().saveProfileAsync(profile).thenRun(() -> {
+                registrationInProgress.set(false);
                 Bukkit.getScheduler().runTask(plugin, () -> {
                     unfreezePlayer(player);
-                    player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                        .deserialize("<green>Registrasi Berhasil! Selamat datang di NaturalSchool! NIS Anda: " + generatedNis + " (SD Kelas 1).</green>"));
+                    player.sendMessage(MM.deserialize(
+                            "<green>Registrasi Berhasil! Selamat datang di NaturalSchool! NIS Anda: "
+                                    + generatedNis + " (SD Kelas 1).</green>"));
                 });
             }).exceptionally(ex -> {
-                Bukkit.getScheduler().runTask(plugin, () -> {
-                    player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                        .deserialize("<red>Gagal menyimpan profile: " + ex.getMessage() + "</red>"));
-                });
+                // Roll back in-memory mutations on failure
+                profile.setNis(null);
+                profile.setAcademicStage("NONE");
+                profile.setAcademicClass(0);
+                profile.setRank(SchoolRank.NONE);
+                registrationInProgress.set(false);
+                plugin.getLogger().log(Level.SEVERE, "Failed to save registration for " + uuid, ex);
+                Bukkit.getScheduler().runTask(plugin, () ->
+                    player.sendMessage(MM.deserialize("<red>Gagal menyimpan profil. Silakan coba lagi.</red>"))
+                );
                 return null;
             });
         }).exceptionally(ex -> {
-            Bukkit.getScheduler().runTask(plugin, () -> {
-                player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                    .deserialize("<red>Gagal mengambil nomor urut NIS: " + ex.getMessage() + "</red>"));
-            });
+            registrationInProgress.set(false);
+            plugin.getLogger().log(Level.SEVERE, "Failed to fetch NIS count for " + uuid, ex);
+            Bukkit.getScheduler().runTask(plugin, () ->
+                player.sendMessage(MM.deserialize("<red>Gagal mengambil nomor urut NIS. Silakan coba lagi.</red>"))
+            );
             return null;
         });
     }
