@@ -2,6 +2,7 @@ package id.naturalsmp.naturalSchool.ui.factory;
 
 import id.naturalsmp.naturalSchool.NaturalSchool;
 import id.naturalsmp.naturalSchool.ui.SchoolMenuType;
+import id.naturalsmp.naturalSchool.profile.StudentProfile;
 import id.naturalsmp.naturalSchool.ui.util.DialogFormatter;
 import io.papermc.paper.dialog.Dialog;
 import io.papermc.paper.registry.data.dialog.DialogBase;
@@ -177,11 +178,17 @@ public class JavaDialogFactory {
     }
 
     private Dialog createProfileDialog(Player player) {
+        StudentProfile profile = plugin.getProfileManager().getProfile(player.getUniqueId());
+        String username = profile != null && profile.getUsername() != null ? profile.getUsername() : player.getName();
+        String nis = (profile == null || profile.getNis() == null) ? "Belum Terdaftar" : profile.getNis();
+        int academicClass = profile != null ? profile.getAcademicClass() : 0;
+        String academicStage = profile != null ? profile.getAcademicStage() : "NONE";
+
         List<String> rawLines = List.of(
-            "<aqua><bold>Student Profile</bold></aqua>",
-            "<gray>Name: " + player.getName() + "</gray>",
-            "<gray>UUID: " + player.getUniqueId().toString().substring(0, 8) + "...</gray>",
-            "<green>Active Student Status</green>"
+            "<aqua><bold>Informasi Pelajar</bold></aqua>",
+            "<gray>Username:</gray> <white>" + username + "</white>",
+            "<gray>NIS:</gray> <white>" + nis + "</white>",
+            "<gray>Kelas + Jenjang:</gray> <white>" + academicClass + " (" + academicStage + ")</white>"
         );
 
         List<String> alignedLines = DialogFormatter.alignLeft(rawLines);
@@ -191,7 +198,7 @@ public class JavaDialogFactory {
         }
 
         return Dialog.create(builder -> builder.empty()
-            .base(DialogBase.builder(Component.text("Student Profile"))
+            .base(DialogBase.builder(Component.text("Informasi Pelajar"))
                 .canCloseWithEscape(true)
                 .body(bodies)
                 .build())

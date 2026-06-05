@@ -2,6 +2,11 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.3.6] - 2026-06-05
+### Added
+- Added `/school` command, specifically for registered student members. Running `/school` or `/school help` prints subcommand help, and running `/school info` opens the student profile GUI dialog.
+- Updated Java profile Dialog and Bedrock profile Form to dynamically retrieve and display student details including Username, NIS, and Kelas + Jenjang (class and stage).
+
 ## [1.3.5] - 2026-06-05
 ### Fixed (Critical)
 - **UIManager:** Fixed premature in-memory mutation bug — `StudentProfile` fields (NIS, rank, stage, class) are now only committed after the async database save succeeds. On save failure, the in-memory state is rolled back to prevent a corrupted cache.

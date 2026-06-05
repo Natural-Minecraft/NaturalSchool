@@ -135,10 +135,18 @@ public class BedrockFormFactory {
     }
 
     private void openProfileForm(Player player) {
+        StudentProfile profile = plugin.getProfileManager().getProfile(player.getUniqueId());
+        String username = profile != null && profile.getUsername() != null ? profile.getUsername() : player.getName();
+        String nis = (profile == null || profile.getNis() == null) ? "Belum Terdaftar" : profile.getNis();
+        int academicClass = profile != null ? profile.getAcademicClass() : 0;
+        String academicStage = profile != null ? profile.getAcademicStage() : "NONE";
+
         SimpleForm form = SimpleForm.builder()
-            .title("Student Profile")
-            .content("Name: " + player.getName() + "\nUUID: " + player.getUniqueId())
-            .button("Close")
+            .title("Informasi Pelajar")
+            .content("Username: " + username + "\n" +
+                     "NIS: " + nis + "\n" +
+                     "Kelas + Jenjang: " + academicClass + " (" + academicStage + ")")
+            .button("Tutup")
             .build();
 
         FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);

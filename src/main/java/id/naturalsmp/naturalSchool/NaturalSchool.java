@@ -9,6 +9,7 @@ import id.naturalsmp.naturalSchool.listener.PlayerListener;
 import id.naturalsmp.naturalSchool.profile.ProfileManager;
 import id.naturalsmp.naturalSchool.profile.StudentProfile;
 import id.naturalsmp.naturalSchool.command.NaturalSchoolCommand;
+import id.naturalsmp.naturalSchool.command.SchoolCommand;
 import id.naturalsmp.naturalSchool.placeholder.NaturalSchoolExpansion;
 import id.naturalsmp.naturalSchool.ui.UIManager;
 import org.bukkit.plugin.ServicePriority;
@@ -56,6 +57,13 @@ public final class NaturalSchool extends JavaPlugin {
         if (cmd != null) {
             cmd.setExecutor(mainCommand);
             cmd.setTabCompleter(mainCommand);
+        }
+
+        SchoolCommand schoolCommand = new SchoolCommand(this);
+        org.bukkit.command.PluginCommand schoolCmd = getCommand("school");
+        if (schoolCmd != null) {
+            schoolCmd.setExecutor(schoolCommand);
+            schoolCmd.setTabCompleter(schoolCommand);
         }
 
         // Register PlaceholderAPI Expansion if PAPI is present on the server
