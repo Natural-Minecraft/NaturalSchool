@@ -76,10 +76,14 @@ public class UIManager {
     }
 
     public void openStep3(Player player) {
+        openStep3(player, false);
+    }
+
+    public void openStep3(Player player, boolean showWarning) {
         if (isBedrockPlayer(player)) {
-            bedrockHandler.openStep3(player);
+            bedrockHandler.openStep3(player, showWarning);
         } else {
-            javaDialogFactory.openStep3(player);
+            javaDialogFactory.openStep3(player, showWarning);
         }
     }
 
@@ -89,6 +93,14 @@ public class UIManager {
         if (profile == null) {
             player.kick(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
                 .deserialize("<red>Failed to load profile. Please reconnect!</red>"));
+            return;
+        }
+
+        // JANGAN REGISTER DENGAN PLAYER YANG SUDAH ADA NIS NYA!
+        if (profile.getNis() != null && !profile.getNis().isEmpty()) {
+            unfreezePlayer(player);
+            player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
+                .deserialize("<yellow>Pendaftaran dilewati. Anda sudah terdaftar dengan NIS: " + profile.getNis() + "</yellow>"));
             return;
         }
 

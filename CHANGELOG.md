@@ -2,6 +2,13 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.3.4] - 2026-06-05
+### Added
+- Implemented real-time dynamic querying of player NIS and Status in onboarding Step 1 for both Java and Bedrock.
+- Integrated a guardrail check in registration completion to ensure players with an existing NIS skip the registration sequence.
+- Added a validation warning mechanism in Step 3 that redisplays the forms with a bold red warning at the top (Bedrock) or bottom (Java) if rules/ToS are not accepted.
+- Restructured Step 3 dialogs to utilize a single submit button and removed the decline/exit toggle to ensure clean submission routing.
+
 ## [1.3.3] - 2026-06-05
 ### Changed
 - Removed `<font:uniform>` tag wrappers from `DialogFormatter` to revert to standard/default Minecraft font rendering for Java Dialogs.

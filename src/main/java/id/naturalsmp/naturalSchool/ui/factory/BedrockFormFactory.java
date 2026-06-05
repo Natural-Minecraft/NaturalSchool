@@ -49,12 +49,16 @@ public class BedrockFormFactory {
      * STEP 1: Welcome & Info CustomForm
      */
     public void openStep1(Player player) {
+        id.naturalsmp.naturalSchool.profile.StudentProfile profile = plugin.getProfileManager().getProfile(player.getUniqueId());
+        String nis = (profile == null || profile.getNis() == null) ? "Unregistered" : profile.getNis();
+        String status = (profile == null || profile.getNis() == null) ? "Belum Terdaftar" : "Terdaftar";
+
         CustomForm form = CustomForm.builder()
             .title("NaturalSchool Onboarding")
             .label("Welcome, " + player.getName() + "!\n\n" +
                 "Username: " + player.getName() + "\n" +
-                "NIS: Unregistered\n" +
-                "Status: Belum Terdaftar\n\n" +
+                "NIS: " + nis + "\n" +
+                "Status: " + status + "\n\n" +
                 "Silakan klik Submit untuk melanjutkan.")
             .validResultHandler(response -> {
                 plugin.getUiManager().openStep2(player);
@@ -96,35 +100,32 @@ public class BedrockFormFactory {
     /**
      * STEP 3: ToS & Rules Agreement CustomForm
      */
-    public void openStep3(Player player) {
-        CustomForm form = CustomForm.builder()
-            .title("ToS & Rules Agreement")
-            .label("Untuk mulai bermain, anda harus menyetujui ToS dan Rules kami.\nAturan di: https://naturalsmp.net")
-            .toggle("Saya Menyetujui Terms Of Service", false)
-            .toggle("Saya Menyetujui Rules Server", false)
-            .toggle("Tolak & Keluar dari Server", false)
-            .validResultHandler(response -> {
-                boolean acceptTos = response.asToggle(1);
-                boolean acceptRules = response.asToggle(2);
-                boolean decline = response.asToggle(3);
+    public void openStep3(Player player, boolean showWarning) {
+        CustomForm.Builder builder = CustomForm.builder()
+            .title("ToS & Rules Agreement");
 
-                if (decline) {
-                    player.kick(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                        .deserialize("<red>Anda harus menyetujui ToS dan Rules untuk bermain di server ini!</red>"));
-                    return;
-                }
+        if (showWarning) {
+            builder.label("§c§lAnda wajib menyetujui untuk bermain");
+        }
+
+        builder.label("Untuk mulai bermain, anda harus menyetujui ToS dan Rules kami.\nAturan di: https://naturalsmp.net")
+            .toggle("Saya Menyetujui Terms Of Service", false)
+            .toggle("Saya Menyetujui Rules Server", false);
+
+        CustomForm form = builder.validResultHandler(response -> {
+                int offset = showWarning ? 1 : 0;
+                boolean acceptTos = response.asToggle(offset + 1);
+                boolean acceptRules = response.asToggle(offset + 2);
 
                 if (acceptTos && acceptRules) {
                     plugin.getUiManager().completeRegistration(player);
                 } else {
-                    player.sendActionBar(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                        .deserialize("<red>Anda harus mencentang KEDUA persetujuan untuk dapat bermain!</red>"));
-                    openStep3(player);
+                    plugin.getUiManager().openStep3(player, true);
                 }
             })
             .closedResultHandler(() -> {
                 // Prevent escape: reopen Step 3
-                openStep3(player);
+                openStep3(player, showWarning);
             })
             .build();
 

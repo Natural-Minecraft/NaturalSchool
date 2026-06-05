@@ -35,8 +35,8 @@ public class BedrockHandlerImpl implements BedrockHandler {
     }
 
     @Override
-    public void openStep3(Player player) {
-        bedrockFormFactory.openStep3(player);
+    public void openStep3(Player player, boolean showWarning) {
+        bedrockFormFactory.openStep3(player, showWarning);
     }
 
     @Override

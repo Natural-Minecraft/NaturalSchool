@@ -8,6 +8,6 @@ public interface BedrockHandler {
     boolean isBedrockPlayer(UUID uuid);
     void openStep1(Player player);
     void openStep2(Player player);
-    void openStep3(Player player);
+    void openStep3(Player player, boolean showWarning);
     void openForm(Player player, SchoolMenuType menuType);
 }
