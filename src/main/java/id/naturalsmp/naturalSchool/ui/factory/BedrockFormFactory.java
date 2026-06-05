@@ -395,11 +395,11 @@ public class BedrockFormFactory {
             return;
         }
 
-        // Gunakan FONT NORMAL dan warna DEFAULT tanpa simbol non-alfabet khusus (mencegah font tipis di Bedrock)
-        String btnA = "A. " + questions.q1A + (session.isAnsA() ? " (Terpilih)" : "");
-        String btnB = "B. " + questions.q1B + (session.isAnsB() ? " (Terpilih)" : "");
-        String btnC = "C. " + questions.q1C + (session.isAnsC() ? " (Terpilih)" : "");
-        String btnD = "D. " + questions.q1D + (session.isAnsD() ? " (Terpilih)" : "");
+        // Unselected = plain text tanpa warna. Selected = §a (hijau) — tidak ada simbol/teks tambahan
+        String btnA = (session.isAnsA() ? "\u00a7aA. " : "A. ") + questions.q1A;
+        String btnB = (session.isAnsB() ? "\u00a7aB. " : "B. ") + questions.q1B;
+        String btnC = (session.isAnsC() ? "\u00a7aC. " : "C. ") + questions.q1C;
+        String btnD = (session.isAnsD() ? "\u00a7aD. " : "D. ") + questions.q1D;
 
         SimpleForm form = SimpleForm.builder()
             .title("Ujian: Soal 1/3")
@@ -444,9 +444,9 @@ public class BedrockFormFactory {
             return;
         }
 
-        // Gunakan FONT NORMAL dan warna DEFAULT tanpa simbol non-alfabet khusus (mencegah font tipis di Bedrock)
-        String trueBtn = "BENAR" + ((session.getTrueOrFalse() != null && session.getTrueOrFalse()) ? " (Terpilih)" : "");
-        String falseBtn = "SALAH" + ((session.getTrueOrFalse() != null && !session.getTrueOrFalse()) ? " (Terpilih)" : "");
+        // Unselected = plain text tanpa warna. Selected = §a (hijau)
+        String trueBtn = (session.getTrueOrFalse() != null && session.getTrueOrFalse()) ? "\u00a7aBENAR" : "BENAR";
+        String falseBtn = (session.getTrueOrFalse() != null && !session.getTrueOrFalse()) ? "\u00a7aSALAH" : "SALAH";
 
         SimpleForm form = SimpleForm.builder()
             .title("Ujian: Soal 2/3")
@@ -486,10 +486,10 @@ public class BedrockFormFactory {
             return;
         }
 
-        // Gunakan FONT NORMAL pure alphanumeric: prefix DIPILIH/BELUM agar tidak trigger font tipis di Bedrock
-        String btnStmt1 = (session.isStmt1() ? "DIPILIH 1. " : "1. ") + questions.q3Stmt1;
-        String btnStmt2 = (session.isStmt2() ? "DIPILIH 2. " : "2. ") + questions.q3Stmt2;
-        String btnStmt3 = (session.isStmt3() ? "DIPILIH 3. " : "3. ") + questions.q3Stmt3;
+        // Unselected = plain text. Selected = §a (hijau). Tidak ada simbol, hanya §a color code
+        String btnStmt1 = (session.isStmt1() ? "\u00a7a1. " : "1. ") + questions.q3Stmt1;
+        String btnStmt2 = (session.isStmt2() ? "\u00a7a2. " : "2. ") + questions.q3Stmt2;
+        String btnStmt3 = (session.isStmt3() ? "\u00a7a3. " : "3. ") + questions.q3Stmt3;
 
         SimpleForm form = SimpleForm.builder()
             .title("Ujian: Soal 3/3")

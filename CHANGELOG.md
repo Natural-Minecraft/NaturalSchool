@@ -2,6 +2,11 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.5.0] - 2026-06-06
+### Changed
+- **Bedrock — Exam Choice Buttons**: Selected answer buttons now display with `§a` green color prefix instead of a text label ("(Terpilih)"/"DIPILIH"). Unselected buttons remain plain text with no color — applies to Soal 1 (A/B/C/D), Soal 2 (BENAR/SALAH), and Soal 3 checklist (1./2./3.).
+- **Bedrock — No symbols on choice buttons**: Removed all non-alphanumeric symbols from button labels; only `§a` Minecraft color code is used for the selected-state indicator.
+
 ## [1.4.9] - 2026-06-06
 ### Fixed
 - **Bedrock — openExamClosed**: Removed Minecraft legacy `§c§l` color codes from the closed-portal form content; Cumulus API does not render `§`-style formatting and the raw escape characters were being displayed as literal text on Bedrock clients.
