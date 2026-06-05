@@ -1,0 +1,57 @@
+# Changelog
+
+All notable changes to the NaturalSchool project will be documented in this file.
+
+## [1.1.0] - 2026-06-05
+### Added
+- Created `StudentStageChangeEvent` custom Bukkit event to notify when player academic stage changes.
+- Added `setPlayerStage` to `NaturalSchoolAPI` and `NaturalSchoolAPIImpl`.
+- Implemented **Rank Override Locks** for staff members (Staff, Helper, Management types). Staff academic stage and class remain locked and protected from standard progress.
+- Added auto-mapping in `setPlayerRank` that unlocks and parses student ranks (e.g. `SMP_7`) back into their respective stage and class if a staff member is demoted.
+- Added `username` column to the master database table `nschool_students` positioned right after `uuid`.
+- Populated `username` from real-time player name with fallback to "Unknown" when profile is created for the first time.
+
+### Changed
+- Refactored master database table name to `nschool_students` (previously `naturalsmp_students`).
+- Streamlined database structure strictly to 7 columns. Removed `practical_passed` and `temporary_grade` columns.
+- Removed `/naturalschool setpractical` subcommand and tab completion.
+- Updated `/naturalschool info` command layout to display Username right below UUID, and removed practical exam status and temporary grade indicators.
+- Changed `loadProfile` database query to throw `SQLException` rather than catching it, enabling `ProfileManager` to handle database offline scenarios.
+- Implemented player kick guardrail upon login if the database fails to load their profile to prevent profile reset and data loss.
+- Resolved asynchronous database write race conditions by tracking active database writes in a `pendingSaves` CompletableFuture map. Rapid player rejoin attempts will block and wait for pending writes to finish.
+- Set SQLite connection pragmas (`busy_timeout = 5000`, `journal_mode = WAL`, `synchronous = NORMAL`) to solve database lock contention (`SQLITE_BUSY`).
+- Removed static `permission: naturalschool.admin` restriction from `plugin.yml` for `/naturalschool` command to allow in-game ranks (`KETUA_YAYASAN`/`WAKIL_KETUA_YAYASAN`) to be processed dynamically by the Java executor.
+
+### Removed
+- Removed `isPracticalPassed` and `setPracticalPassed` methods from `NaturalSchoolAPI` and `NaturalSchoolAPIImpl`.
+
+## [1.0.5] - 2026-06-05
+### Added
+- Implemented Developer API interface (`NaturalSchoolAPI`) and concrete class (`NaturalSchoolAPIImpl`).
+- Registered `NaturalSchoolAPI` into Bukkit's `ServicesManager` for other plugins to depend on.
+- Created `NaturalSchoolProvider` static class helper.
+- Added custom Bukkit events (`StudentRankChangeEvent`, `StudentClassChangeEvent`, `StudentPracticalToggleEvent`) implementing `Cancellable`.
+- Integrated events inside set commands and blocked changes if external plugins cancel the event.
+
+## [1.0.4] - 2026-06-05
+### Added
+- Upgraded rank prefix system to support Kyori Adventure's MiniMessage Gradients, Hex colors, and RGB colors.
+- Integrated ItemsAdder font images and icons (e.g. `:ia_owner_icon:`) dynamically using reflection to prevent `NoClassDefFoundError` when ItemsAdder is absent.
+- Introduced `rankprefix.yml` config file for rank customization.
+
+## [1.0.3] - 2026-06-05
+### Added
+- Integrated PlaceholderAPI with `NaturalSchoolExpansion`.
+- Supported placeholders: `%naturalschool_rank%`, `%naturalschool_class%`, `%naturalschool_stage%`, `%naturalschool_nis%`.
+
+## [1.0.2] - 2026-06-05
+### Added
+- Created `/naturalschool` command, aliases (`/nschool`, `/ns`), subcommands (`reload`, `info`, `setrank`, `setclass`, `setstage`, `setpractical`), and dynamic tab completion.
+- Implemented `SchoolRank` hierarchy system.
+
+## [1.0.0] - 2026-06-05
+### Added
+- Core database infrastructure supporting SQLite and MySQL (using HikariCP connection pool).
+- Thread-safe online player caching using `ConcurrentHashMap`.
+- Player listener handling asynchronous login profile loading and strict disconnect cache eviction.
+- Added `config.yml` settings.
