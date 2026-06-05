@@ -183,12 +183,15 @@ public class JavaDialogFactory {
         String nis = (profile == null || profile.getNis() == null) ? "Belum Terdaftar" : profile.getNis();
         int academicClass = profile != null ? profile.getAcademicClass() : 0;
         String academicStage = profile != null ? profile.getAcademicStage() : "NONE";
+        String currentSemester = profile != null ? profile.getCurrentSemester() : "GANJIL";
+        String academicYear = plugin.getSemesterManager().getCurrentAcademicYear();
 
         List<String> rawLines = List.of(
             "<aqua><bold>Informasi Pelajar</bold></aqua>",
             "<gray>Username:</gray> <white>" + username + "</white>",
             "<gray>NIS:</gray> <white>" + nis + "</white>",
-            "<gray>Kelas + Jenjang:</gray> <white>" + academicClass + " (" + academicStage + ")</white>"
+            "<gray>Kelas + Jenjang:</gray> <white>" + academicClass + " (" + academicStage + ")</white>",
+            "<gray>Semester:</gray> <white>" + currentSemester + " (TA " + academicYear + ")</white>"
         );
 
         List<String> alignedLines = DialogFormatter.alignLeft(rawLines);

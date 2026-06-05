@@ -63,7 +63,7 @@ public class ProfileManager {
             if (profile == null) {
                 Timestamp now = new Timestamp(System.currentTimeMillis());
                 // username is safely passed in from the main thread — no Bukkit.getPlayer() call here
-                profile = new StudentProfile(uuid, username, null, "NONE", 0, now, SchoolRank.NONE);
+                profile = new StudentProfile(uuid, username, null, "NONE", 0, "GANJIL", now, SchoolRank.NONE);
                 databaseManager.saveProfile(profile);
             }
             profileCache.put(uuid, profile);

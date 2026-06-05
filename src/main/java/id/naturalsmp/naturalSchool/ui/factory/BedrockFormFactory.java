@@ -140,12 +140,15 @@ public class BedrockFormFactory {
         String nis = (profile == null || profile.getNis() == null) ? "Belum Terdaftar" : profile.getNis();
         int academicClass = profile != null ? profile.getAcademicClass() : 0;
         String academicStage = profile != null ? profile.getAcademicStage() : "NONE";
+        String currentSemester = profile != null ? profile.getCurrentSemester() : "GANJIL";
+        String academicYear = plugin.getSemesterManager().getCurrentAcademicYear();
 
         SimpleForm form = SimpleForm.builder()
             .title("Informasi Pelajar")
             .content("Username: " + username + "\n" +
                      "NIS: " + nis + "\n" +
-                     "Kelas + Jenjang: " + academicClass + " (" + academicStage + ")")
+                     "Kelas + Jenjang: " + academicClass + " (" + academicStage + ")\n" +
+                     "Semester: " + currentSemester + " (TA " + academicYear + ")")
             .button("Tutup")
             .build();
 

@@ -2,6 +2,14 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.4.0] - 2026-06-05
+### Added
+- Upgraded the database schema for `nschool_students` table (SQLite and MySQL) to include `current_semester` column with a non-destructive migration.
+- Added `nschool_semester_log` logging table.
+- Added Semester rotation engine (`SemesterManager.java`) that rotates semesters every 14 days and month-based academic years, performing asynchronous batch updates and logs.
+- Added admin command `/ns semester <info|end>` to view status and trigger rotation.
+- Updated `/school info` GUI to show semester and academic year information for both Java and Bedrock Edition.
+
 ## [1.3.6] - 2026-06-05
 ### Added
 - Added `/school` command, specifically for registered student members. Running `/school` or `/school help` prints subcommand help, and running `/school info` opens the student profile GUI dialog.

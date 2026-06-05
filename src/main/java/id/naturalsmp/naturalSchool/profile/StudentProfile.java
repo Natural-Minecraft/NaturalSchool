@@ -10,15 +10,17 @@ public class StudentProfile {
     private String nis;
     private String academicStage;
     private int academicClass;
+    private volatile String currentSemester;
     private Timestamp lastUpdated;
     private SchoolRank rank;
 
-    public StudentProfile(UUID uuid, String username, String nis, String academicStage, int academicClass, Timestamp lastUpdated, SchoolRank rank) {
+    public StudentProfile(UUID uuid, String username, String nis, String academicStage, int academicClass, String currentSemester, Timestamp lastUpdated, SchoolRank rank) {
         this.uuid = uuid;
         this.username = username;
         this.nis = nis;
         this.academicStage = academicStage;
         this.academicClass = academicClass;
+        this.currentSemester = currentSemester != null ? currentSemester : "GANJIL";
         this.lastUpdated = lastUpdated;
         this.rank = rank;
     }
@@ -57,6 +59,14 @@ public class StudentProfile {
 
     public void setAcademicClass(int academicClass) {
         this.academicClass = academicClass;
+    }
+
+    public synchronized String getCurrentSemester() {
+        return currentSemester;
+    }
+
+    public synchronized void setCurrentSemester(String currentSemester) {
+        this.currentSemester = currentSemester;
     }
 
     public Timestamp getLastUpdated() {

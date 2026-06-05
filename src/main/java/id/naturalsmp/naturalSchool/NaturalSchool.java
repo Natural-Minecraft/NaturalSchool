@@ -12,6 +12,7 @@ import id.naturalsmp.naturalSchool.command.NaturalSchoolCommand;
 import id.naturalsmp.naturalSchool.command.SchoolCommand;
 import id.naturalsmp.naturalSchool.placeholder.NaturalSchoolExpansion;
 import id.naturalsmp.naturalSchool.ui.UIManager;
+import id.naturalsmp.naturalSchool.semester.SemesterManager;
 import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -22,11 +23,15 @@ public final class NaturalSchool extends JavaPlugin {
     private RankPrefixConfig rankPrefixConfig;
     private UIManager uiManager;
     private NaturalSchoolAPI api;
+    private SemesterManager semesterManager;
 
     @Override
     public void onEnable() {
         // Load default config configuration
         saveDefaultConfig();
+
+        // Initialize Semester Manager
+        semesterManager = new SemesterManager(this);
 
         // Initialize & Register Developer API
         NaturalSchoolAPIImpl apiImpl = new NaturalSchoolAPIImpl(this);
@@ -114,5 +119,9 @@ public final class NaturalSchool extends JavaPlugin {
 
     public NaturalSchoolAPI getNaturalSchoolAPI() {
         return api;
+    }
+
+    public SemesterManager getSemesterManager() {
+        return semesterManager;
     }
 }

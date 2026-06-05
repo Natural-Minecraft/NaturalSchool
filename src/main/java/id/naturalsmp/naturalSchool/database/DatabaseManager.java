@@ -39,6 +39,7 @@ public class DatabaseManager {
         }
         
         createTable();
+        migrateTable();
     }
 
     private void setupMySQL() {
@@ -134,34 +135,102 @@ public class DatabaseManager {
 
     private void createTable() {
         String createTableSQL;
+        String createLogTableSQL;
         if ("MYSQL".equals(storageType)) {
             createTableSQL = "CREATE TABLE IF NOT EXISTS nschool_students ("
                     + "uuid VARCHAR(36) PRIMARY KEY, "
                     + "username VARCHAR(16) NOT NULL, "
                     + "nis VARCHAR(20) UNIQUE, "
-                    + "academic_stage VARCHAR(10) NOT NULL, "
-                    + "academic_class INT NOT NULL, "
-                    + "last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, "
-                    + "rank VARCHAR(30) DEFAULT 'NONE'"
+                    + "academic_stage VARCHAR(10) DEFAULT 'NONE', "
+                    + "academic_class INT DEFAULT 0, "
+                    + "current_semester VARCHAR(6) NOT NULL DEFAULT 'GANJIL', "
+                    + "rank VARCHAR(30) DEFAULT 'NONE', "
+                    + "last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+                    + ");";
+            createLogTableSQL = "CREATE TABLE IF NOT EXISTS nschool_semester_log ("
+                    + "id INT AUTO_INCREMENT PRIMARY KEY, "
+                    + "academic_year VARCHAR(20) NOT NULL, "
+                    + "semester VARCHAR(6) NOT NULL, "
+                    + "total_students_affected INT NOT NULL, "
+                    + "timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
                     + ");";
         } else {
             createTableSQL = "CREATE TABLE IF NOT EXISTS nschool_students ("
                     + "uuid TEXT PRIMARY KEY, "
                     + "username TEXT NOT NULL, "
                     + "nis TEXT UNIQUE, "
-                    + "academic_stage TEXT NOT NULL, "
-                    + "academic_class INTEGER NOT NULL, "
-                    + "last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
-                    + "rank TEXT DEFAULT 'NONE'"
+                    + "academic_stage TEXT DEFAULT 'NONE', "
+                    + "academic_class INTEGER DEFAULT 0, "
+                    + "current_semester TEXT NOT NULL DEFAULT 'GANJIL', "
+                    + "rank TEXT DEFAULT 'NONE', "
+                    + "last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+                    + ");";
+            createLogTableSQL = "CREATE TABLE IF NOT EXISTS nschool_semester_log ("
+                    + "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                    + "academic_year TEXT NOT NULL, "
+                    + "semester TEXT NOT NULL, "
+                    + "total_students_affected INTEGER NOT NULL, "
+                    + "timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
                     + ");";
         }
 
         try (Connection conn = getConnection();
              Statement stmt = conn.createStatement()) {
             stmt.execute(createTableSQL);
-            plugin.getLogger().info("Database table 'nschool_students' verified/created successfully.");
+            stmt.execute(createLogTableSQL);
+            plugin.getLogger().info("Database tables verified/created successfully.");
         } catch (SQLException e) {
-            plugin.getLogger().log(Level.SEVERE, "Failed to create database table 'nschool_students'!", e);
+            plugin.getLogger().log(Level.SEVERE, "Failed to create database tables!", e);
+        }
+    }
+
+    private void migrateTable() {
+        try (Connection conn = getConnection()) {
+            if (!hasColumn(conn, "nschool_students", "current_semester")) {
+                plugin.getLogger().info("Migrating database: Column 'current_semester' is missing in 'nschool_students'. Adding column...");
+                String alterSQL;
+                if ("MYSQL".equals(storageType)) {
+                    alterSQL = "ALTER TABLE nschool_students ADD COLUMN current_semester VARCHAR(6) NOT NULL DEFAULT 'GANJIL';";
+                } else {
+                    alterSQL = "ALTER TABLE nschool_students ADD COLUMN current_semester TEXT NOT NULL DEFAULT 'GANJIL';";
+                }
+                try (Statement stmt = conn.createStatement()) {
+                    stmt.execute(alterSQL);
+                    plugin.getLogger().info("Successfully added 'current_semester' column to 'nschool_students' table.");
+                }
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Failed to perform database migration for column 'current_semester'!", e);
+        }
+    }
+
+    private boolean hasColumn(Connection conn, String tableName, String columnName) {
+        try {
+            java.sql.DatabaseMetaData dbm = conn.getMetaData();
+            try (ResultSet rs = dbm.getColumns(null, null, tableName, columnName)) {
+                if (rs.next()) {
+                    return true;
+                }
+            }
+            try (ResultSet rs = dbm.getColumns(null, null, tableName.toUpperCase(), columnName.toUpperCase())) {
+                if (rs.next()) {
+                    return true;
+                }
+            }
+            try (ResultSet rs = dbm.getColumns(null, null, tableName.toLowerCase(), columnName.toLowerCase())) {
+                if (rs.next()) {
+                    return true;
+                }
+            }
+        } catch (SQLException e) {
+            // Fallback
+        }
+        
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute("SELECT " + columnName + " FROM " + tableName + " LIMIT 1;");
+            return true;
+        } catch (SQLException e) {
+            return false;
         }
     }
 
@@ -177,6 +246,7 @@ public class DatabaseManager {
                     String nis = rs.getString("nis");
                     String stage = rs.getString("academic_stage");
                     int academicClass = rs.getInt("academic_class");
+                    String currentSemester = rs.getString("current_semester");
                     Timestamp lastUpdated = rs.getTimestamp("last_updated");
                     
                     String rankStr = rs.getString("rank");
@@ -189,7 +259,7 @@ public class DatabaseManager {
                         }
                     }
 
-                    return new StudentProfile(uuid, username, nis, stage, academicClass, lastUpdated, rank);
+                    return new StudentProfile(uuid, username, nis, stage, academicClass, currentSemester, lastUpdated, rank);
                 }
             }
         }
@@ -200,18 +270,19 @@ public class DatabaseManager {
         String saveQuery;
         
         if ("MYSQL".equals(storageType)) {
-            saveQuery = "INSERT INTO nschool_students (uuid, username, nis, academic_stage, academic_class, last_updated, rank) "
-                    + "VALUES (?, ?, ?, ?, ?, ?, ?) "
+            saveQuery = "INSERT INTO nschool_students (uuid, username, nis, academic_stage, academic_class, current_semester, rank, last_updated) "
+                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
                     + "ON DUPLICATE KEY UPDATE "
                     + "username = VALUES(username), "
                     + "nis = VALUES(nis), "
                     + "academic_stage = VALUES(academic_stage), "
                     + "academic_class = VALUES(academic_class), "
-                    + "last_updated = VALUES(last_updated), "
-                    + "rank = VALUES(rank);";
+                    + "current_semester = VALUES(current_semester), "
+                    + "rank = VALUES(rank), "
+                    + "last_updated = VALUES(last_updated);";
         } else {
-            saveQuery = "INSERT OR REPLACE INTO nschool_students (uuid, username, nis, academic_stage, academic_class, last_updated, rank) "
-                    + "VALUES (?, ?, ?, ?, ?, ?, ?);";
+            saveQuery = "INSERT OR REPLACE INTO nschool_students (uuid, username, nis, academic_stage, academic_class, current_semester, rank, last_updated) "
+                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?);";
         }
 
         try (Connection conn = getConnection();
@@ -222,12 +293,12 @@ public class DatabaseManager {
             ps.setString(3, profile.getNis());
             ps.setString(4, profile.getAcademicStage());
             ps.setInt(5, profile.getAcademicClass());
+            ps.setString(6, profile.getCurrentSemester());
+            ps.setString(7, profile.getRank().name());
             
             Timestamp now = new Timestamp(System.currentTimeMillis());
-            ps.setTimestamp(6, now);
+            ps.setTimestamp(8, now);
             profile.setLastUpdated(now);
-            
-            ps.setString(7, profile.getRank().name());
 
             ps.executeUpdate();
             
