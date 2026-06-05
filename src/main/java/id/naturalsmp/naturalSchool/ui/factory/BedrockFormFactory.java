@@ -393,46 +393,32 @@ public class BedrockFormFactory {
             return;
         }
 
-        CustomForm.Builder builder = CustomForm.builder()
-            .title("Ujian: Soal 1/3");
+        String btnA = session.isAnsA() ? "§a§l● A. " + questions.q1A + " (Terpilih)" : "§7○ A. " + questions.q1A;
+        String btnB = session.isAnsB() ? "§a§l● B. " + questions.q1B + " (Terpilih)" : "§7○ B. " + questions.q1B;
+        String btnC = session.isAnsC() ? "§a§l● C. " + questions.q1C + " (Terpilih)" : "§7○ C. " + questions.q1C;
+        String btnD = session.isAnsD() ? "§a§l● D. " + questions.q1D + " (Terpilih)" : "§7○ D. " + questions.q1D;
 
-        if (showWarning) {
-            builder.label("§c§lPilih hanya satu jawaban!");
-        } else {
-            builder.label("Pertanyaan: " + questions.q1Text + "\n\nPilih satu jawaban yang benar:");
-        }
-
-        CustomForm form = builder
-            .toggle("A. " + questions.q1A, session.isAnsA())
-            .toggle("B. " + questions.q1B, session.isAnsB())
-            .toggle("C. " + questions.q1C, session.isAnsC())
-            .toggle("D. " + questions.q1D, session.isAnsD())
-            .toggle("§c§lKembali ke Portal (Centang jika ingin kembali)", false)
+        SimpleForm form = SimpleForm.builder()
+            .title("Ujian: Soal 1/3")
+            .content("Mata Pelajaran: " + ExamQuestions.getSubjectDisplayName(subject) + "\n\nPertanyaan:\n" + questions.q1Text + "\n\nPilih salah satu jawaban di bawah ini:")
+            .button(btnA)
+            .button(btnB)
+            .button(btnC)
+            .button(btnD)
+            .button("§c§lKembali ke Portal")
             .validResultHandler(response -> {
-                boolean ansA = response.asToggle(0);
-                boolean ansB = response.asToggle(1);
-                boolean ansC = response.asToggle(2);
-                boolean ansD = response.asToggle(3);
-                boolean goBack = response.asToggle(4);
-
-                if (goBack) {
+                int clickedId = response.clickedButtonId();
+                if (clickedId == 4) { // Kembali ke Portal
                     plugin.getUiManager().clearExamSession(player);
                     plugin.getUiManager().openExamPortal(player);
                     return;
                 }
-
-                int selectedCount = (ansA ? 1 : 0) + (ansB ? 1 : 0) + (ansC ? 1 : 0) + (ansD ? 1 : 0);
-
-                if (selectedCount > 1) {
-                    plugin.getUiManager().openExamQuestion1(player, subject, true);
-                } else {
-                    session.setAnsA(ansA);
-                    session.setAnsB(ansB);
-                    session.setAnsC(ansC);
-                    session.setAnsD(ansD);
-                    session.setCurrentQuestion(2);
-                    plugin.getUiManager().openExamQuestion2(player, subject);
-                }
+                session.setAnsA(clickedId == 0);
+                session.setAnsB(clickedId == 1);
+                session.setAnsC(clickedId == 2);
+                session.setAnsD(clickedId == 3);
+                session.setCurrentQuestion(2);
+                plugin.getUiManager().openExamQuestion2(player, subject);
             })
             .closedResultHandler(() -> {
                 // Prevent escape (ESC equivalent)
@@ -456,24 +442,27 @@ public class BedrockFormFactory {
             return;
         }
 
-        boolean defVal = session.getTrueOrFalse() != null && session.getTrueOrFalse();
+        String trueBtn = (session.getTrueOrFalse() != null && session.getTrueOrFalse()) 
+            ? "§a§l● BENAR (Terpilih)" 
+            : "§7○ BENAR";
+        String falseBtn = (session.getTrueOrFalse() != null && !session.getTrueOrFalse()) 
+            ? "§c§l● SALAH (Terpilih)" 
+            : "§7○ SALAH";
 
-        CustomForm form = CustomForm.builder()
+        SimpleForm form = SimpleForm.builder()
             .title("Ujian: Soal 2/3")
-            .label("Pertanyaan (Benar / Salah):\n" + questions.q2Text)
-            .toggle("Centang jika pernyataan BENAR (matikan jika SALAH)", defVal)
-            .toggle("§c§lKembali ke Soal 1 (Centang jika ingin kembali)", false)
+            .content("Mata Pelajaran: " + ExamQuestions.getSubjectDisplayName(subject) + "\n\nPertanyaan (Benar / Salah):\n" + questions.q2Text + "\n\nPilih jawaban Anda:")
+            .button(trueBtn)
+            .button(falseBtn)
+            .button("§c§lKembali ke Soal 1")
             .validResultHandler(response -> {
-                boolean ansTf = response.asToggle(0);
-                boolean goBack = response.asToggle(1);
-
-                if (goBack) {
+                int clickedId = response.clickedButtonId();
+                if (clickedId == 2) { // Kembali ke Soal 1
                     session.setCurrentQuestion(1);
                     plugin.getUiManager().openExamQuestion1(player, subject, false);
                     return;
                 }
-
-                session.setTrueOrFalse(ansTf);
+                session.setTrueOrFalse(clickedId == 0);
                 session.setCurrentQuestion(3);
                 plugin.getUiManager().openExamQuestion3(player, subject, false);
             })
@@ -501,11 +490,11 @@ public class BedrockFormFactory {
 
         CustomForm form = CustomForm.builder()
             .title("Ujian: Soal 3/3")
-            .label("Pertanyaan (Pernyataan Majemuk):\n" + questions.q3Text + "\n\nPilih semua pernyataan yang benar:")
+            .label("Mata Pelajaran: " + ExamQuestions.getSubjectDisplayName(subject) + "\n\nPertanyaan (Pernyataan Majemuk):\n" + questions.q3Text + "\n\nPilih semua pernyataan yang menurut Anda benar, lalu tekan Submit. Centang toggle paling bawah jika Anda ingin kembali ke Soal 2.")
             .toggle("1. " + questions.q3Stmt1, session.isStmt1())
             .toggle("2. " + questions.q3Stmt2, session.isStmt2())
             .toggle("3. " + questions.q3Stmt3, session.isStmt3())
-            .toggle("§c§lKembali ke Soal 2 (Centang jika ingin kembali)", false)
+            .toggle("§c§lKembali ke Soal 2 (Centang untuk kembali)", false)
             .validResultHandler(response -> {
                 boolean stmt1 = response.asToggle(0);
                 boolean stmt2 = response.asToggle(1);

@@ -20,6 +20,8 @@ import id.naturalsmp.naturalSchool.ui.ExamSession;
 import id.naturalsmp.naturalSchool.ui.ExamQuestions;
 import java.util.ArrayList;
 import java.util.List;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.Material;
 
 public class JavaDialogFactory {
 
@@ -499,41 +501,23 @@ public class JavaDialogFactory {
 
     public void openExamPortal(Player player) {
         List<DialogBody> bodies = new ArrayList<>();
+        bodies.add(DialogBody.item(new ItemStack(Material.BOOKSHELF)).build());
         bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>Portal Ujian</bold></gold>")));
         bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize(plugin.getExamMessage())));
-        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Pilih mata pelajaran untuk diuji:</yellow>")));
+        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Pilih mata pelajaran untuk diuji di bawah ini:</yellow>")));
 
-        ActionButton submitBtn = ActionButton.builder(Component.text("Mulai Ujian"))
+        List<ActionButton> mapelButtons = new ArrayList<>();
+        mapelButtons.add(createMapelButton("<aqua>Pengetahuan Umum</aqua>", "pengetahuan_umum"));
+        mapelButtons.add(createMapelButton("<aqua>IPA</aqua>", "ipa"));
+        mapelButtons.add(createMapelButton("<aqua>IPS</aqua>", "ips"));
+        mapelButtons.add(createMapelButton("<aqua>Matematika (MTK)</aqua>", "mtk"));
+        mapelButtons.add(createMapelButton("<aqua>Bahasa Indonesia</aqua>", "b_indo"));
+        mapelButtons.add(createMapelButton("<aqua>PKN</aqua>", "pkn"));
+        mapelButtons.add(createMapelButton("<aqua>Bahasa Inggris</aqua>", "b_inggris"));
+
+        ActionButton closeBtn = ActionButton.builder(Component.text("Tutup Portal"))
             .action(DialogAction.customClick((view, audience) -> {
-                if (audience instanceof Player p) {
-                    boolean pUmum = view.getBoolean("p_umum");
-                    boolean ipa = view.getBoolean("ipa");
-                    boolean ips = view.getBoolean("ips");
-                    boolean mtk = view.getBoolean("mtk");
-                    boolean bIndo = view.getBoolean("b_indo");
-                    boolean pkn = view.getBoolean("pkn");
-                    boolean bInggris = view.getBoolean("b_inggris");
-
-                    int selectedCount = (pUmum ? 1 : 0) + (ipa ? 1 : 0) + (ips ? 1 : 0) + (mtk ? 1 : 0) + (bIndo ? 1 : 0) + (pkn ? 1 : 0) + (bInggris ? 1 : 0);
-
-                    if (selectedCount != 1) {
-                        p.sendMessage(MiniMessage.miniMessage().deserialize("<red><bold>Harap pilih tepat satu mata pelajaran!</bold></red>"));
-                        openExamPortal(p); // Reopen portal
-                        return;
-                    }
-
-                    String selectedSubject = "";
-                    if (pUmum) selectedSubject = "pengetahuan_umum";
-                    else if (ipa) selectedSubject = "ipa";
-                    else if (ips) selectedSubject = "ips";
-                    else if (mtk) selectedSubject = "mtk";
-                    else if (bIndo) selectedSubject = "b_indo";
-                    else if (pkn) selectedSubject = "pkn";
-                    else if (bInggris) selectedSubject = "b_inggris";
-
-                    plugin.getUiManager().startExamSession(p, selectedSubject);
-                    plugin.getUiManager().openExamQuestion1(p, selectedSubject, false);
-                }
+                // Returns to gameplay
             }, ClickCallback.Options.builder().uses(1).build()))
             .build();
 
@@ -541,20 +525,22 @@ public class JavaDialogFactory {
             .base(DialogBase.builder(Component.text("Portal Ujian"))
                 .canCloseWithEscape(true)
                 .body(bodies)
-                .inputs(List.of(
-                    DialogInput.bool("p_umum", Component.text("Pengetahuan Umum"), false, "Pilih", "Kosong"),
-                    DialogInput.bool("ipa", Component.text("IPA"), false, "Pilih", "Kosong"),
-                    DialogInput.bool("ips", Component.text("IPS"), false, "Pilih", "Kosong"),
-                    DialogInput.bool("mtk", Component.text("Matematika (MTK)"), false, "Pilih", "Kosong"),
-                    DialogInput.bool("b_indo", Component.text("Bahasa Indonesia"), false, "Pilih", "Kosong"),
-                    DialogInput.bool("pkn", Component.text("PKN"), false, "Pilih", "Kosong"),
-                    DialogInput.bool("b_inggris", Component.text("Bahasa Inggris"), false, "Pilih", "Kosong")
-                ))
                 .build())
-            .type(DialogType.notice(submitBtn))
+            .type(DialogType.multiAction(mapelButtons, closeBtn, 2))
         );
 
         player.showDialog(dialog);
+    }
+
+    private ActionButton createMapelButton(String displayName, String subjectKey) {
+        return ActionButton.builder(MiniMessage.miniMessage().deserialize(displayName))
+            .action(DialogAction.customClick((view, audience) -> {
+                if (audience instanceof Player p) {
+                    plugin.getUiManager().startExamSession(p, subjectKey);
+                    plugin.getUiManager().openExamQuestion1(p, subjectKey, false);
+                }
+            }, ClickCallback.Options.builder().uses(1).build()))
+            .build();
     }
 
     public void openExamQuestion1(Player player, String subject, boolean showWarning) {
@@ -571,38 +557,28 @@ public class JavaDialogFactory {
         }
 
         List<DialogBody> bodies = new ArrayList<>();
+        bodies.add(DialogBody.item(new ItemStack(Material.BOOK)).build());
         bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>Ujian: " + ExamQuestions.getSubjectDisplayName(subject) + " (Soal 1/3)</bold></gold>")));
         bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gray>Pertanyaan:</gray> <white>" + questions.q1Text + "</white>")));
+        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Pilih salah satu tombol jawaban di bawah ini:</yellow>")));
 
-        if (showWarning) {
-            bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<red><bold>Pilih hanya satu jawaban!</bold></red>")));
-        } else {
-            bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Pilih satu jawaban yang benar:</yellow>")));
-        }
-
-        ActionButton nextBtn = ActionButton.builder(Component.text("Lanjut ke Soal 2"))
-            .action(DialogAction.customClick((view, audience) -> {
-                if (audience instanceof Player p) {
-                    boolean ansA = view.getBoolean("option_a");
-                    boolean ansB = view.getBoolean("option_b");
-                    boolean ansC = view.getBoolean("option_c");
-                    boolean ansD = view.getBoolean("option_d");
-
-                    int selectedCount = (ansA ? 1 : 0) + (ansB ? 1 : 0) + (ansC ? 1 : 0) + (ansD ? 1 : 0);
-
-                    if (selectedCount > 1) {
-                        openExamQuestion1(p, subject, true);
-                    } else {
-                        session.setAnsA(ansA);
-                        session.setAnsB(ansB);
-                        session.setAnsC(ansC);
-                        session.setAnsD(ansD);
-                        session.setCurrentQuestion(2);
-                        plugin.getUiManager().openExamQuestion2(p, subject);
-                    }
-                }
-            }, ClickCallback.Options.builder().uses(1).build()))
-            .build();
+        List<ActionButton> optionButtons = new ArrayList<>();
+        optionButtons.add(createOptionButton(
+            session.isAnsA() ? "<green><bold>● A. " + questions.q1A + " (Terpilih)</bold></green>" : "<gray>○ A. " + questions.q1A + "</gray>",
+            subject, session, "A"
+        ));
+        optionButtons.add(createOptionButton(
+            session.isAnsB() ? "<green><bold>● B. " + questions.q1B + " (Terpilih)</bold></green>" : "<gray>○ B. " + questions.q1B + "</gray>",
+            subject, session, "B"
+        ));
+        optionButtons.add(createOptionButton(
+            session.isAnsC() ? "<green><bold>● C. " + questions.q1C + " (Terpilih)</bold></green>" : "<gray>○ C. " + questions.q1C + "</gray>",
+            subject, session, "C"
+        ));
+        optionButtons.add(createOptionButton(
+            session.isAnsD() ? "<green><bold>● D. " + questions.q1D + " (Terpilih)</bold></green>" : "<gray>○ D. " + questions.q1D + "</gray>",
+            subject, session, "D"
+        ));
 
         ActionButton backBtn = ActionButton.builder(Component.text("Kembali ke Portal"))
             .action(DialogAction.customClick((view, audience) -> {
@@ -617,17 +593,26 @@ public class JavaDialogFactory {
             .base(DialogBase.builder(Component.text("Ujian - Soal 1"))
                 .canCloseWithEscape(false)
                 .body(bodies)
-                .inputs(List.of(
-                    DialogInput.bool("option_a", Component.text("A. " + questions.q1A), session.isAnsA(), "Pilih", "Kosong"),
-                    DialogInput.bool("option_b", Component.text("B. " + questions.q1B), session.isAnsB(), "Pilih", "Kosong"),
-                    DialogInput.bool("option_c", Component.text("C. " + questions.q1C), session.isAnsC(), "Pilih", "Kosong"),
-                    DialogInput.bool("option_d", Component.text("D. " + questions.q1D), session.isAnsD(), "Pilih", "Kosong")
-                ))
                 .build())
-            .type(DialogType.confirmation(nextBtn, backBtn))
+            .type(DialogType.multiAction(optionButtons, backBtn, 2))
         );
 
         player.showDialog(dialog);
+    }
+
+    private ActionButton createOptionButton(String text, String subject, ExamSession session, String optChar) {
+        return ActionButton.builder(MiniMessage.miniMessage().deserialize(text))
+            .action(DialogAction.customClick((view, audience) -> {
+                if (audience instanceof Player p) {
+                    session.setAnsA("A".equalsIgnoreCase(optChar));
+                    session.setAnsB("B".equalsIgnoreCase(optChar));
+                    session.setAnsC("C".equalsIgnoreCase(optChar));
+                    session.setAnsD("D".equalsIgnoreCase(optChar));
+                    session.setCurrentQuestion(2);
+                    plugin.getUiManager().openExamQuestion2(p, subject);
+                }
+            }, ClickCallback.Options.builder().uses(1).build()))
+            .build();
     }
 
     public void openExamQuestion2(Player player, String subject) {
@@ -644,21 +629,21 @@ public class JavaDialogFactory {
         }
 
         List<DialogBody> bodies = new ArrayList<>();
+        bodies.add(DialogBody.item(new ItemStack(Material.COMPASS)).build());
         bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>Ujian: " + ExamQuestions.getSubjectDisplayName(subject) + " (Soal 2/3)</bold></gold>")));
         bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gray>Pertanyaan (Benar / Salah):</gray> <white>" + questions.q2Text + "</white>")));
+        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Pilih jawaban Anda:</yellow>")));
 
-        boolean defVal = session.getTrueOrFalse() != null && session.getTrueOrFalse();
+        List<ActionButton> tfButtons = new ArrayList<>();
+        String trueText = (session.getTrueOrFalse() != null && session.getTrueOrFalse()) 
+            ? "<green><bold>● BENAR (Terpilih)</bold></green>" 
+            : "<gray>○ BENAR</gray>";
+        String falseText = (session.getTrueOrFalse() != null && !session.getTrueOrFalse()) 
+            ? "<red><bold>● SALAH (Terpilih)</bold></red>" 
+            : "<gray>○ SALAH</gray>";
 
-        ActionButton nextBtn = ActionButton.builder(Component.text("Lanjut ke Soal 3"))
-            .action(DialogAction.customClick((view, audience) -> {
-                if (audience instanceof Player p) {
-                    boolean ansTf = view.getBoolean("ans_tf");
-                    session.setTrueOrFalse(ansTf);
-                    session.setCurrentQuestion(3);
-                    plugin.getUiManager().openExamQuestion3(p, subject, false);
-                }
-            }, ClickCallback.Options.builder().uses(1).build()))
-            .build();
+        tfButtons.add(createTrueFalseButton(trueText, true, subject, session));
+        tfButtons.add(createTrueFalseButton(falseText, false, subject, session));
 
         ActionButton backBtn = ActionButton.builder(Component.text("Kembali ke Soal 1"))
             .action(DialogAction.customClick((view, audience) -> {
@@ -673,14 +658,23 @@ public class JavaDialogFactory {
             .base(DialogBase.builder(Component.text("Ujian - Soal 2"))
                 .canCloseWithEscape(false)
                 .body(bodies)
-                .inputs(List.of(
-                    DialogInput.bool("ans_tf", Component.text("Centang jika pernyataan BENAR (kosongkan jika SALAH)"), defVal, "Benar", "Salah")
-                ))
                 .build())
-            .type(DialogType.confirmation(nextBtn, backBtn))
+            .type(DialogType.multiAction(tfButtons, backBtn, 2))
         );
 
         player.showDialog(dialog);
+    }
+
+    private ActionButton createTrueFalseButton(String text, boolean isTrue, String subject, ExamSession session) {
+        return ActionButton.builder(MiniMessage.miniMessage().deserialize(text))
+            .action(DialogAction.customClick((view, audience) -> {
+                if (audience instanceof Player p) {
+                    session.setTrueOrFalse(isTrue);
+                    session.setCurrentQuestion(3);
+                    plugin.getUiManager().openExamQuestion3(p, subject, false);
+                }
+            }, ClickCallback.Options.builder().uses(1).build()))
+            .build();
     }
 
     public void openExamQuestion3(Player player, String subject, boolean showWarning) {
@@ -697,6 +691,7 @@ public class JavaDialogFactory {
         }
 
         List<DialogBody> bodies = new ArrayList<>();
+        bodies.add(DialogBody.item(new ItemStack(Material.PAPER)).build());
         bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>Ujian: " + ExamQuestions.getSubjectDisplayName(subject) + " (Soal 3/3)</bold></gold>")));
         bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gray>Pertanyaan (Pernyataan Majemuk):</gray> <white>" + questions.q3Text + "</white>")));
         bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Pilih semua pernyataan yang benar:</yellow>")));
@@ -750,6 +745,7 @@ public class JavaDialogFactory {
         }
 
         List<DialogBody> bodies = List.of(
+            DialogBody.item(new ItemStack(Material.WRITTEN_BOOK)).build(),
             DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>Portal Ujian: Konfirmasi Kirim</bold></gold>")),
             DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Apakah Anda yakin ingin menyelesaikan ujian dan mengirimkan jawaban Anda sekarang?</yellow>"))
         );

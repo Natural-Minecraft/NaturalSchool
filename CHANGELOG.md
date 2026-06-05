@@ -2,6 +2,14 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.4.7] - 2026-06-05
+### Added
+- Improvised the Exam Subsystem UI for both Java Edition (Dialogs) and Bedrock Edition (Geyser/Floodgate Forms):
+  - Java Edition: Integrated native item displays in the dialog body (`DialogBody.item(...)`) matching each exam stage.
+  - Bedrock Edition: Refactored Soal 1 and Soal 2 from toggle-based `CustomForm` to button-based `SimpleForm` (A/B/C/D and BENAR/SALAH layouts) to align with Java's Kahoot-style quiz flow.
+  - Stateful indicators: Dynamic title prefixes ("(Terpilih)") to visualize already selected answers on both Java dialogs and Bedrock forms.
+  - Fixed and streamlined escape key prevention and back-navigation across all exam interfaces.
+
 ## [1.4.6] - 2026-06-05
 ### Added
 - Added the `/school exam` Command to open the Portal Ujian dialog.
