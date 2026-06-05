@@ -4,9 +4,14 @@ import id.naturalsmp.naturalSchool.NaturalSchool;
 import id.naturalsmp.naturalSchool.profile.StudentProfile;
 import id.naturalsmp.naturalSchool.profile.SchoolRank;
 import id.naturalsmp.naturalSchool.ui.factory.JavaDialogFactory;
+import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.Set;
 import java.util.UUID;
@@ -200,5 +205,119 @@ public class UIManager {
             return false;
         }
         return bedrockHandler.isBedrockPlayer(player.getUniqueId());
+    }
+
+    /**
+     * Opens the creative prototype Exam GUI Dialog for Java or Bedrock.
+     *
+     * @param player the player taking the exam
+     */
+    public void openTestExam(Player player) {
+        if (isBedrockPlayer(player)) {
+            bedrockHandler.openTestExam(player);
+        } else {
+            openJavaTestExam(player);
+        }
+    }
+
+    private void openJavaTestExam(Player player) {
+        Inventory inv = Bukkit.createInventory(null, 45, Component.text("Ujian: Pilihan Ganda"));
+
+        // Decorative background elements
+        ItemStack bookshelf = new ItemStack(Material.BOOKSHELF);
+        ItemMeta bookshelfMeta = bookshelf.getItemMeta();
+        if (bookshelfMeta != null) {
+            bookshelfMeta.displayName(Component.text("§r"));
+            bookshelf.setItemMeta(bookshelfMeta);
+        }
+
+        ItemStack grayBorder = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
+        ItemMeta grayMeta = grayBorder.getItemMeta();
+        if (grayMeta != null) {
+            grayMeta.displayName(Component.text("§r"));
+            grayBorder.setItemMeta(grayMeta);
+        }
+
+        ItemStack blackBorder = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
+        ItemMeta blackMeta = blackBorder.getItemMeta();
+        if (blackMeta != null) {
+            blackMeta.displayName(Component.text("§r"));
+            blackBorder.setItemMeta(blackMeta);
+        }
+
+        // Fill Rows 0 and 1 with Bookshelves
+        for (int i = 0; i < 18; i++) {
+            inv.setItem(i, bookshelf);
+        }
+
+        // Question Book at Slot 13 (Center of Row 1)
+        ItemStack questionBook = new ItemStack(Material.WRITABLE_BOOK);
+        ItemMeta bookMeta = questionBook.getItemMeta();
+        if (bookMeta != null) {
+            bookMeta.displayName(Component.text("§e§lSOAL UJIAN"));
+            java.util.List<Component> lore = new java.util.ArrayList<>();
+            lore.add(Component.text("§7Pertanyaan:"));
+            lore.add(Component.text("§fSiapa pencipta NaturalSMP?"));
+            bookMeta.lore(lore);
+            questionBook.setItemMeta(bookMeta);
+        }
+        inv.setItem(13, questionBook);
+
+        // Fill Row 2 with Gray Border
+        for (int i = 18; i < 27; i++) {
+            inv.setItem(i, grayBorder);
+        }
+
+        // Row 3: Gray Borders and Wool Options
+        for (int i = 27; i < 36; i++) {
+            inv.setItem(i, grayBorder);
+        }
+
+        // Option A: Slot 28
+        ItemStack optionA = new ItemStack(Material.RED_WOOL);
+        ItemMeta metaA = optionA.getItemMeta();
+        if (metaA != null) {
+            metaA.displayName(Component.text("§c§lA. Saya"));
+            metaA.lore(java.util.List.of(Component.text("§7Klik untuk memilih jawaban ini.")));
+            optionA.setItemMeta(metaA);
+        }
+        inv.setItem(28, optionA);
+
+        // Option B: Slot 30
+        ItemStack optionB = new ItemStack(Material.BLUE_WOOL);
+        ItemMeta metaB = optionB.getItemMeta();
+        if (metaB != null) {
+            metaB.displayName(Component.text("§9§lB. Jopeh"));
+            metaB.lore(java.util.List.of(Component.text("§7Klik untuk memilih jawaban ini.")));
+            optionB.setItemMeta(metaB);
+        }
+        inv.setItem(30, optionB);
+
+        // Option C: Slot 32 (Correct)
+        ItemStack optionC = new ItemStack(Material.GREEN_WOOL);
+        ItemMeta metaC = optionC.getItemMeta();
+        if (metaC != null) {
+            metaC.displayName(Component.text("§a§lC. AnakTentara"));
+            metaC.lore(java.util.List.of(Component.text("§7Klik untuk memilih jawaban ini.")));
+            optionC.setItemMeta(metaC);
+        }
+        inv.setItem(32, optionC);
+
+        // Option D: Slot 34
+        ItemStack optionD = new ItemStack(Material.YELLOW_WOOL);
+        ItemMeta metaD = optionD.getItemMeta();
+        if (metaD != null) {
+            metaD.displayName(Component.text("§e§lD. Gua"));
+            metaD.lore(java.util.List.of(Component.text("§7Klik untuk memilih jawaban ini.")));
+            optionD.setItemMeta(metaD);
+        }
+        inv.setItem(34, optionD);
+
+        // Fill Row 4 with Black Border
+        for (int i = 36; i < 45; i++) {
+            inv.setItem(i, blackBorder);
+        }
+
+        player.openInventory(inv);
     }
 }

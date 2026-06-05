@@ -2,6 +2,10 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.4.3] - 2026-06-05
+### Added
+- Added temporary creative prototype Exam GUI quiz dialog for testing the Exam Subsystem. Works on both Java Edition (Immersive school desk Chest Inventory layout) and Bedrock Edition (Geyser/Floodgate SimpleForm layout) via command `/school testexam`.
+
 ## [1.4.2] - 2026-06-05
 ### Fixed
 - Fixed race condition during global batch updates by updating online player caches first on the primary server thread and excluding their UUIDs from the async database update query.

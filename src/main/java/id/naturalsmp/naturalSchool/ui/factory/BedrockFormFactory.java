@@ -169,4 +169,27 @@ public class BedrockFormFactory {
 
         FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
     }
+
+    public void openTestExam(Player player) {
+        SimpleForm form = SimpleForm.builder()
+            .title("Ujian: Pilihan Ganda")
+            .content("Siapa pencipta NaturalSMP?")
+            .button("A. Saya")
+            .button("B. Jopeh")
+            .button("C. AnakTentara")
+            .button("D. Gua")
+            .validResultHandler(response -> {
+                int clickedId = response.clickedButtonId();
+                if (clickedId == 2) { // Button C
+                    player.sendTitle("§a§lJAWABAN BENAR", "§7Selamat, kamu lulus!", 10, 70, 20);
+                    player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
+                } else {
+                    player.sendTitle("§c§lJAWABAN SALAH", "§7Coba belajar lagi ya!", 10, 70, 20);
+                    player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                }
+            })
+            .build();
+
+        FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
+    }
 }

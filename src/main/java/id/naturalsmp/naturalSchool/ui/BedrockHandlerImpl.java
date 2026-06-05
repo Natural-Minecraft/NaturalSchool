@@ -43,4 +43,9 @@ public class BedrockHandlerImpl implements BedrockHandler {
     public void openForm(Player player, SchoolMenuType menuType) {
         bedrockFormFactory.openForm(player, menuType);
     }
+
+    @Override
+    public void openTestExam(Player player) {
+        bedrockFormFactory.openTestExam(player);
+    }
 }
