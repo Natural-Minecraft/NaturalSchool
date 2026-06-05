@@ -2,6 +2,19 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.2.0] - 2026-06-05
+### Added
+- Implemented a comprehensive **NIS (Nomor Induk Siswa) Management Subsystem**.
+- Added database method `getRegisteredNisCount()` to calculate sequence numbers asynchronously.
+- Implemented special 10-digit NIS Generation Engine (`1` + `3-digit sequence` + `DDMMYY` formatted date).
+- Created subcommands under `/naturalschool nis` (`register`, `unregister`, `set`, `show`, `help`) with Adventure MiniMessage styling.
+- Integrated a 15-second double execution confirmation cache map for `/ns nis unregister`.
+- Added dynamic smart tab completions for all NIS subcommands, online players, and template custom inputs.
+
+### Changed
+- Configured default first-join profile parameters to NIS = `null`, Stage = `"NONE"`, Class = `0`, and Rank = `SchoolRank.NONE` (temporary/unregistered state).
+- `/ns nis set` dynamically converts unregistered players (NULL NIS) into registered ones, automatically mapping them to SD Class 1.
+
 ## [1.1.0] - 2026-06-05
 ### Added
 - Created `StudentStageChangeEvent` custom Bukkit event to notify when player academic stage changes.

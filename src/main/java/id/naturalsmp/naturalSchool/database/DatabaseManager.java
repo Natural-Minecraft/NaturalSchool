@@ -238,4 +238,16 @@ public class DatabaseManager {
             plugin.getLogger().log(Level.SEVERE, "Error saving profile for UUID: " + profile.getUuid(), e);
         }
     }
+
+    public int getRegisteredNisCount() throws SQLException {
+        String query = "SELECT COUNT(*) FROM nschool_students WHERE nis IS NOT NULL;";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query);
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+        }
+        return 0;
+    }
 }

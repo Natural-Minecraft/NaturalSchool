@@ -59,8 +59,6 @@ public class ProfileManager {
         try {
             StudentProfile profile = databaseManager.loadProfile(uuid);
             if (profile == null) {
-                int startClass = plugin.getConfig().getInt("academic-settings.default-start-class", 1);
-                String startStage = plugin.getConfig().getString("academic-settings.default-start-stage", "SD");
                 Timestamp now = new Timestamp(System.currentTimeMillis());
 
                 String username = "Unknown";
@@ -69,7 +67,7 @@ public class ProfileManager {
                     username = p.getName();
                 }
 
-                profile = new StudentProfile(uuid, username, null, startStage, startClass, now, SchoolRank.NONE);
+                profile = new StudentProfile(uuid, username, null, "NONE", 0, now, SchoolRank.NONE);
                 databaseManager.saveProfile(profile);
             }
             profileCache.put(uuid, profile);

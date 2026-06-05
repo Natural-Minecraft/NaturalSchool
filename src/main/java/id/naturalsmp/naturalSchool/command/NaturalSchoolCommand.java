@@ -14,16 +14,21 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
 
     private final NaturalSchool plugin;
+    private final Map<String, Long> unregisterConfirmations = new ConcurrentHashMap<>();
 
     public NaturalSchoolCommand(NaturalSchool plugin) {
         this.plugin = plugin;
@@ -73,6 +78,9 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
             case "setstage":
                 handleSetStage(sender, args);
                 break;
+            case "nis":
+                handleNisCommand(sender, args);
+                break;
             default:
                 sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Unknown subcommand. Use /naturalschool for help.</red>"));
                 break;
@@ -88,7 +96,8 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
             "<yellow>/naturalschool info <player></yellow> - <gray>View player academic profile details.</gray>\n" +
             "<yellow>/naturalschool setrank <player> <rank></yellow> - <gray>Set player internal school rank.</gray>\n" +
             "<yellow>/naturalschool setclass <player> <1-12></yellow> - <gray>Set student academic class.</gray>\n" +
-            "<yellow>/naturalschool setstage <player> <SD|SMP|SMA></yellow> - <gray>Set student academic stage.</gray>"
+            "<yellow>/naturalschool setstage <player> <SD|SMP|SMA></yellow> - <gray>Set student academic stage.</gray>\n" +
+            "<yellow>/naturalschool nis help</yellow> - <gray>View NIS Management System help.</gray>"
         ));
     }
 
@@ -314,6 +323,305 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
         }
     }
 
+    private void handleNisCommand(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("naturalschool.admin")) {
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>No Permission!</red>"));
+            return;
+        }
+
+        if (args.length < 2) {
+            sendNisHelp(sender);
+            return;
+        }
+
+        String sub = args[1].toLowerCase();
+        switch (sub) {
+            case "register":
+                handleNisRegister(sender, args);
+                break;
+            case "unregister":
+                handleNisUnregister(sender, args);
+                break;
+            case "set":
+                handleNisSet(sender, args);
+                break;
+            case "show":
+                handleNisShow(sender, args);
+                break;
+            case "help":
+            default:
+                sendNisHelp(sender);
+                break;
+        }
+    }
+
+    private void sendNisHelp(CommandSender sender) {
+        sender.sendMessage(MiniMessage.miniMessage().deserialize(
+            "<gold>=== NaturalSchool NIS Subsystem Help ===</gold>\n" +
+            "<yellow>/naturalschool nis register <player></yellow> - <gray>Daftarkan NIS resmi siswa.</gray>\n" +
+            "<yellow>/naturalschool nis unregister <player></yellow> - <gray>Batalkan pendaftaran NIS siswa (memerlukan konfirmasi).</gray>\n" +
+            "<yellow>/naturalschool nis set <player> <10-digit></yellow> - <gray>Atur NIS kustom untuk siswa.</gray>\n" +
+            "<yellow>/naturalschool nis show [player]</yellow> - <gray>Lihat data NIS siswa.</gray>\n" +
+            "<yellow>/naturalschool nis help</yellow> - <gray>Tampilkan menu bantuan NIS ini.</gray>"
+        ));
+    }
+
+    private void handleNisRegister(CommandSender sender, String[] args) {
+        if (args.length < 3) {
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Usage: /naturalschool nis register <player></red>"));
+            return;
+        }
+
+        String targetName = args[2];
+        Player targetPlayer = Bukkit.getPlayerExact(targetName);
+        if (targetPlayer != null) {
+            StudentProfile profile = plugin.getProfileManager().getProfile(targetPlayer.getUniqueId());
+            if (profile != null) {
+                if (profile.getNis() != null) {
+                    sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Player already has NIS: " + profile.getNis() + "</red>"));
+                    return;
+                }
+                performNisRegistration(sender, targetPlayer.getUniqueId(), targetPlayer.getName(), profile);
+            } else {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Profile cache not loaded for online player " + targetPlayer.getName() + ".</red>"));
+            }
+        } else {
+            OfflinePlayer offlineTarget = Bukkit.getOfflinePlayer(targetName);
+            UUID uuid = offlineTarget.getUniqueId();
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<yellow>Player is offline. Fetching from database...</yellow>"));
+            plugin.getNaturalSchoolAPI().getOfflineProfile(uuid).thenAccept(optProfile -> {
+                if (optProfile.isPresent()) {
+                    StudentProfile profile = optProfile.get();
+                    if (profile.getNis() != null) {
+                        sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Player already has NIS: " + profile.getNis() + "</red>"));
+                        return;
+                    }
+                    performNisRegistration(sender, uuid, offlineTarget.getName() != null ? offlineTarget.getName() : targetName, profile);
+                } else {
+                    sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Player profile not found in database.</red>"));
+                }
+            }).exceptionally(ex -> {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Failed to load profile: " + ex.getMessage() + "</red>"));
+                return null;
+            });
+        }
+    }
+
+    private void performNisRegistration(CommandSender sender, UUID uuid, String name, StudentProfile profile) {
+        sender.sendMessage(MiniMessage.miniMessage().deserialize("<yellow>Registering NIS for " + name + "...</yellow>"));
+        CompletableFuture.supplyAsync(() -> {
+            try {
+                return plugin.getDatabaseManager().getRegisteredNisCount();
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+        }, runnable -> Bukkit.getScheduler().runTaskAsynchronously(plugin, runnable))
+        .thenAccept(count -> {
+            String generatedNis = generateSpecialNis(count);
+            
+            profile.setNis(generatedNis);
+            profile.setAcademicStage("SD");
+            profile.setAcademicClass(1);
+            profile.setRank(SchoolRank.SD_1);
+            
+            plugin.getProfileManager().saveProfileAsync(profile).thenRun(() -> {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize(
+                    "<green>Successfully registered " + name + "! NIS: " + generatedNis + " (SD Class 1).</green>"
+                ));
+            }).exceptionally(ex -> {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Failed to save updated profile: " + ex.getMessage() + "</red>"));
+                return null;
+            });
+        }).exceptionally(ex -> {
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Failed to get database registration count: " + ex.getMessage() + "</red>"));
+            return null;
+        });
+    }
+
+    private String generateSpecialNis(int registeredCount) {
+        java.time.LocalDate now = java.time.LocalDate.now();
+        java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("ddMMyy");
+        String dateStr = now.format(formatter);
+        int sequence = registeredCount + 1;
+        return "1" + String.format("%03d", sequence) + dateStr;
+    }
+
+    private void handleNisUnregister(CommandSender sender, String[] args) {
+        if (args.length < 3) {
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Usage: /naturalschool nis unregister <player></red>"));
+            return;
+        }
+
+        String targetName = args[2];
+        UUID targetUuid;
+        Player targetPlayer = Bukkit.getPlayerExact(targetName);
+        if (targetPlayer != null) {
+            targetUuid = targetPlayer.getUniqueId();
+        } else {
+            targetUuid = Bukkit.getOfflinePlayer(targetName).getUniqueId();
+        }
+
+        String key = sender.getName() + ":" + targetUuid.toString();
+        long now = System.currentTimeMillis();
+
+        if (unregisterConfirmations.containsKey(key) && unregisterConfirmations.get(key) > now) {
+            unregisterConfirmations.remove(key);
+            performNisUnregistration(sender, targetUuid, targetPlayer != null ? targetPlayer.getName() : targetName);
+        } else {
+            unregisterConfirmations.put(key, now + 15000);
+            sender.sendMessage(MiniMessage.miniMessage().deserialize(
+                "<yellow>WARNING: You are about to unregister NIS for " + targetName + ". This will reset their academic progress to NONE/0. Run the command again within 15 seconds to confirm.</yellow>"
+            ));
+        }
+    }
+
+    private void performNisUnregistration(CommandSender sender, UUID uuid, String name) {
+        sender.sendMessage(MiniMessage.miniMessage().deserialize("<yellow>Unregistering NIS for " + name + "...</yellow>"));
+        
+        Player targetPlayer = Bukkit.getPlayer(uuid);
+        if (targetPlayer != null) {
+            StudentProfile profile = plugin.getProfileManager().getProfile(uuid);
+            if (profile != null) {
+                profile.setNis(null);
+                profile.setAcademicStage("NONE");
+                profile.setAcademicClass(0);
+                profile.setRank(SchoolRank.NONE);
+                plugin.getProfileManager().saveProfileAsync(profile).thenRun(() -> {
+                    sender.sendMessage(MiniMessage.miniMessage().deserialize(
+                        "<green>Successfully unregistered " + name + ". Progress reset.</green>"
+                    ));
+                });
+            } else {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Profile cache not loaded for " + name + ".</red>"));
+            }
+        } else {
+            plugin.getNaturalSchoolAPI().getOfflineProfile(uuid).thenAccept(optProfile -> {
+                if (optProfile.isPresent()) {
+                    StudentProfile profile = optProfile.get();
+                    profile.setNis(null);
+                    profile.setAcademicStage("NONE");
+                    profile.setAcademicClass(0);
+                    profile.setRank(SchoolRank.NONE);
+                    plugin.getDatabaseManager().saveProfile(profile);
+                    sender.sendMessage(MiniMessage.miniMessage().deserialize(
+                        "<green>Successfully unregistered offline player " + name + ". Progress reset.</green>"
+                    ));
+                } else {
+                    sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Player profile not found in database.</red>"));
+                }
+            }).exceptionally(ex -> {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Failed to unregister: " + ex.getMessage() + "</red>"));
+                return null;
+            });
+        }
+    }
+
+    private void handleNisSet(CommandSender sender, String[] args) {
+        if (args.length < 4) {
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Usage: /naturalschool nis set <player> <10-digit-nis></red>"));
+            return;
+        }
+
+        String targetName = args[2];
+        String customNis = args[3];
+
+        if (!customNis.matches("^\\d{10}$")) {
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>NIS must be exactly a 10-digit numerical number.</red>"));
+            return;
+        }
+
+        Player targetPlayer = Bukkit.getPlayerExact(targetName);
+        if (targetPlayer != null) {
+            StudentProfile profile = plugin.getProfileManager().getProfile(targetPlayer.getUniqueId());
+            if (profile != null) {
+                boolean wasUnregistered = (profile.getNis() == null);
+                profile.setNis(customNis);
+                if (wasUnregistered) {
+                    profile.setAcademicStage("SD");
+                    profile.setAcademicClass(1);
+                    profile.setRank(SchoolRank.SD_1);
+                }
+                plugin.getProfileManager().saveProfileAsync(profile).thenRun(() -> {
+                    sender.sendMessage(MiniMessage.miniMessage().deserialize(
+                        "<green>Set NIS to " + customNis + " for " + targetPlayer.getName() + 
+                        (wasUnregistered ? " (Registered to SD Class 1)" : "") + ".</green>"
+                    ));
+                });
+            } else {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Profile cache not loaded for online player " + targetPlayer.getName() + ".</red>"));
+            }
+        } else {
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<yellow>Player is offline. Fetching from database...</yellow>"));
+            OfflinePlayer offlineTarget = Bukkit.getOfflinePlayer(targetName);
+            UUID uuid = offlineTarget.getUniqueId();
+            plugin.getNaturalSchoolAPI().getOfflineProfile(uuid).thenAccept(optProfile -> {
+                if (optProfile.isPresent()) {
+                    StudentProfile profile = optProfile.get();
+                    boolean wasUnregistered = (profile.getNis() == null);
+                    profile.setNis(customNis);
+                    if (wasUnregistered) {
+                        profile.setAcademicStage("SD");
+                        profile.setAcademicClass(1);
+                        profile.setRank(SchoolRank.SD_1);
+                    }
+                    plugin.getDatabaseManager().saveProfile(profile);
+                    sender.sendMessage(MiniMessage.miniMessage().deserialize(
+                        "<green>Set NIS to " + customNis + " for offline player " + (offlineTarget.getName() != null ? offlineTarget.getName() : targetName) +
+                        (wasUnregistered ? " (Registered to SD Class 1)" : "") + ".</green>"
+                    ));
+                } else {
+                    sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Player profile not found in database.</red>"));
+                }
+            }).exceptionally(ex -> {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Failed to set custom NIS: " + ex.getMessage() + "</red>"));
+                return null;
+            });
+        }
+    }
+
+    private void handleNisShow(CommandSender sender, String[] args) {
+        String targetName;
+        if (args.length < 3) {
+            if (!(sender instanceof Player)) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Console must specify a player name: /ns nis show <player></red>"));
+                return;
+            }
+            targetName = sender.getName();
+        } else {
+            targetName = args[2];
+        }
+
+        Player targetPlayer = Bukkit.getPlayerExact(targetName);
+        if (targetPlayer != null) {
+            StudentProfile profile = plugin.getProfileManager().getProfile(targetPlayer.getUniqueId());
+            if (profile != null) {
+                String nis = profile.getNis() != null ? profile.getNis() : "<red>Unregistered (NULL)</red>";
+                sender.sendMessage(MiniMessage.miniMessage().deserialize(
+                    "<gold>NIS for player <white>" + targetPlayer.getName() + "</white> is " + nis + "</gold>"
+                ));
+            } else {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Profile cache not loaded for online player " + targetPlayer.getName() + ".</red>"));
+            }
+        } else {
+            OfflinePlayer offlineTarget = Bukkit.getOfflinePlayer(targetName);
+            UUID uuid = offlineTarget.getUniqueId();
+            plugin.getNaturalSchoolAPI().getOfflineProfile(uuid).thenAccept(optProfile -> {
+                if (optProfile.isPresent()) {
+                    StudentProfile profile = optProfile.get();
+                    String nis = profile.getNis() != null ? profile.getNis() : "<red>Unregistered (NULL)</red>";
+                    sender.sendMessage(MiniMessage.miniMessage().deserialize(
+                        "<gold>NIS for offline player <white>" + (offlineTarget.getName() != null ? offlineTarget.getName() : targetName) + "</white> is " + nis + "</gold>"
+                    ));
+                } else {
+                    sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Player profile not found in database.</red>"));
+                }
+            }).exceptionally(ex -> {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Failed to query NIS: " + ex.getMessage() + "</red>"));
+                return null;
+            });
+        }
+    }
+
     @Override
     public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         if (!checkPermission(sender)) {
@@ -321,13 +629,15 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 1) {
-            List<String> subCommands = Arrays.asList("reload", "info", "setrank", "setclass", "setstage");
+            List<String> subCommands = Arrays.asList("reload", "info", "setrank", "setclass", "setstage", "nis");
             return filterList(subCommands, args[0]);
         }
 
         if (args.length == 2) {
             String subCommand = args[0].toLowerCase();
-            if (Arrays.asList("info", "setrank", "setclass", "setstage").contains(subCommand)) {
+            if ("nis".equals(subCommand)) {
+                return filterList(Arrays.asList("register", "unregister", "set", "show", "help"), args[1]);
+            } else if (Arrays.asList("info", "setrank", "setclass", "setstage").contains(subCommand)) {
                 List<String> players = Bukkit.getOnlinePlayers().stream()
                         .map(Player::getName)
                         .collect(Collectors.toList());
@@ -337,7 +647,15 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
 
         if (args.length == 3) {
             String subCommand = args[0].toLowerCase();
-            if ("setrank".equals(subCommand)) {
+            if ("nis".equals(subCommand)) {
+                String subNis = args[1].toLowerCase();
+                if (Arrays.asList("register", "unregister", "set", "show").contains(subNis)) {
+                    List<String> players = Bukkit.getOnlinePlayers().stream()
+                            .map(Player::getName)
+                            .collect(Collectors.toList());
+                    return filterList(players, args[2]);
+                }
+            } else if ("setrank".equals(subCommand)) {
                 List<String> ranks = Arrays.stream(SchoolRank.values())
                         .map(SchoolRank::name)
                         .collect(Collectors.toList());
@@ -350,6 +668,13 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
                 return filterList(classes, args[2]);
             } else if ("setstage".equals(subCommand)) {
                 return filterList(Arrays.asList("SD", "SMP", "SMA"), args[2]);
+            }
+        }
+
+        if (args.length == 4) {
+            String subCommand = args[0].toLowerCase();
+            if ("nis".equals(subCommand) && "set".equalsIgnoreCase(args[1])) {
+                return filterList(Collections.singletonList("<10-digit-nis>"), args[3]);
             }
         }
 
