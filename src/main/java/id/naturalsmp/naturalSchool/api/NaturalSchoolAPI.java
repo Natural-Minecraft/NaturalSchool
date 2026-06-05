@@ -83,23 +83,4 @@ public interface NaturalSchoolAPI {
      * @param stage new academic stage (SD, SMP, SMA)
      */
     void setPlayerStage(UUID uuid, String stage);
-
-    /**
-     * Checks if the player has passed the practical exam.
-     * Returns false if uncached.
-     *
-     * @param uuid Player UUID
-     * @return true if passed, false otherwise
-     */
-    boolean isPracticalPassed(UUID uuid);
-
-    /**
-     * Sets the practical exam status of a player.
-     * If the player is online, it will fire StudentPracticalToggleEvent.
-     * The profile is saved to the database asynchronously.
-     *
-     * @param uuid   Player UUID
-     * @param passed new practical exam status
-     */
-    void setPracticalPassed(UUID uuid, boolean passed);
 }

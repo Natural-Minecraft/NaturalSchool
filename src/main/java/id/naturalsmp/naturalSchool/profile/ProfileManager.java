@@ -63,7 +63,13 @@ public class ProfileManager {
                 String startStage = plugin.getConfig().getString("academic-settings.default-start-stage", "SD");
                 Timestamp now = new Timestamp(System.currentTimeMillis());
 
-                profile = new StudentProfile(uuid, null, startStage, startClass, false, 0, now, SchoolRank.NONE);
+                String username = "Unknown";
+                Player p = Bukkit.getPlayer(uuid);
+                if (p != null) {
+                    username = p.getName();
+                }
+
+                profile = new StudentProfile(uuid, username, null, startStage, startClass, now, SchoolRank.NONE);
                 databaseManager.saveProfile(profile);
             }
             profileCache.put(uuid, profile);

@@ -2,7 +2,6 @@ package id.naturalsmp.naturalSchool.api;
 
 import id.naturalsmp.naturalSchool.NaturalSchool;
 import id.naturalsmp.naturalSchool.api.event.StudentClassChangeEvent;
-import id.naturalsmp.naturalSchool.api.event.StudentPracticalToggleEvent;
 import id.naturalsmp.naturalSchool.api.event.StudentRankChangeEvent;
 import id.naturalsmp.naturalSchool.api.event.StudentStageChangeEvent;
 import id.naturalsmp.naturalSchool.profile.SchoolRank;
@@ -58,7 +57,6 @@ public class NaturalSchoolAPIImpl implements NaturalSchoolAPI {
 
         Player player = Bukkit.getPlayer(uuid);
         if (player != null) {
-            // Online player: perform event check and cache update on the main thread
             if (!Bukkit.isPrimaryThread()) {
                 Bukkit.getScheduler().runTask(plugin, () -> setPlayerRank(uuid, rank));
                 return;
@@ -76,15 +74,34 @@ public class NaturalSchoolAPIImpl implements NaturalSchoolAPI {
                 }
 
                 profile.setRank(rank);
+
+                if (rank.getType() == SchoolRank.RankType.STUDENT) {
+                    String[] parts = rank.name().split("_");
+                    if (parts.length == 2) {
+                        profile.setAcademicStage(parts[0]);
+                        try {
+                            profile.setAcademicClass(Integer.parseInt(parts[1]));
+                        } catch (NumberFormatException ignored) {}
+                    }
+                }
+
                 plugin.getProfileManager().saveProfileAsync(profile);
             }
         } else {
-            // Offline player: load, modify, and save to DB asynchronously
             Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
                 try {
                     StudentProfile profile = plugin.getDatabaseManager().loadProfile(uuid);
                     if (profile != null) {
                         profile.setRank(rank);
+                        if (rank.getType() == SchoolRank.RankType.STUDENT) {
+                            String[] parts = rank.name().split("_");
+                            if (parts.length == 2) {
+                                profile.setAcademicStage(parts[0]);
+                                try {
+                                    profile.setAcademicClass(Integer.parseInt(parts[1]));
+                                } catch (NumberFormatException ignored) {}
+                            }
+                        }
                         plugin.getDatabaseManager().saveProfile(profile);
                     }
                 } catch (Exception e) {
@@ -107,7 +124,6 @@ public class NaturalSchoolAPIImpl implements NaturalSchoolAPI {
 
         Player player = Bukkit.getPlayer(uuid);
         if (player != null) {
-            // Online player: perform event check and cache update on the main thread
             if (!Bukkit.isPrimaryThread()) {
                 Bukkit.getScheduler().runTask(plugin, () -> setPlayerClass(uuid, academicClass));
                 return;
@@ -115,6 +131,8 @@ public class NaturalSchoolAPIImpl implements NaturalSchoolAPI {
 
             StudentProfile profile = plugin.getProfileManager().getProfile(uuid);
             if (profile != null) {
+                if (profile.isStaff()) return;
+
                 int oldClass = profile.getAcademicClass();
                 if (oldClass == academicClass) return;
 
@@ -128,11 +146,12 @@ public class NaturalSchoolAPIImpl implements NaturalSchoolAPI {
                 plugin.getProfileManager().saveProfileAsync(profile);
             }
         } else {
-            // Offline player: load, modify, and save to DB asynchronously
             Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
                 try {
                     StudentProfile profile = plugin.getDatabaseManager().loadProfile(uuid);
                     if (profile != null) {
+                        if (profile.isStaff()) return;
+
                         profile.setAcademicClass(academicClass);
                         plugin.getDatabaseManager().saveProfile(profile);
                     }
@@ -151,54 +170,6 @@ public class NaturalSchoolAPIImpl implements NaturalSchoolAPI {
     }
 
     @Override
-    public boolean isPracticalPassed(UUID uuid) {
-        if (uuid == null) return false;
-        StudentProfile profile = plugin.getProfileManager().getProfile(uuid);
-        return profile != null && profile.isPracticalPassed();
-    }
-
-    @Override
-    public void setPracticalPassed(UUID uuid, boolean passed) {
-        if (uuid == null) return;
-
-        Player player = Bukkit.getPlayer(uuid);
-        if (player != null) {
-            // Online player: perform event check and cache update on the main thread
-            if (!Bukkit.isPrimaryThread()) {
-                Bukkit.getScheduler().runTask(plugin, () -> setPracticalPassed(uuid, passed));
-                return;
-            }
-
-            StudentProfile profile = plugin.getProfileManager().getProfile(uuid);
-            if (profile != null) {
-                if (profile.isPracticalPassed() == passed) return;
-
-                StudentPracticalToggleEvent event = new StudentPracticalToggleEvent(player, passed);
-                Bukkit.getPluginManager().callEvent(event);
-                if (event.isCancelled()) {
-                    return;
-                }
-
-                profile.setPracticalPassed(passed);
-                plugin.getProfileManager().saveProfileAsync(profile);
-            }
-        } else {
-            // Offline player: load, modify, and save to DB asynchronously
-            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-                try {
-                    StudentProfile profile = plugin.getDatabaseManager().loadProfile(uuid);
-                    if (profile != null) {
-                        profile.setPracticalPassed(passed);
-                        plugin.getDatabaseManager().saveProfile(profile);
-                    }
-                } catch (Exception e) {
-                    plugin.getLogger().warning("Failed to update offline player practical status: " + e.getMessage());
-                }
-            });
-        }
-    }
-
-    @Override
     public void setPlayerStage(UUID uuid, String stage) {
         if (uuid == null || stage == null) return;
 
@@ -211,6 +182,8 @@ public class NaturalSchoolAPIImpl implements NaturalSchoolAPI {
 
             StudentProfile profile = plugin.getProfileManager().getProfile(uuid);
             if (profile != null) {
+                if (profile.isStaff()) return;
+
                 String oldStage = profile.getAcademicStage();
                 if (stage.equals(oldStage)) return;
 
@@ -228,6 +201,8 @@ public class NaturalSchoolAPIImpl implements NaturalSchoolAPI {
                 try {
                     StudentProfile profile = plugin.getDatabaseManager().loadProfile(uuid);
                     if (profile != null) {
+                        if (profile.isStaff()) return;
+
                         profile.setAcademicStage(stage);
                         plugin.getDatabaseManager().saveProfile(profile);
                     }

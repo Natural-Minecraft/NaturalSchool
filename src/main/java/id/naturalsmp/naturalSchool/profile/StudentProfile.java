@@ -6,27 +6,33 @@ import java.util.UUID;
 public class StudentProfile {
 
     private final UUID uuid;
+    private String username;
     private String nis;
     private String academicStage;
     private int academicClass;
-    private boolean practicalPassed;
-    private int temporaryGrade;
     private Timestamp lastUpdated;
     private SchoolRank rank;
 
-    public StudentProfile(UUID uuid, String nis, String academicStage, int academicClass, boolean practicalPassed, int temporaryGrade, Timestamp lastUpdated, SchoolRank rank) {
+    public StudentProfile(UUID uuid, String username, String nis, String academicStage, int academicClass, Timestamp lastUpdated, SchoolRank rank) {
         this.uuid = uuid;
+        this.username = username;
         this.nis = nis;
         this.academicStage = academicStage;
         this.academicClass = academicClass;
-        this.practicalPassed = practicalPassed;
-        this.temporaryGrade = temporaryGrade;
         this.lastUpdated = lastUpdated;
         this.rank = rank;
     }
 
     public UUID getUuid() {
         return uuid;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
     }
 
     public String getNis() {
@@ -53,22 +59,6 @@ public class StudentProfile {
         this.academicClass = academicClass;
     }
 
-    public boolean isPracticalPassed() {
-        return practicalPassed;
-    }
-
-    public void setPracticalPassed(boolean practicalPassed) {
-        this.practicalPassed = practicalPassed;
-    }
-
-    public int getTemporaryGrade() {
-        return temporaryGrade;
-    }
-
-    public void setTemporaryGrade(int temporaryGrade) {
-        this.temporaryGrade = temporaryGrade;
-    }
-
     public Timestamp getLastUpdated() {
         return lastUpdated;
     }
@@ -86,7 +76,9 @@ public class StudentProfile {
     }
 
     public boolean isStaff() {
-        return rank != null && (rank.getType() == SchoolRank.RankType.STAFF || rank.getType() == SchoolRank.RankType.HELPER);
+        return rank != null && (rank.getType() == SchoolRank.RankType.STAFF 
+                || rank.getType() == SchoolRank.RankType.HELPER 
+                || rank.getType() == SchoolRank.RankType.MANAGEMENT);
     }
 
     public boolean isManagement() {

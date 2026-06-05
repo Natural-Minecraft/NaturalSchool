@@ -29,9 +29,6 @@ public class DatabaseManager {
         this.plugin = plugin;
     }
 
-    /**
-     * Initializes the database connection and tables.
-     */
     public void initialize() {
         this.storageType = plugin.getConfig().getString("database.storage-type", "SQLITE").toUpperCase();
         
@@ -64,7 +61,6 @@ public class DatabaseManager {
         config.setMaximumPoolSize(maxPoolSize);
         config.setConnectionTimeout(timeout);
         
-        // Optimizations for MySQL
         config.addDataSourceProperty("cachePrepStmts", "true");
         config.addDataSourceProperty("prepStmtCacheSize", "250");
         config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
@@ -105,10 +101,6 @@ public class DatabaseManager {
         }
     }
 
-    /**
-     * Gets a database connection (from pool if MySQL, or a direct connection if SQLite).
-     * Callers must close this connection using try-with-resources.
-     */
     public Connection getConnection() throws SQLException {
         if ("MYSQL".equals(storageType)) {
             if (dataSource == null) {
@@ -126,9 +118,6 @@ public class DatabaseManager {
         }
     }
 
-    /**
-     * Closes the database pool and connections.
-     */
     public void close() {
         if (dataSource != null && !dataSource.isClosed()) {
             dataSource.close();
@@ -137,9 +126,6 @@ public class DatabaseManager {
         }
     }
 
-    /**
-     * Safely reloads database connections and connection pools.
-     */
     public synchronized void reload() {
         plugin.getLogger().info("Reloading Database Manager...");
         close();
@@ -149,24 +135,22 @@ public class DatabaseManager {
     private void createTable() {
         String createTableSQL;
         if ("MYSQL".equals(storageType)) {
-            createTableSQL = "CREATE TABLE IF NOT EXISTS naturalsmp_students ("
+            createTableSQL = "CREATE TABLE IF NOT EXISTS nschool_students ("
                     + "uuid VARCHAR(36) PRIMARY KEY, "
+                    + "username VARCHAR(16) NOT NULL, "
                     + "nis VARCHAR(20) UNIQUE, "
                     + "academic_stage VARCHAR(10) NOT NULL, "
                     + "academic_class INT NOT NULL, "
-                    + "practical_passed BOOLEAN NOT NULL, "
-                    + "temporary_grade INT NOT NULL, "
                     + "last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, "
                     + "rank VARCHAR(30) DEFAULT 'NONE'"
                     + ");";
         } else {
-            createTableSQL = "CREATE TABLE IF NOT EXISTS naturalsmp_students ("
+            createTableSQL = "CREATE TABLE IF NOT EXISTS nschool_students ("
                     + "uuid TEXT PRIMARY KEY, "
+                    + "username TEXT NOT NULL, "
                     + "nis TEXT UNIQUE, "
                     + "academic_stage TEXT NOT NULL, "
                     + "academic_class INTEGER NOT NULL, "
-                    + "practical_passed INTEGER NOT NULL, "
-                    + "temporary_grade INTEGER NOT NULL, "
                     + "last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
                     + "rank TEXT DEFAULT 'NONE'"
                     + ");";
@@ -175,50 +159,24 @@ public class DatabaseManager {
         try (Connection conn = getConnection();
              Statement stmt = conn.createStatement()) {
             stmt.execute(createTableSQL);
-            plugin.getLogger().info("Database table 'naturalsmp_students' verified/created successfully.");
+            plugin.getLogger().info("Database table 'nschool_students' verified/created successfully.");
         } catch (SQLException e) {
-            plugin.getLogger().log(Level.SEVERE, "Failed to create database table 'naturalsmp_students'!", e);
-        }
-
-        // Migrate: Add 'rank' column dynamically if it doesn't exist yet for existing databases
-        try (Connection conn = getConnection()) {
-            boolean hasRank = false;
-            try (ResultSet rs = conn.getMetaData().getColumns(null, null, "naturalsmp_students", "rank")) {
-                if (rs.next()) {
-                    hasRank = true;
-                }
-            }
-            if (!hasRank) {
-                String alterTableSQL = "MYSQL".equals(storageType)
-                        ? "ALTER TABLE naturalsmp_students ADD COLUMN rank VARCHAR(30) DEFAULT 'NONE';"
-                        : "ALTER TABLE naturalsmp_students ADD COLUMN rank TEXT DEFAULT 'NONE';";
-                try (Statement stmt = conn.createStatement()) {
-                    stmt.execute(alterTableSQL);
-                    plugin.getLogger().info("Database table 'naturalsmp_students' successfully migrated: added 'rank' column.");
-                }
-            }
-        } catch (SQLException e) {
-            plugin.getLogger().log(Level.WARNING, "Could not verify or migrate 'rank' column in database.", e);
+            plugin.getLogger().log(Level.SEVERE, "Failed to create database table 'nschool_students'!", e);
         }
     }
 
-    /**
-     * Loads a StudentProfile from the database by UUID.
-     * This query runs synchronously within the method and should be executed on an async scheduler thread.
-     */
     public StudentProfile loadProfile(UUID uuid) throws SQLException {
-        String query = "SELECT * FROM naturalsmp_students WHERE uuid = ?;";
+        String query = "SELECT * FROM nschool_students WHERE uuid = ?;";
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(query)) {
             
             ps.setString(1, uuid.toString());
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
+                    String username = rs.getString("username");
                     String nis = rs.getString("nis");
                     String stage = rs.getString("academic_stage");
                     int academicClass = rs.getInt("academic_class");
-                    boolean practicalPassed = rs.getBoolean("practical_passed");
-                    int tempGrade = rs.getInt("temporary_grade");
                     Timestamp lastUpdated = rs.getTimestamp("last_updated");
                     
                     String rankStr = rs.getString("rank");
@@ -231,51 +189,45 @@ public class DatabaseManager {
                         }
                     }
 
-                    return new StudentProfile(uuid, nis, stage, academicClass, practicalPassed, tempGrade, lastUpdated, rank);
+                    return new StudentProfile(uuid, username, nis, stage, academicClass, lastUpdated, rank);
                 }
             }
         }
         return null;
     }
 
-    /**
-     * Saves a StudentProfile to the database using an upsert mechanism.
-     * This query runs synchronously within the method and should be executed on an async scheduler thread.
-     */
     public void saveProfile(StudentProfile profile) {
         String saveQuery;
         
         if ("MYSQL".equals(storageType)) {
-            saveQuery = "INSERT INTO naturalsmp_students (uuid, nis, academic_stage, academic_class, practical_passed, temporary_grade, last_updated, rank) "
-                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+            saveQuery = "INSERT INTO nschool_students (uuid, username, nis, academic_stage, academic_class, last_updated, rank) "
+                    + "VALUES (?, ?, ?, ?, ?, ?, ?) "
                     + "ON DUPLICATE KEY UPDATE "
+                    + "username = VALUES(username), "
                     + "nis = VALUES(nis), "
                     + "academic_stage = VALUES(academic_stage), "
                     + "academic_class = VALUES(academic_class), "
-                    + "practical_passed = VALUES(practical_passed), "
-                    + "temporary_grade = VALUES(temporary_grade), "
                     + "last_updated = VALUES(last_updated), "
                     + "rank = VALUES(rank);";
         } else {
-            saveQuery = "INSERT OR REPLACE INTO naturalsmp_students (uuid, nis, academic_stage, academic_class, practical_passed, temporary_grade, last_updated, rank) "
-                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?);";
+            saveQuery = "INSERT OR REPLACE INTO nschool_students (uuid, username, nis, academic_stage, academic_class, last_updated, rank) "
+                    + "VALUES (?, ?, ?, ?, ?, ?, ?);";
         }
 
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(saveQuery)) {
             
             ps.setString(1, profile.getUuid().toString());
-            ps.setString(2, profile.getNis());
-            ps.setString(3, profile.getAcademicStage());
-            ps.setInt(4, profile.getAcademicClass());
-            ps.setBoolean(5, profile.isPracticalPassed());
-            ps.setInt(6, profile.getTemporaryGrade());
+            ps.setString(2, profile.getUsername());
+            ps.setString(3, profile.getNis());
+            ps.setString(4, profile.getAcademicStage());
+            ps.setInt(5, profile.getAcademicClass());
             
             Timestamp now = new Timestamp(System.currentTimeMillis());
-            ps.setTimestamp(7, now);
+            ps.setTimestamp(6, now);
             profile.setLastUpdated(now);
             
-            ps.setString(8, profile.getRank().name());
+            ps.setString(7, profile.getRank().name());
 
             ps.executeUpdate();
             
