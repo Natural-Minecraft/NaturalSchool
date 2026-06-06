@@ -2,6 +2,10 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.5.4] - 2026-06-06
+### Changed
+- **Bedrock — Portal & Confirmation Layout Switch**: Swapped Bedrock exam portal layout to `SimpleForm` (vertical buttons list) and bedrock exam confirmation layout to `CustomForm` (with a dropdown selector actions menu).
+
 ## [1.5.3] - 2026-06-06
 ### Added
 - **GUI version command**: Introduced command `/ns gui version` to print active GUI version for diagnostics.

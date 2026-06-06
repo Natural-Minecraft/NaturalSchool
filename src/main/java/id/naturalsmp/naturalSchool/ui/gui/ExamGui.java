@@ -33,7 +33,7 @@ import java.util.List;
  */
 public class ExamGui {
 
-    public static final String GUI_VERSION = "1.5.3";
+    public static final String GUI_VERSION = "1.5.4";
 
     private final NaturalSchool plugin;
 
@@ -333,26 +333,30 @@ public class ExamGui {
     // BEDROCK EDITION — Geyser/Floodgate Cumulus Form
     // ─────────────────────────────────────────────────────────────────────────
 
-    /** [Bedrock] Portal Ujian — dropdown pilih mata pelajaran (CustomForm). */
+    /** [Bedrock] Portal Ujian — pilih mata pelajaran (SimpleForm). */
     public void openExamPortalBedrock(Player player) {
-        CustomForm form = CustomForm.builder()
+        String examMessage = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(
+            MiniMessage.miniMessage().deserialize(plugin.getExamMessage())
+        );
+
+        SimpleForm form = SimpleForm.builder()
             .title("Portal Ujian")
-            .label(net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(
-                MiniMessage.miniMessage().deserialize(plugin.getExamMessage())
-            ))
-            .dropdown("Pilih Mata Pelajaran",
-                "Pengetahuan Umum",
-                "IPA",
-                "IPS",
-                "Matematika (MTK)",
-                "Bahasa Indonesia",
-                "PKN",
-                "Bahasa Inggris"
-            )
+            .content(examMessage + "\n\nPilih mata pelajaran untuk diuji di bawah ini:")
+            .button("Pengetahuan Umum")
+            .button("IPA")
+            .button("IPS")
+            .button("Matematika (MTK)")
+            .button("Bahasa Indonesia")
+            .button("PKN")
+            .button("Bahasa Inggris")
+            .button("Tutup Portal")
             .validResultHandler(response -> {
-                int selectedIndex = response.asDropdown(1);
+                int clickedId = response.clickedButtonId();
+                if (clickedId == 7) {
+                    return; // Tutup portal
+                }
                 String selectedSubject;
-                switch (selectedIndex) {
+                switch (clickedId) {
                     case 0:  selectedSubject = "pengetahuan_umum"; break;
                     case 1:  selectedSubject = "ipa";              break;
                     case 2:  selectedSubject = "ips";              break;
@@ -500,19 +504,21 @@ public class ExamGui {
         FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
     }
 
-    /** [Bedrock] Konfirmasi pengiriman jawaban (SimpleForm). */
+    /** [Bedrock] Konfirmasi pengiriman jawaban (CustomForm). */
     public void openExamConfirmationBedrock(Player player, String subject) {
         ExamSession session = plugin.getUiManager().getExamSession(player.getUniqueId());
         if (session == null) { openExamPortalBedrock(player); return; }
 
-        SimpleForm form = SimpleForm.builder()
+        CustomForm form = CustomForm.builder()
             .title("Konfirmasi Akhir")
-            .content("Apakah Anda yakin ingin menyelesaikan ujian dan mengirimkan jawaban Anda sekarang?")
-            .button("Kirim Jawaban")
-            .button("Kembali ke Soal 3")
+            .label("Apakah Anda yakin ingin menyelesaikan ujian dan mengirimkan jawaban Anda sekarang?")
+            .dropdown("Pilih Tindakan",
+                "Kirim Jawaban",
+                "Kembali ke Soal 3"
+            )
             .validResultHandler(response -> {
-                int clickedId = response.clickedButtonId();
-                if (clickedId == 0) {
+                int selectedIndex = response.asDropdown(1); // Index 0 is label, Index 1 is dropdown
+                if (selectedIndex == 0) {
                     int[] score = ExamQuestions.evaluateExam(session);
                     player.sendTitle("§a§lUJIAN SELESAI", "§7Benar: §a" + score[0] + " §f| Salah: §c" + score[1], 20, 100, 20);
                     player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
