@@ -348,7 +348,7 @@ public class ExamGui {
                 "Bahasa Inggris"
             )
             .validResultHandler(response -> {
-                int selectedIndex = response.asDropdown(0);
+                int selectedIndex = response.asDropdown(1);
                 String selectedSubject;
                 switch (selectedIndex) {
                     case 0:  selectedSubject = "pengetahuan_umum"; break;

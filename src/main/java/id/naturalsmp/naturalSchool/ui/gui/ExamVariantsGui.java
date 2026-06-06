@@ -354,10 +354,10 @@ public class ExamVariantsGui {
             .toggle("C. AnakTentara", false)
             .toggle("D. Gua",         false)
             .validResultHandler(response -> {
-                boolean ansA = response.asToggle(0);
-                boolean ansB = response.asToggle(1);
-                boolean ansC = response.asToggle(2);
-                boolean ansD = response.asToggle(3);
+                boolean ansA = response.asToggle(1);
+                boolean ansB = response.asToggle(2);
+                boolean ansC = response.asToggle(3);
+                boolean ansD = response.asToggle(4);
 
                 int selectedCount = (ansA ? 1 : 0) + (ansB ? 1 : 0) + (ansC ? 1 : 0) + (ansD ? 1 : 0);
 
@@ -414,10 +414,10 @@ public class ExamVariantsGui {
             .toggle("C. 28 Hari", false)
             .toggle("D. 30 Hari", false)
             .validResultHandler(response -> {
-                boolean ansA = response.asToggle(0);
-                boolean ansB = response.asToggle(1);
-                boolean ansC = response.asToggle(2);
-                boolean ansD = response.asToggle(3);
+                boolean ansA = response.asToggle(1);
+                boolean ansB = response.asToggle(2);
+                boolean ansC = response.asToggle(3);
+                boolean ansD = response.asToggle(4);
 
                 int selectedCount = (ansA ? 1 : 0) + (ansB ? 1 : 0) + (ansC ? 1 : 0) + (ansD ? 1 : 0);
 
@@ -445,9 +445,9 @@ public class ExamVariantsGui {
             .toggle("2. Semester otomatis berputar tiap 14 hari", false)
             .toggle("3. Kelas otomatis naik tanpa perlu ujian",   false)
             .validResultHandler(response -> {
-                boolean stmt1 = response.asToggle(0);
-                boolean stmt2 = response.asToggle(1);
-                boolean stmt3 = response.asToggle(2);
+                boolean stmt1 = response.asToggle(1);
+                boolean stmt2 = response.asToggle(2);
+                boolean stmt3 = response.asToggle(3);
 
                 if (stmt1 && stmt2 && !stmt3) {
                     player.sendTitle("§a§lJAWABAN BENAR", "§7Pemahaman logika Anda sangat baik!", 10, 70, 20);
@@ -476,8 +476,8 @@ public class ExamVariantsGui {
             .toggle("Saya berjanji menaati seluruh peraturan server",         false)
             .toggle("Saya menyatakan siap mengikuti ujian dengan jujur",      false)
             .validResultHandler(response -> {
-                boolean agreeRules   = response.asToggle(0);
-                boolean agreeHonesty = response.asToggle(1);
+                boolean agreeRules   = response.asToggle(1);
+                boolean agreeHonesty = response.asToggle(2);
 
                 if (agreeRules && agreeHonesty) {
                     player.sendTitle("§a§lJAWABAN BENAR", "§7Terima kasih atas komitmen Anda!", 10, 70, 20);

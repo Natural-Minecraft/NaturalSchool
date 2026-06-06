@@ -224,10 +224,13 @@ public class RegistrationGui {
             .toggle("Saya Menyetujui Terms Of Service", false)
             .toggle("Saya Menyetujui Rules Server",     false);
 
+        final int tosIndex = showWarning ? 2 : 1;
+        final int rulesIndex = showWarning ? 3 : 2;
+
         CustomForm form = builder
             .validResultHandler(response -> {
-                boolean acceptTos   = response.asToggle(0);
-                boolean acceptRules = response.asToggle(1);
+                boolean acceptTos   = response.asToggle(tosIndex);
+                boolean acceptRules = response.asToggle(rulesIndex);
 
                 if (acceptTos && acceptRules) {
                     plugin.getUiManager().completeRegistration(player);

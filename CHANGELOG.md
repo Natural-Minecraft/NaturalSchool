@@ -2,6 +2,13 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.5.2] - 2026-06-06
+### Fixed
+- **Bedrock — CustomForm Element Indices**: Corrected element index alignment for all Geyser/Cumulus `CustomForm` response handlers. Since every component (including static labels) counts as an element index in a `CustomForm` builder:
+  - Fixed Exam Portal dropdown subject parsing index from `0` to `1` (skipping the top description label).
+  - Fixed Exam 1, 3, 4, and 5 choice toggle response index offsets (shifting toggle indices from `0-3` to `1-4` or `1-2` to correctly skip the question label at index 0).
+  - Implemented dynamic toggle index calculation in Registration Step 3 to dynamically account for optional warning labels without hardcoding offsets.
+
 ## [1.5.1] - 2026-06-06
 ### Changed
 - **GUI Code Refactor**: Split the monolithic `JavaDialogFactory` and `BedrockFormFactory` classes. Reorganized the GUI codebase into 5 self-contained, feature-oriented GUI classes containing both Java Dialogs and Bedrock Cumulus Forms in `id.naturalsmp.naturalSchool.ui.gui`:
