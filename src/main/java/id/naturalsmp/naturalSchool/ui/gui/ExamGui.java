@@ -247,20 +247,8 @@ public class ExamGui {
             }
         }
 
-        // Tombol Sebelumnya (Previous) dimasukkan ke actionButtons jika index > 1
-        if (questionNum > 1) {
-            optionButtons.add(ActionButton.builder(Component.text("Sebelumnya"))
-                .action(DialogAction.customClick((view, audience) -> {
-                    if (audience instanceof Player p) {
-                        session.setCurrentQuestion(questionNum - 1);
-                        openExamQuestionJava(p, subject, questionNum - 1);
-                    }
-                }, ClickCallback.Options.builder().uses(1).build()))
-                .build());
-        }
-
-        // Tombol Selanjutnya (Next) adalah primary button dari multiAction
-        ActionButton nextBtn = ActionButton.builder(Component.text(questionNum == 10 ? "Berikutnya (Konfirmasi)" : "Selanjutnya"))
+        // Buat tombol Selanjutnya (Next)
+        ActionButton nextBtn = ActionButton.builder(MiniMessage.miniMessage().deserialize("<orange><bold>" + (questionNum == 10 ? "Berikutnya (Konfirmasi)" : "Selanjutnya") + "</bold></orange>"))
             .action(DialogAction.customClick((view, audience) -> {
                 if (audience instanceof Player p) {
                     if (questionNum == 10) {
@@ -274,12 +262,44 @@ public class ExamGui {
             }, ClickCallback.Options.builder().uses(1).build()))
             .build();
 
+        // Buat tombol Sebelumnya (Previous)
+        ActionButton prevBtn = null;
+        if (questionNum > 1) {
+            prevBtn = ActionButton.builder(MiniMessage.miniMessage().deserialize("<dark_green><bold>Sebelumnya</bold></dark_green>"))
+                .action(DialogAction.customClick((view, audience) -> {
+                    if (audience instanceof Player p) {
+                        session.setCurrentQuestion(questionNum - 1);
+                        openExamQuestionJava(p, subject, questionNum - 1);
+                    }
+                }, ClickCallback.Options.builder().uses(1).build()))
+                .build();
+        }
+
+        // Untuk COMPLEX_MULTIPLE_CHOICE yang memiliki 3 pilihan, jika ada tombol Sebelumnya (questionNum > 1),
+        // grid akan memiliki 3 (pilihan) + 1 (spacer) + 2 (navigasi) = 6 tombol.
+        if (q.getType() == QuestionType.COMPLEX_MULTIPLE_CHOICE && questionNum > 1) {
+            optionButtons.add(ActionButton.builder(Component.text(" "))
+                .action(DialogAction.customClick((view, audience) -> {}, ClickCallback.Options.builder().uses(1).build()))
+                .build());
+        }
+
+        // Tambahkan tombol Selanjutnya terlebih dahulu, lalu Sebelumnya agar Selanjutnya berada di sebelah kiri Sebelumnya.
+        optionButtons.add(nextBtn);
+        if (prevBtn != null) {
+            optionButtons.add(prevBtn);
+        }
+
+        // Gunakan tombol status non-aktif sebagai primary button di bagian bawah
+        ActionButton statusBtn = ActionButton.builder(MiniMessage.miniMessage().deserialize("<gray>NaturalSchool — Ujian Aktif</gray>"))
+            .action(DialogAction.customClick((view, audience) -> {}, ClickCallback.Options.builder().uses(1).build()))
+            .build();
+
         Dialog dialog = Dialog.create(builder -> builder.empty()
             .base(DialogBase.builder(Component.text("Ujian - Soal " + questionNum))
                 .canCloseWithEscape(false) // Locked UI
                 .body(bodies)
                 .build())
-            .type(DialogType.multiAction(optionButtons, nextBtn, 2))
+            .type(DialogType.multiAction(optionButtons, statusBtn, 2))
         );
 
         player.showDialog(dialog);
@@ -498,11 +518,11 @@ public class ExamGui {
             }
         }
 
-        // Tombol Navigasi
+        // Tombol Navigasi: Selanjutnya terlebih dahulu, baru Sebelumnya
+        builder.button(questionNum == 10 ? "§6§lBerikutnya (Konfirmasi)" : "§6§lSelanjutnya");
         if (questionNum > 1) {
-            builder.button("Sebelumnya");
+            builder.button("§2§lSebelumnya");
         }
-        builder.button(questionNum == 10 ? "Berikutnya (Konfirmasi)" : "Selanjutnya");
 
         builder.validResultHandler(response -> {
             int clickedId = response.clickedButtonId();
@@ -526,13 +546,10 @@ public class ExamGui {
             } else {
                 // User klik navigasi
                 boolean hasPrev = (questionNum > 1);
-                int prevButtonIdx = numChoices;
-                int nextButtonIdx = hasPrev ? (numChoices + 1) : numChoices;
+                int nextButtonIdx = numChoices;
+                int prevButtonIdx = numChoices + 1;
 
-                if (hasPrev && clickedId == prevButtonIdx) {
-                    session.setCurrentQuestion(questionNum - 1);
-                    openExamQuestionBedrock(player, subject, questionNum - 1);
-                } else if (clickedId == nextButtonIdx) {
+                if (clickedId == nextButtonIdx) {
                     if (questionNum == 10) {
                         session.setCurrentQuestion(11);
                         openExamConfirmationBedrock(player, subject);
@@ -540,6 +557,9 @@ public class ExamGui {
                         session.setCurrentQuestion(questionNum + 1);
                         openExamQuestionBedrock(player, subject, questionNum + 1);
                     }
+                } else if (hasPrev && clickedId == prevButtonIdx) {
+                    session.setCurrentQuestion(questionNum - 1);
+                    openExamQuestionBedrock(player, subject, questionNum - 1);
                 }
             }
         })
