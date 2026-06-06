@@ -8,8 +8,8 @@ All notable changes to the NaturalSchool project will be documented in this file
 - **Pre-Exam Back Navigation**: Enabled the "Sebelumnya" button on the first question to return the player back to the pre-exam information landing screen, preventing them from being forced into the exam.
 
 ### Changed
-- **Exam Navigation Styling**: Styled the "Selanjutnya" button as bold orange and the "Sebelumnya" button as bold dark green on all question screens.
-- **Exam Navigation Layout**: Realigned the navigation buttons so that "Selanjutnya" is positioned to the left of "Sebelumnya" on Java Dialog (side-by-side) and above it on Bedrock SimpleForm.
+- **Exam Navigation Styling**: Styled the "Selanjutnya" button as bold gold (orange) and the "Sebelumnya" button as bold dark green on all question screens, using Unicode escapes (`\u00A7`) to ensure reliable color rendering on Bedrock.
+- **Exam Navigation Layout**: Realigned the navigation buttons. Positioned "Selanjutnya" (Berikutnya) as the bottom primary exit action and "Sebelumnya" at the end of the choice grid on Java Dialog, and placed "Sebelumnya" above "Selanjutnya" at the bottom of Bedrock SimpleForm. Removed empty/spacer buttons from Complex Multiple Choice layouts.
 
 ## [1.6.0] - 2026-06-06
 ### Added

@@ -255,8 +255,8 @@ public class ExamGui {
             }
         }
 
-        // Buat tombol Selanjutnya (Next)
-        ActionButton nextBtn = ActionButton.builder(MiniMessage.miniMessage().deserialize("<orange><bold>" + (questionNum == 10 ? "Berikutnya (Konfirmasi)" : "Selanjutnya") + "</bold></orange>"))
+        // Buat tombol Selanjutnya (Next) - Diletakkan di bagian paling bawah
+        ActionButton nextBtn = ActionButton.builder(MiniMessage.miniMessage().deserialize("<gold><bold>" + (questionNum == 10 ? "Berikutnya (Konfirmasi)" : "Selanjutnya") + "</bold></gold>"))
             .action(DialogAction.customClick((view, audience) -> {
                 if (audience instanceof Player p) {
                     if (isAnswerEmpty(session, q, questionNum)) {
@@ -276,7 +276,7 @@ public class ExamGui {
             }, ClickCallback.Options.builder().uses(1).build()))
             .build();
 
-        // Buat tombol Sebelumnya (Previous)
+        // Buat tombol Sebelumnya (Previous) - Diletakkan di grid tengah (optionButtons)
         ActionButton prevBtn = ActionButton.builder(MiniMessage.miniMessage().deserialize("<dark_green><bold>Sebelumnya</bold></dark_green>"))
             .action(DialogAction.customClick((view, audience) -> {
                 if (audience instanceof Player p) {
@@ -292,28 +292,15 @@ public class ExamGui {
             }, ClickCallback.Options.builder().uses(1).build()))
             .build();
 
-        // Untuk COMPLEX_MULTIPLE_CHOICE yang memiliki 3 pilihan, tambahkan spacer
-        if (q.getType() == QuestionType.COMPLEX_MULTIPLE_CHOICE) {
-            optionButtons.add(ActionButton.builder(Component.text(" "))
-                .action(DialogAction.customClick((view, audience) -> {}, ClickCallback.Options.builder().uses(1).build()))
-                .build());
-        }
-
-        // Tambahkan Selanjutnya (kiri) dan Sebelumnya (kanan)
-        optionButtons.add(nextBtn);
+        // Tambahkan tombol Sebelumnya di akhir list grid tengah
         optionButtons.add(prevBtn);
-
-        // Gunakan tombol status non-aktif sebagai primary button di bagian bawah
-        ActionButton statusBtn = ActionButton.builder(MiniMessage.miniMessage().deserialize("<gray>NaturalSchool — Ujian Aktif</gray>"))
-            .action(DialogAction.customClick((view, audience) -> {}, ClickCallback.Options.builder().uses(1).build()))
-            .build();
 
         Dialog dialog = Dialog.create(builder -> builder.empty()
             .base(DialogBase.builder(Component.text("Ujian - Soal " + questionNum))
                 .canCloseWithEscape(false) // Locked UI
                 .body(bodies)
                 .build())
-            .type(DialogType.multiAction(optionButtons, statusBtn, 2))
+            .type(DialogType.multiAction(optionButtons, nextBtn, 2))
         );
 
         player.showDialog(dialog);
@@ -492,7 +479,7 @@ public class ExamGui {
         String contentText = "Mata Pelajaran: " + ExamQuestions.getSubjectDisplayName(subject) + "\n\n";
         contentText += "Pertanyaan:\n" + q.getText() + "\n\n";
         if (session.isShowWarning()) {
-            contentText += "§c§lPeringatan: Wajib memilih jawaban sebelum melanjutkan!§r\n\n";
+            contentText += "\u00A7c\u00A7lPeringatan: Wajib memilih jawaban sebelum melanjutkan!\u00A7r\n\n";
         }
         contentText += (q.getType() == QuestionType.COMPLEX_MULTIPLE_CHOICE 
                     ? "Pilih lebih dari satu (klik lagi untuk batal):" 
@@ -511,7 +498,7 @@ public class ExamGui {
                 boolean isSelected = optChar.equalsIgnoreCase(currentAns);
                 String buttonText = optChar + ". " + optText;
                 if (isSelected) {
-                    buttonText = "§a§l" + buttonText + " (Dipilih)";
+                    buttonText = "\u00A7a\u00A7l" + buttonText + " (Dipilih)";
                 }
                 builder.button(buttonText);
             }
@@ -519,10 +506,10 @@ public class ExamGui {
             Boolean currentAns = session.getTfAnswer(questionNum - 7);
 
             boolean trueSelected = (currentAns != null && currentAns);
-            builder.button(trueSelected ? "§a§lBenar (Dipilih)" : "Benar");
+            builder.button(trueSelected ? "\u00A7a\u00A7lBenar (Dipilih)" : "Benar");
 
             boolean falseSelected = (currentAns != null && !currentAns);
-            builder.button(falseSelected ? "§a§lSalah (Dipilih)" : "Salah");
+            builder.button(falseSelected ? "\u00A7a\u00A7lSalah (Dipilih)" : "Salah");
         } else if (q.getType() == QuestionType.COMPLEX_MULTIPLE_CHOICE) {
             int complexIdx = questionNum - 9;
             for (int i = 0; i < 3; i++) {
@@ -531,15 +518,15 @@ public class ExamGui {
                 boolean isSelected = session.getComplexOption(complexIdx, optIdx);
                 String buttonText = (optIdx + 1) + ". " + optText;
                 if (isSelected) {
-                    buttonText = "§a§l" + buttonText + " (Dipilih)";
+                    buttonText = "\u00A7a\u00A7l" + buttonText + " (Dipilih)";
                 }
                 builder.button(buttonText);
             }
         }
 
-        // Tombol Navigasi: Selanjutnya terlebih dahulu (atas), baru Sebelumnya (bawah)
-        builder.button(questionNum == 10 ? "§6§lBerikutnya (Konfirmasi)" : "§6§lSelanjutnya");
-        builder.button("§2§lSebelumnya");
+        // Tombol Navigasi: Sebelumnya terlebih dahulu, baru Selanjutnya/Berikutnya agar Selanjutnya berada di bagian paling bawah
+        builder.button("\u00A72\u00A7lSebelumnya");
+        builder.button(questionNum == 10 ? "\u00A76\u00A7lBerikutnya (Konfirmasi)" : "\u00A76\u00A7lSelanjutnya");
 
         builder.validResultHandler(response -> {
             int clickedId = response.clickedButtonId();
@@ -563,10 +550,19 @@ public class ExamGui {
                 openExamQuestionBedrock(player, subject, questionNum); // Refresh UI
             } else {
                 // User klik navigasi
-                int nextButtonIdx = numChoices;
-                int prevButtonIdx = numChoices + 1;
+                int prevButtonIdx = numChoices;
+                int nextButtonIdx = numChoices + 1;
 
-                if (clickedId == nextButtonIdx) {
+                if (clickedId == prevButtonIdx) {
+                    session.setShowWarning(false);
+                    if (questionNum > 1) {
+                        session.setCurrentQuestion(questionNum - 1);
+                        openExamQuestionBedrock(player, subject, questionNum - 1);
+                    } else {
+                        session.setCurrentQuestion(0);
+                        openExamPreBedrock(player, subject);
+                    }
+                } else if (clickedId == nextButtonIdx) {
                     if (isAnswerEmpty(session, q, questionNum)) {
                         session.setShowWarning(true);
                         openExamQuestionBedrock(player, subject, questionNum);
@@ -579,15 +575,6 @@ public class ExamGui {
                             session.setCurrentQuestion(questionNum + 1);
                             openExamQuestionBedrock(player, subject, questionNum + 1);
                         }
-                    }
-                } else if (clickedId == prevButtonIdx) {
-                    session.setShowWarning(false);
-                    if (questionNum > 1) {
-                        session.setCurrentQuestion(questionNum - 1);
-                        openExamQuestionBedrock(player, subject, questionNum - 1);
-                    } else {
-                        session.setCurrentQuestion(0);
-                        openExamPreBedrock(player, subject);
                     }
                 }
             }
