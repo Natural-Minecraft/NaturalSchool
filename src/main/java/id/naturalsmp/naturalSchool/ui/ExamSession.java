@@ -6,26 +6,21 @@ public class ExamSession {
 
     private final UUID playerUuid;
     private final String subject;
-    private int currentQuestion; // 1, 2, 3, 4 (4 is confirmation/declaration screen)
+    private int currentQuestion; // 0 for Pre-Exam UI, 1-10 for questions, 11 for confirmation
 
-    // Soal 1 (Multiple Choice Checkbox) State
-    private boolean ansA;
-    private boolean ansB;
-    private boolean ansC;
-    private boolean ansD;
+    // Answers for questions 1 to 6 (index 0 to 5)
+    private final String[] mcAnswers = new String[6];
 
-    // Soal 2 (True/False Confirmation) State
-    private Boolean trueOrFalse; // null if not answered yet
+    // Answers for questions 7 to 8 (index 0 to 1)
+    private final Boolean[] tfAnswers = new Boolean[2];
 
-    // Soal 3 (Multiple Statement Checklist) State
-    private boolean stmt1;
-    private boolean stmt2;
-    private boolean stmt3;
+    // Answers for questions 9 to 10 (index 0 to 1, each has 3 statements)
+    private final boolean[][] complexAnswers = new boolean[2][3];
 
     public ExamSession(UUID playerUuid, String subject) {
         this.playerUuid = playerUuid;
         this.subject = subject;
-        this.currentQuestion = 1;
+        this.currentQuestion = 0; // Starts at Pre-Exam UI
     }
 
     public UUID getPlayerUuid() {
@@ -44,70 +39,49 @@ public class ExamSession {
         this.currentQuestion = currentQuestion;
     }
 
-    // Soal 1 Getters & Setters
-    public boolean isAnsA() {
-        return ansA;
+    public String getMcAnswer(int idx) {
+        if (idx < 0 || idx >= mcAnswers.length) {
+            return null;
+        }
+        return mcAnswers[idx];
     }
 
-    public void setAnsA(boolean ansA) {
-        this.ansA = ansA;
+    public void setMcAnswer(int idx, String answer) {
+        if (idx >= 0 && idx < mcAnswers.length) {
+            mcAnswers[idx] = answer;
+        }
     }
 
-    public boolean isAnsB() {
-        return ansB;
+    public Boolean getTfAnswer(int idx) {
+        if (idx < 0 || idx >= tfAnswers.length) {
+            return null;
+        }
+        return tfAnswers[idx];
     }
 
-    public void setAnsB(boolean ansB) {
-        this.ansB = ansB;
+    public void setTfAnswer(int idx, Boolean answer) {
+        if (idx >= 0 && idx < tfAnswers.length) {
+            tfAnswers[idx] = answer;
+        }
     }
 
-    public boolean isAnsC() {
-        return ansC;
+    public boolean[] getComplexAnswer(int idx) {
+        if (idx < 0 || idx >= complexAnswers.length) {
+            return null;
+        }
+        return complexAnswers[idx];
     }
 
-    public void setAnsC(boolean ansC) {
-        this.ansC = ansC;
+    public boolean getComplexOption(int idx, int optionIdx) {
+        if (idx < 0 || idx >= complexAnswers.length || optionIdx < 0 || optionIdx >= 3) {
+            return false;
+        }
+        return complexAnswers[idx][optionIdx];
     }
 
-    public boolean isAnsD() {
-        return ansD;
-    }
-
-    public void setAnsD(boolean ansD) {
-        this.ansD = ansD;
-    }
-
-    // Soal 2 Getters & Setters
-    public Boolean getTrueOrFalse() {
-        return trueOrFalse;
-    }
-
-    public void setTrueOrFalse(Boolean trueOrFalse) {
-        this.trueOrFalse = trueOrFalse;
-    }
-
-    // Soal 3 Getters & Setters
-    public boolean isStmt1() {
-        return stmt1;
-    }
-
-    public void setStmt1(boolean stmt1) {
-        this.stmt1 = stmt1;
-    }
-
-    public boolean isStmt2() {
-        return stmt2;
-    }
-
-    public void setStmt2(boolean stmt2) {
-        this.stmt2 = stmt2;
-    }
-
-    public boolean isStmt3() {
-        return stmt3;
-    }
-
-    public void setStmt3(boolean stmt3) {
-        this.stmt3 = stmt3;
+    public void setComplexOption(int idx, int optionIdx, boolean val) {
+        if (idx >= 0 && idx < complexAnswers.length && optionIdx >= 0 && optionIdx < 3) {
+            complexAnswers[idx][optionIdx] = val;
+        }
     }
 }

@@ -67,7 +67,7 @@ public class BedrockHandlerImpl implements BedrockHandler {
     // ExamVariantsGui — /ns gui exam1–5 & testexam
     // ─────────────────────────────────────────────────────────────────────────
 
-    @Override public void openTestExam(Player player)                           { examVariantsGui.openTestExamBedrock(player); }
+
     @Override public void openExam1(Player player, boolean showWarning)         { examVariantsGui.openExam1Bedrock(player, showWarning); }
     @Override public void openExam2(Player player)                              { examVariantsGui.openExam2Bedrock(player); }
     @Override public void openExam3(Player player, boolean showWarning)         { examVariantsGui.openExam3Bedrock(player, showWarning); }
@@ -75,13 +75,12 @@ public class BedrockHandlerImpl implements BedrockHandler {
     @Override public void openExam5(Player player, boolean showWarning)         { examVariantsGui.openExam5Bedrock(player, showWarning); }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // ExamGui — /school exam (portal, soal 1/2/3, konfirmasi, closed)
+    // ExamGui — /school exam (portal, pre-exam, questions 1-10, confirmation, closed)
     // ─────────────────────────────────────────────────────────────────────────
 
     @Override public void openExamPortal(Player player)                                         { examGui.openExamPortalBedrockDropdown(player); }
-    @Override public void openExamQuestion1(Player player, String subject, boolean showWarning) { examGui.openExamQuestion1Bedrock(player, subject, showWarning); }
-    @Override public void openExamQuestion2(Player player, String subject)                      { examGui.openExamQuestion2Bedrock(player, subject); }
-    @Override public void openExamQuestion3(Player player, String subject, boolean showWarning) { examGui.openExamQuestion3Bedrock(player, subject, showWarning); }
+    @Override public void openExamPre(Player player, String subject)                            { examGui.openExamPreBedrock(player, subject); }
+    @Override public void openExamQuestion(Player player, String subject, int questionNum)      { examGui.openExamQuestionBedrock(player, subject, questionNum); }
     @Override public void openExamConfirmation(Player player, String subject)                   { examGui.openExamConfirmationBedrock(player, subject); }
     @Override public void openExamClosed(Player player)                                         { examGui.openExamClosedBedrock(player); }
 }

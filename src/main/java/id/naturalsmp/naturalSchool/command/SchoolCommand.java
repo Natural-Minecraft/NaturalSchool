@@ -46,8 +46,7 @@ public class SchoolCommand implements CommandExecutor, TabCompleter {
             player.sendMessage(MiniMessage.miniMessage().deserialize(
                 "<gold>=== School Commands ===</gold>\n" +
                 "<yellow>/school info</yellow> - <gray>Menampilkan GUI dialog Informasi Pelajar Anda.</gray>\n" +
-                "<yellow>/school exam</yellow> - <gray>Membuka Portal Ujian sekolah.</gray>\n" +
-                "<yellow>/school testexam</yellow> - <gray>Membuka visual prototype dialog Ujian sekolah.</gray>"
+                "<yellow>/school exam</yellow> - <gray>Membuka Portal Ujian sekolah.</gray>"
             ));
             return true;
         }
@@ -63,10 +62,8 @@ public class SchoolCommand implements CommandExecutor, TabCompleter {
             }
             plugin.getUiManager().openExamPortal(player);
             return true;
-        } else if (subCommand.equals("testexam")) {
-            plugin.getUiManager().openTestExam(player);
-            return true;
         }
+
 
         player.sendMessage(MiniMessage.miniMessage().deserialize("<red>Subcommand tidak dikenal. Gunakan /school help untuk bantuan.</red>"));
         return true;
@@ -85,7 +82,7 @@ public class SchoolCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 1) {
-            return Arrays.asList("info", "exam", "testexam", "help").stream()
+            return Arrays.asList("info", "exam", "help").stream()
                     .filter(s -> s.toLowerCase().startsWith(args[0].toLowerCase()))
                     .collect(Collectors.toList());
         }

@@ -1,7 +1,10 @@
 package id.naturalsmp.naturalSchool.ui.gui;
 
 import id.naturalsmp.naturalSchool.NaturalSchool;
+import id.naturalsmp.naturalSchool.profile.StudentProfile;
 import id.naturalsmp.naturalSchool.ui.ExamQuestions;
+import id.naturalsmp.naturalSchool.ui.ExamQuestions.Question;
+import id.naturalsmp.naturalSchool.ui.ExamQuestions.QuestionType;
 import id.naturalsmp.naturalSchool.ui.ExamSession;
 import io.papermc.paper.dialog.Dialog;
 import io.papermc.paper.registry.data.dialog.DialogBase;
@@ -9,7 +12,9 @@ import io.papermc.paper.registry.data.dialog.ActionButton;
 import io.papermc.paper.registry.data.dialog.action.DialogAction;
 import io.papermc.paper.registry.data.dialog.body.DialogBody;
 import io.papermc.paper.registry.data.dialog.input.DialogInput;
+import io.papermc.paper.registry.data.dialog.input.SingleOptionDialogInput;
 import io.papermc.paper.registry.data.dialog.type.DialogType;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickCallback;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -23,107 +28,11 @@ import org.geysermc.floodgate.api.FloodgateApi;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * GUI mandiri untuk alur Ujian utama (/school exam).
- * Mencakup: Portal Ujian, Soal 1 (MCQ), Soal 2 (True/False), Soal 3 (Checklist),
- * Konfirmasi Kirim, dan Portal Ditutup.
- *
- * Berisi implementasi Java Edition (Dialog API) dan Bedrock Edition (Cumulus Form)
- * dalam satu file yang sama.
- */
 public class ExamGui {
 
-    public static final String GUI_VERSION = "1.5.6";
+    public static final String GUI_VERSION = "2.0.0";
 
     private final NaturalSchool plugin;
-
-    public void openExamPortalJavaDropdown(Player player) {
-        List<DialogBody> bodies = new ArrayList<>();
-        bodies.add(DialogBody.item(new ItemStack(Material.BOOKSHELF)).build());
-        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>Portal Ujian (Dropdown)</bold></gold>")));
-        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize(plugin.getExamMessage())));
-        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Pilih mata pelajaran untuk diuji di bawah ini:</yellow>")));
-
-        List<io.papermc.paper.registry.data.dialog.input.SingleOptionDialogInput.OptionEntry> entries = List.of(
-            io.papermc.paper.registry.data.dialog.input.SingleOptionDialogInput.OptionEntry.create("pengetahuan_umum", Component.text("Pengetahuan Umum"), false),
-            io.papermc.paper.registry.data.dialog.input.SingleOptionDialogInput.OptionEntry.create("ipa", Component.text("IPA"), false),
-            io.papermc.paper.registry.data.dialog.input.SingleOptionDialogInput.OptionEntry.create("ips", Component.text("IPS"), false),
-            io.papermc.paper.registry.data.dialog.input.SingleOptionDialogInput.OptionEntry.create("mtk", Component.text("Matematika (MTK)"), false),
-            io.papermc.paper.registry.data.dialog.input.SingleOptionDialogInput.OptionEntry.create("b_indo", Component.text("Bahasa Indonesia"), false),
-            io.papermc.paper.registry.data.dialog.input.SingleOptionDialogInput.OptionEntry.create("pkn", Component.text("PKN"), false),
-            io.papermc.paper.registry.data.dialog.input.SingleOptionDialogInput.OptionEntry.create("b_inggris", Component.text("Bahasa Inggris"), false)
-        );
-
-        ActionButton submitBtn = ActionButton.builder(Component.text("Lanjut"))
-            .action(DialogAction.customClick((view, audience) -> {
-                if (audience instanceof Player p) {
-                    String selectedSubject = view.getText("subject");
-                    if (selectedSubject != null && !selectedSubject.isEmpty()) {
-                        plugin.getUiManager().startExamSession(p, selectedSubject);
-                        plugin.getUiManager().openExamQuestion1(p, selectedSubject, false);
-                    }
-                }
-            }, ClickCallback.Options.builder().uses(1).build()))
-            .build();
-
-        ActionButton closeBtn = ActionButton.builder(Component.text("Tutup Portal"))
-            .action(DialogAction.customClick((view, audience) -> {
-                // Kembali ke gameplay
-            }, ClickCallback.Options.builder().uses(1).build()))
-            .build();
-
-        Dialog dialog = Dialog.create(builder -> builder.empty()
-            .base(DialogBase.builder(Component.text("Portal Ujian (Dropdown)"))
-                .canCloseWithEscape(true)
-                .body(bodies)
-                .inputs(List.of(
-                    io.papermc.paper.registry.data.dialog.input.DialogInput.singleOption("subject", Component.text("Mata Pelajaran"), entries).build()
-                ))
-                .build())
-            .type(DialogType.confirmation(submitBtn, closeBtn))
-        );
-
-        player.showDialog(dialog);
-    }
-
-    public void openExamPortalBedrockDropdown(Player player) {
-        String examMessage = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(
-            MiniMessage.miniMessage().deserialize(plugin.getExamMessage())
-        );
-
-        CustomForm form = CustomForm.builder()
-            .title("Portal Ujian (Dropdown)")
-            .label(examMessage + "\n\nPilih mata pelajaran untuk diuji di bawah ini:")
-            .dropdown("Mata Pelajaran",
-                "Pengetahuan Umum",
-                "IPA",
-                "IPS",
-                "Matematika (MTK)",
-                "Bahasa Indonesia",
-                "PKN",
-                "Bahasa Inggris"
-            )
-            .validResultHandler(response -> {
-                int selectedIndex = response.asDropdown(1); // Index 0 is label, Index 1 is dropdown
-                if (selectedIndex < 0) return;
-                String selectedSubject;
-                switch (selectedIndex) {
-                    case 0:  selectedSubject = "pengetahuan_umum"; break;
-                    case 1:  selectedSubject = "ipa";              break;
-                    case 2:  selectedSubject = "ips";              break;
-                    case 3:  selectedSubject = "mtk";              break;
-                    case 4:  selectedSubject = "b_indo";           break;
-                    case 5:  selectedSubject = "pkn";              break;
-                    case 6:  selectedSubject = "b_inggris";        break;
-                    default: selectedSubject = "pengetahuan_umum"; break;
-                }
-                plugin.getUiManager().startExamSession(player, selectedSubject);
-                plugin.getUiManager().openExamQuestion1(player, selectedSubject, false);
-            })
-            .build();
-
-        FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
-    }
 
     public ExamGui(NaturalSchool plugin) {
         this.plugin = plugin;
@@ -133,7 +42,7 @@ public class ExamGui {
     // JAVA EDITION — Paper Dialog API
     // ─────────────────────────────────────────────────────────────────────────
 
-    /** [Java] Portal Ujian — pilih mata pelajaran. */
+    /** [Java] Portal Ujian — pilih mata pelajaran (Multiple Buttons). */
     public void openExamPortalJava(Player player) {
         List<DialogBody> bodies = new ArrayList<>();
         bodies.add(DialogBody.item(new ItemStack(Material.BOOKSHELF)).build());
@@ -172,178 +81,51 @@ public class ExamGui {
             .action(DialogAction.customClick((view, audience) -> {
                 if (audience instanceof Player p) {
                     plugin.getUiManager().startExamSession(p, subjectKey);
-                    plugin.getUiManager().openExamQuestion1(p, subjectKey, false);
+                    openExamPreJava(p, subjectKey);
                 }
             }, ClickCallback.Options.builder().uses(1).build()))
             .build();
     }
 
-    /** [Java] Soal 1 — Multiple Choice (pilih satu, stateful). */
-    public void openExamQuestion1Java(Player player, String subject, boolean showWarning) {
-        ExamSession session = plugin.getUiManager().getExamSession(player.getUniqueId());
-        if (session == null) { openExamPortalJava(player); return; }
-
-        ExamQuestions.QuestionSet questions = ExamQuestions.getQuestions(subject);
-        if (questions == null) { openExamPortalJava(player); return; }
+    /** [Java] UI Pra-Soal — Info peserta sebelum mulai ujian. */
+    public void openExamPreJava(Player player, String subject) {
+        StudentProfile profile = plugin.getProfileManager().getProfile(player.getUniqueId());
+        String name = player.getName();
+        String nis = (profile != null && profile.getNis() != null) ? profile.getNis() : "-";
 
         List<DialogBody> bodies = new ArrayList<>();
-        bodies.add(DialogBody.item(new ItemStack(Material.BOOK)).build());
-        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>Ujian: " + ExamQuestions.getSubjectDisplayName(subject) + " (Soal 1/3)</bold></gold>")));
-        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gray>Pertanyaan:</gray> <white>" + questions.q1Text + "</white>")));
-        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Pilih salah satu tombol jawaban di bawah ini:</yellow>")));
+        bodies.add(DialogBody.item(new ItemStack(Material.WRITABLE_BOOK)).build());
+        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>Informasi Peserta Ujian</bold></gold>")));
+        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gray>Username: </gray><white>" + name + "</white>")));
+        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gray>NIS: </gray><white>" + nis + "</white>")));
+        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gray>Mata Pelajaran: </gray><yellow>" + ExamQuestions.getSubjectDisplayName(subject) + "</yellow>")));
+        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gray>Total Soal: </gray><white>10 Soal</white>")));
 
-        List<ActionButton> optionButtons = new ArrayList<>();
-        optionButtons.add(createOptionButton(
-            session.isAnsA() ? "<green><bold>A. " + questions.q1A + " (Terpilih)</bold></green>" : "A. " + questions.q1A,
-            subject, session, "A"
-        ));
-        optionButtons.add(createOptionButton(
-            session.isAnsB() ? "<green><bold>B. " + questions.q1B + " (Terpilih)</bold></green>" : "B. " + questions.q1B,
-            subject, session, "B"
-        ));
-        optionButtons.add(createOptionButton(
-            session.isAnsC() ? "<green><bold>C. " + questions.q1C + " (Terpilih)</bold></green>" : "C. " + questions.q1C,
-            subject, session, "C"
-        ));
-        optionButtons.add(createOptionButton(
-            session.isAnsD() ? "<green><bold>D. " + questions.q1D + " (Terpilih)</bold></green>" : "D. " + questions.q1D,
-            subject, session, "D"
-        ));
+        ActionButton nextBtn = ActionButton.builder(Component.text("Lanjut"))
+            .action(DialogAction.customClick((view, audience) -> {
+                if (audience instanceof Player p) {
+                    ExamSession session = plugin.getUiManager().getExamSession(p.getUniqueId());
+                    if (session != null) {
+                        session.setCurrentQuestion(1);
+                        plugin.getUiManager().openExamQuestion(p, subject, 1);
+                    }
+                }
+            }, ClickCallback.Options.builder().uses(1).build()))
+            .build();
 
         ActionButton backBtn = ActionButton.builder(Component.text("Kembali ke Portal"))
             .action(DialogAction.customClick((view, audience) -> {
                 if (audience instanceof Player p) {
                     plugin.getUiManager().clearExamSession(p);
-                    plugin.getUiManager().openExamPortal(p);
+                    openExamPortalJava(p);
                 }
             }, ClickCallback.Options.builder().uses(1).build()))
             .build();
 
         Dialog dialog = Dialog.create(builder -> builder.empty()
-            .base(DialogBase.builder(Component.text("Ujian - Soal 1"))
-                .canCloseWithEscape(false)
+            .base(DialogBase.builder(Component.text("Pra-Ujian"))
+                .canCloseWithEscape(true)
                 .body(bodies)
-                .build())
-            .type(DialogType.multiAction(optionButtons, backBtn, 2))
-        );
-
-        player.showDialog(dialog);
-    }
-
-    private ActionButton createOptionButton(String text, String subject, ExamSession session, String optChar) {
-        return ActionButton.builder(MiniMessage.miniMessage().deserialize(text))
-            .action(DialogAction.customClick((view, audience) -> {
-                if (audience instanceof Player p) {
-                    session.setAnsA("A".equalsIgnoreCase(optChar));
-                    session.setAnsB("B".equalsIgnoreCase(optChar));
-                    session.setAnsC("C".equalsIgnoreCase(optChar));
-                    session.setAnsD("D".equalsIgnoreCase(optChar));
-                    session.setCurrentQuestion(2);
-                    plugin.getUiManager().openExamQuestion2(p, subject);
-                }
-            }, ClickCallback.Options.builder().uses(1).build()))
-            .build();
-    }
-
-    /** [Java] Soal 2 — True / False (stateful). */
-    public void openExamQuestion2Java(Player player, String subject) {
-        ExamSession session = plugin.getUiManager().getExamSession(player.getUniqueId());
-        if (session == null) { openExamPortalJava(player); return; }
-
-        ExamQuestions.QuestionSet questions = ExamQuestions.getQuestions(subject);
-        if (questions == null) { openExamPortalJava(player); return; }
-
-        List<DialogBody> bodies = new ArrayList<>();
-        bodies.add(DialogBody.item(new ItemStack(Material.COMPASS)).build());
-        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>Ujian: " + ExamQuestions.getSubjectDisplayName(subject) + " (Soal 2/3)</bold></gold>")));
-        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gray>Pertanyaan (Benar / Salah):</gray> <white>" + questions.q2Text + "</white>")));
-        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Pilih jawaban Anda:</yellow>")));
-
-        String trueText  = (session.getTrueOrFalse() != null && session.getTrueOrFalse())
-            ? "<green><bold>BENAR (Terpilih)</bold></green>" : "BENAR";
-        String falseText = (session.getTrueOrFalse() != null && !session.getTrueOrFalse())
-            ? "<red><bold>SALAH (Terpilih)</bold></red>"   : "SALAH";
-
-        List<ActionButton> tfButtons = new ArrayList<>();
-        tfButtons.add(createTrueFalseButton(trueText,  true,  subject, session));
-        tfButtons.add(createTrueFalseButton(falseText, false, subject, session));
-
-        ActionButton backBtn = ActionButton.builder(Component.text("Kembali ke Soal 1"))
-            .action(DialogAction.customClick((view, audience) -> {
-                if (audience instanceof Player p) {
-                    session.setCurrentQuestion(1);
-                    plugin.getUiManager().openExamQuestion1(p, subject, false);
-                }
-            }, ClickCallback.Options.builder().uses(1).build()))
-            .build();
-
-        Dialog dialog = Dialog.create(builder -> builder.empty()
-            .base(DialogBase.builder(Component.text("Ujian - Soal 2"))
-                .canCloseWithEscape(false)
-                .body(bodies)
-                .build())
-            .type(DialogType.multiAction(tfButtons, backBtn, 2))
-        );
-
-        player.showDialog(dialog);
-    }
-
-    private ActionButton createTrueFalseButton(String text, boolean isTrue, String subject, ExamSession session) {
-        return ActionButton.builder(MiniMessage.miniMessage().deserialize(text))
-            .action(DialogAction.customClick((view, audience) -> {
-                if (audience instanceof Player p) {
-                    session.setTrueOrFalse(isTrue);
-                    session.setCurrentQuestion(3);
-                    plugin.getUiManager().openExamQuestion3(p, subject, false);
-                }
-            }, ClickCallback.Options.builder().uses(1).build()))
-            .build();
-    }
-
-    /** [Java] Soal 3 — Multiple Statement Checklist (stateful boolean inputs). */
-    public void openExamQuestion3Java(Player player, String subject, boolean showWarning) {
-        ExamSession session = plugin.getUiManager().getExamSession(player.getUniqueId());
-        if (session == null) { openExamPortalJava(player); return; }
-
-        ExamQuestions.QuestionSet questions = ExamQuestions.getQuestions(subject);
-        if (questions == null) { openExamPortalJava(player); return; }
-
-        List<DialogBody> bodies = new ArrayList<>();
-        bodies.add(DialogBody.item(new ItemStack(Material.PAPER)).build());
-        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>Ujian: " + ExamQuestions.getSubjectDisplayName(subject) + " (Soal 3/3)</bold></gold>")));
-        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gray>Pertanyaan (Pernyataan Majemuk):</gray> <white>" + questions.q3Text + "</white>")));
-        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Pilih semua pernyataan yang benar:</yellow>")));
-
-        ActionButton nextBtn = ActionButton.builder(Component.text("Lanjut ke Konfirmasi"))
-            .action(DialogAction.customClick((view, audience) -> {
-                if (audience instanceof Player p) {
-                    session.setStmt1(view.getBoolean("stmt_1"));
-                    session.setStmt2(view.getBoolean("stmt_2"));
-                    session.setStmt3(view.getBoolean("stmt_3"));
-                    session.setCurrentQuestion(4);
-                    plugin.getUiManager().openExamConfirmation(p, subject);
-                }
-            }, ClickCallback.Options.builder().uses(1).build()))
-            .build();
-
-        ActionButton backBtn = ActionButton.builder(Component.text("Kembali ke Soal 2"))
-            .action(DialogAction.customClick((view, audience) -> {
-                if (audience instanceof Player p) {
-                    session.setCurrentQuestion(2);
-                    plugin.getUiManager().openExamQuestion2(p, subject);
-                }
-            }, ClickCallback.Options.builder().uses(1).build()))
-            .build();
-
-        Dialog dialog = Dialog.create(builder -> builder.empty()
-            .base(DialogBase.builder(Component.text("Ujian - Soal 3"))
-                .canCloseWithEscape(false)
-                .body(bodies)
-                .inputs(List.of(
-                    DialogInput.bool("stmt_1", Component.text("1. " + questions.q3Stmt1), session.isStmt1(), "Benar", "Salah"),
-                    DialogInput.bool("stmt_2", Component.text("2. " + questions.q3Stmt2), session.isStmt2(), "Benar", "Salah"),
-                    DialogInput.bool("stmt_3", Component.text("3. " + questions.q3Stmt3), session.isStmt3(), "Benar", "Salah")
-                ))
                 .build())
             .type(DialogType.confirmation(nextBtn, backBtn))
         );
@@ -351,10 +133,165 @@ public class ExamGui {
         player.showDialog(dialog);
     }
 
-    /** [Java] Konfirmasi pengiriman jawaban. */
+    /** [Java] Soal Dinamis 1-10. */
+    public void openExamQuestionJava(Player player, String subject, int questionNum) {
+        ExamSession session = plugin.getUiManager().getExamSession(player.getUniqueId());
+        if (session == null) {
+            openExamPortalJava(player);
+            return;
+        }
+
+        ExamQuestions.QuestionSet questions = ExamQuestions.getQuestions(subject);
+        if (questions == null) {
+            openExamPortalJava(player);
+            return;
+        }
+
+        Question q = questions.getQuestion(questionNum - 1);
+        if (q == null) {
+            openExamPortalJava(player);
+            return;
+        }
+
+        List<DialogBody> bodies = new ArrayList<>();
+        Material mat = Material.BOOK;
+        if (q.getType() == QuestionType.TRUE_FALSE) {
+            mat = Material.COMPASS;
+        } else if (q.getType() == QuestionType.COMPLEX_MULTIPLE_CHOICE) {
+            mat = Material.PAPER;
+        }
+
+        bodies.add(DialogBody.item(new ItemStack(mat)).build());
+        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>Ujian: " + ExamQuestions.getSubjectDisplayName(subject) + " (Soal " + questionNum + "/10)</bold></gold>")));
+        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gray>Pertanyaan:</gray> <white>" + q.getText() + "</white>")));
+
+        if (q.getType() == QuestionType.COMPLEX_MULTIPLE_CHOICE) {
+            bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Pilih lebih dari satu pernyataan (klik lagi untuk batal):</yellow>")));
+        } else {
+            bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Pilih salah satu jawaban di bawah ini:</yellow>")));
+        }
+
+        List<ActionButton> optionButtons = new ArrayList<>();
+
+        if (q.getType() == QuestionType.MULTIPLE_CHOICE) {
+            String[] optChars = {"A", "B", "C", "D"};
+            String currentAns = session.getMcAnswer(questionNum - 1);
+            for (int i = 0; i < 4; i++) {
+                String optChar = optChars[i];
+                String optText = q.getOptions()[i];
+                boolean isSelected = optChar.equalsIgnoreCase(currentAns);
+                String buttonText = optChar + ". " + optText;
+                if (isSelected) {
+                    buttonText = "<green><bold>" + buttonText + " (Dipilih)</bold></green>";
+                }
+
+                optionButtons.add(ActionButton.builder(MiniMessage.miniMessage().deserialize(buttonText))
+                    .action(DialogAction.customClick((view, audience) -> {
+                        if (audience instanceof Player p) {
+                            session.setMcAnswer(questionNum - 1, optChar);
+                            openExamQuestionJava(p, subject, questionNum);
+                        }
+                    }, ClickCallback.Options.builder().uses(1).build()))
+                    .build());
+            }
+        } else if (q.getType() == QuestionType.TRUE_FALSE) {
+            Boolean currentAns = session.getTfAnswer(questionNum - 7);
+
+            boolean trueSelected = (currentAns != null && currentAns);
+            String trueText = "Benar";
+            if (trueSelected) {
+                trueText = "<green><bold>" + trueText + " (Dipilih)</bold></green>";
+            }
+            optionButtons.add(ActionButton.builder(MiniMessage.miniMessage().deserialize(trueText))
+                .action(DialogAction.customClick((view, audience) -> {
+                    if (audience instanceof Player p) {
+                        session.setTfAnswer(questionNum - 7, true);
+                        openExamQuestionJava(p, subject, questionNum);
+                    }
+                }, ClickCallback.Options.builder().uses(1).build()))
+                .build());
+
+            boolean falseSelected = (currentAns != null && !currentAns);
+            String falseText = "Salah";
+            if (falseSelected) {
+                falseText = "<green><bold>" + falseText + " (Dipilih)</bold></green>";
+            }
+            optionButtons.add(ActionButton.builder(MiniMessage.miniMessage().deserialize(falseText))
+                .action(DialogAction.customClick((view, audience) -> {
+                    if (audience instanceof Player p) {
+                        session.setTfAnswer(questionNum - 7, false);
+                        openExamQuestionJava(p, subject, questionNum);
+                    }
+                }, ClickCallback.Options.builder().uses(1).build()))
+                .build());
+        } else if (q.getType() == QuestionType.COMPLEX_MULTIPLE_CHOICE) {
+            int complexIdx = questionNum - 9;
+            for (int i = 0; i < 3; i++) {
+                int optIdx = i;
+                String optText = q.getOptions()[i];
+                boolean isSelected = session.getComplexOption(complexIdx, optIdx);
+                String buttonText = (optIdx + 1) + ". " + optText;
+                if (isSelected) {
+                    buttonText = "<green><bold>" + buttonText + " (Dipilih)</bold></green>";
+                }
+
+                optionButtons.add(ActionButton.builder(MiniMessage.miniMessage().deserialize(buttonText))
+                    .action(DialogAction.customClick((view, audience) -> {
+                        if (audience instanceof Player p) {
+                            boolean currentlySelected = session.getComplexOption(complexIdx, optIdx);
+                            session.setComplexOption(complexIdx, optIdx, !currentlySelected);
+                            openExamQuestionJava(p, subject, questionNum);
+                        }
+                    }, ClickCallback.Options.builder().uses(1).build()))
+                    .build());
+            }
+        }
+
+        // Tombol Sebelumnya (Previous) dimasukkan ke actionButtons jika index > 1
+        if (questionNum > 1) {
+            optionButtons.add(ActionButton.builder(Component.text("Sebelumnya"))
+                .action(DialogAction.customClick((view, audience) -> {
+                    if (audience instanceof Player p) {
+                        session.setCurrentQuestion(questionNum - 1);
+                        openExamQuestionJava(p, subject, questionNum - 1);
+                    }
+                }, ClickCallback.Options.builder().uses(1).build()))
+                .build());
+        }
+
+        // Tombol Selanjutnya (Next) adalah primary button dari multiAction
+        ActionButton nextBtn = ActionButton.builder(Component.text(questionNum == 10 ? "Berikutnya (Konfirmasi)" : "Selanjutnya"))
+            .action(DialogAction.customClick((view, audience) -> {
+                if (audience instanceof Player p) {
+                    if (questionNum == 10) {
+                        session.setCurrentQuestion(11);
+                        openExamConfirmationJava(p, subject);
+                    } else {
+                        session.setCurrentQuestion(questionNum + 1);
+                        openExamQuestionJava(p, subject, questionNum + 1);
+                    }
+                }
+            }, ClickCallback.Options.builder().uses(1).build()))
+            .build();
+
+        Dialog dialog = Dialog.create(builder -> builder.empty()
+            .base(DialogBase.builder(Component.text("Ujian - Soal " + questionNum))
+                .canCloseWithEscape(false) // Locked UI
+                .body(bodies)
+                .build())
+            .type(DialogType.multiAction(optionButtons, nextBtn, 2))
+        );
+
+        player.showDialog(dialog);
+    }
+
+    /** [Java] Konfirmasi Akhir (Dialog). */
     public void openExamConfirmationJava(Player player, String subject) {
         ExamSession session = plugin.getUiManager().getExamSession(player.getUniqueId());
-        if (session == null) { openExamPortalJava(player); return; }
+        if (session == null) {
+            openExamPortalJava(player);
+            return;
+        }
 
         List<DialogBody> bodies = List.of(
             DialogBody.item(new ItemStack(Material.WRITTEN_BOOK)).build(),
@@ -373,18 +310,18 @@ public class ExamGui {
             }, ClickCallback.Options.builder().uses(1).build()))
             .build();
 
-        ActionButton backBtn = ActionButton.builder(Component.text("Kembali ke Soal 3"))
+        ActionButton backBtn = ActionButton.builder(Component.text("Kembali ke Soal 10"))
             .action(DialogAction.customClick((view, audience) -> {
                 if (audience instanceof Player p) {
-                    session.setCurrentQuestion(3);
-                    plugin.getUiManager().openExamQuestion3(p, subject, false);
+                    session.setCurrentQuestion(10);
+                    openExamQuestionJava(p, subject, 10);
                 }
             }, ClickCallback.Options.builder().uses(1).build()))
             .build();
 
         Dialog dialog = Dialog.create(builder -> builder.empty()
             .base(DialogBase.builder(Component.text("Konfirmasi Akhir"))
-                .canCloseWithEscape(false)
+                .canCloseWithEscape(false) // Locked UI
                 .body(bodies)
                 .build())
             .type(DialogType.confirmation(confirmBtn, backBtn))
@@ -393,7 +330,7 @@ public class ExamGui {
         player.showDialog(dialog);
     }
 
-    /** [Java] Portal Ditutup — notice dengan pesan admin. */
+    /** [Java] Portal Ditutup. */
     public void openExamClosedJava(Player player) {
         List<DialogBody> bodies = new ArrayList<>();
         bodies.add(DialogBody.item(new ItemStack(Material.BARRIER)).build());
@@ -417,34 +354,35 @@ public class ExamGui {
         player.showDialog(dialog);
     }
 
+
+
     // ─────────────────────────────────────────────────────────────────────────
     // BEDROCK EDITION — Geyser/Floodgate Cumulus Form
     // ─────────────────────────────────────────────────────────────────────────
 
-    /** [Bedrock] Portal Ujian — pilih mata pelajaran (SimpleForm). */
-    public void openExamPortalBedrock(Player player) {
+    /** [Bedrock] Portal Ujian — pilih mata pelajaran (CustomForm Dropdown - 1 Submit Button). */
+    public void openExamPortalBedrockDropdown(Player player) {
         String examMessage = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(
             MiniMessage.miniMessage().deserialize(plugin.getExamMessage())
         );
 
-        SimpleForm form = SimpleForm.builder()
+        CustomForm form = CustomForm.builder()
             .title("Portal Ujian")
-            .content(examMessage + "\n\nPilih mata pelajaran untuk diuji di bawah ini:")
-            .button("Pengetahuan Umum")
-            .button("IPA")
-            .button("IPS")
-            .button("Matematika (MTK)")
-            .button("Bahasa Indonesia")
-            .button("PKN")
-            .button("Bahasa Inggris")
-            .button("Tutup Portal")
+            .label(examMessage + "\n\nPilih mata pelajaran untuk diuji di bawah ini:")
+            .dropdown("Mata Pelajaran",
+                "Pengetahuan Umum",
+                "IPA",
+                "IPS",
+                "Matematika (MTK)",
+                "Bahasa Indonesia",
+                "PKN",
+                "Bahasa Inggris"
+            )
             .validResultHandler(response -> {
-                int clickedId = response.clickedButtonId();
-                if (clickedId == 7) {
-                    return; // Tutup portal
-                }
+                int selectedIndex = response.asDropdown(1);
+                if (selectedIndex < 0) return;
                 String selectedSubject;
-                switch (clickedId) {
+                switch (selectedIndex) {
                     case 0:  selectedSubject = "pengetahuan_umum"; break;
                     case 1:  selectedSubject = "ipa";              break;
                     case 2:  selectedSubject = "ips";              break;
@@ -455,174 +393,195 @@ public class ExamGui {
                     default: selectedSubject = "pengetahuan_umum"; break;
                 }
                 plugin.getUiManager().startExamSession(player, selectedSubject);
-                plugin.getUiManager().openExamQuestion1(player, selectedSubject, false);
+                openExamPreBedrock(player, selectedSubject);
             })
             .build();
 
         FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
     }
 
-    /** [Bedrock] Soal 1 — MCQ (SimpleForm, button hijau §a untuk pilihan terpilih). */
-    public void openExamQuestion1Bedrock(Player player, String subject, boolean showWarning) {
-        ExamSession session = plugin.getUiManager().getExamSession(player.getUniqueId());
-        if (session == null) { openExamPortalBedrock(player); return; }
-
-        ExamQuestions.QuestionSet questions = ExamQuestions.getQuestions(subject);
-        if (questions == null) { openExamPortalBedrock(player); return; }
-
-        // Selected = §a (hijau). Unselected = plain text default.
-        String btnA = (session.isAnsA() ? "\u00a7aA. " : "A. ") + questions.q1A;
-        String btnB = (session.isAnsB() ? "\u00a7aB. " : "B. ") + questions.q1B;
-        String btnC = (session.isAnsC() ? "\u00a7aC. " : "C. ") + questions.q1C;
-        String btnD = (session.isAnsD() ? "\u00a7aD. " : "D. ") + questions.q1D;
+    /** [Bedrock] UI Pra-Soal (SimpleForm - Info peserta sebelum mulai ujian). */
+    public void openExamPreBedrock(Player player, String subject) {
+        StudentProfile profile = plugin.getProfileManager().getProfile(player.getUniqueId());
+        String name = player.getName();
+        String nis = (profile != null && profile.getNis() != null) ? profile.getNis() : "-";
 
         SimpleForm form = SimpleForm.builder()
-            .title("Ujian: Soal 1/3")
-            .content("Mata Pelajaran: " + ExamQuestions.getSubjectDisplayName(subject) +
-                "\n\nPertanyaan:\n" + questions.q1Text + "\n\nPilih salah satu jawaban di bawah ini:")
-            .button(btnA)
-            .button(btnB)
-            .button(btnC)
-            .button(btnD)
+            .title("Informasi Peserta Ujian")
+            .content("Username Peserta: " + name + "\n" +
+                     "NIS Peserta: " + nis + "\n\n" +
+                     "Mata Pelajaran: " + ExamQuestions.getSubjectDisplayName(subject) + "\n" +
+                     "Total Soal: 10 Soal")
+            .button("Lanjut")
             .button("Kembali ke Portal")
             .validResultHandler(response -> {
                 int clickedId = response.clickedButtonId();
-                if (clickedId == 4) {
+                if (clickedId == 0) {
+                    ExamSession session = plugin.getUiManager().getExamSession(player.getUniqueId());
+                    if (session != null) {
+                        session.setCurrentQuestion(1);
+                        openExamQuestionBedrock(player, subject, 1);
+                    }
+                } else {
                     plugin.getUiManager().clearExamSession(player);
-                    plugin.getUiManager().openExamPortal(player);
-                    return;
+                    openExamPortalBedrockDropdown(player);
                 }
-                session.setAnsA(clickedId == 0);
-                session.setAnsB(clickedId == 1);
-                session.setAnsC(clickedId == 2);
-                session.setAnsD(clickedId == 3);
-                session.setCurrentQuestion(2);
-                plugin.getUiManager().openExamQuestion2(player, subject);
             })
-            .closedResultHandler(() -> openExamQuestion1Bedrock(player, subject, showWarning))
+            .closedResultHandler(() -> {
+                plugin.getUiManager().clearExamSession(player);
+            })
             .build();
 
         FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
     }
 
-    /** [Bedrock] Soal 2 — True / False (SimpleForm, button hijau §a untuk pilihan terpilih). */
-    public void openExamQuestion2Bedrock(Player player, String subject) {
+    /** [Bedrock] Soal Dinamis 1-10 (SimpleForm). */
+    public void openExamQuestionBedrock(Player player, String subject, int questionNum) {
         ExamSession session = plugin.getUiManager().getExamSession(player.getUniqueId());
-        if (session == null) { openExamPortalBedrock(player); return; }
+        if (session == null) {
+            openExamPortalBedrockDropdown(player);
+            return;
+        }
 
         ExamQuestions.QuestionSet questions = ExamQuestions.getQuestions(subject);
-        if (questions == null) { openExamPortalBedrock(player); return; }
+        if (questions == null) {
+            openExamPortalBedrockDropdown(player);
+            return;
+        }
 
-        String trueBtn  = (session.getTrueOrFalse() != null && session.getTrueOrFalse())  ? "\u00a7aBENAR" : "BENAR";
-        String falseBtn = (session.getTrueOrFalse() != null && !session.getTrueOrFalse()) ? "\u00a7aSALAH" : "SALAH";
+        Question q = questions.getQuestion(questionNum - 1);
+        if (q == null) {
+            openExamPortalBedrockDropdown(player);
+            return;
+        }
 
-        SimpleForm form = SimpleForm.builder()
-            .title("Ujian: Soal 2/3")
+        SimpleForm.Builder builder = SimpleForm.builder()
+            .title("Ujian: Soal " + questionNum + "/10")
             .content("Mata Pelajaran: " + ExamQuestions.getSubjectDisplayName(subject) +
-                "\n\nPertanyaan (Benar / Salah):\n" + questions.q2Text + "\n\nPilih jawaban Anda:")
-            .button(trueBtn)
-            .button(falseBtn)
-            .button("Kembali ke Soal 1")
-            .validResultHandler(response -> {
-                int clickedId = response.clickedButtonId();
-                if (clickedId == 2) {
-                    session.setCurrentQuestion(1);
-                    plugin.getUiManager().openExamQuestion1(player, subject, false);
-                    return;
-                }
-                session.setTrueOrFalse(clickedId == 0);
-                session.setCurrentQuestion(3);
-                plugin.getUiManager().openExamQuestion3(player, subject, false);
-            })
-            .closedResultHandler(() -> openExamQuestion2Bedrock(player, subject))
-            .build();
+                     "\n\nPertanyaan:\n" + q.getText() + "\n\n" +
+                     (q.getType() == QuestionType.COMPLEX_MULTIPLE_CHOICE 
+                      ? "Pilih lebih dari satu (klik lagi untuk batal):" 
+                      : "Pilih jawaban Anda:"));
 
-        FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
+        if (q.getType() == QuestionType.MULTIPLE_CHOICE) {
+            String[] optChars = {"A", "B", "C", "D"};
+            String currentAns = session.getMcAnswer(questionNum - 1);
+            for (int i = 0; i < 4; i++) {
+                String optChar = optChars[i];
+                String optText = q.getOptions()[i];
+                boolean isSelected = optChar.equalsIgnoreCase(currentAns);
+                String buttonText = optChar + ". " + optText;
+                if (isSelected) {
+                    buttonText = "§a§l" + buttonText + " (Dipilih)";
+                }
+                builder.button(buttonText);
+            }
+        } else if (q.getType() == QuestionType.TRUE_FALSE) {
+            Boolean currentAns = session.getTfAnswer(questionNum - 7);
+
+            boolean trueSelected = (currentAns != null && currentAns);
+            builder.button(trueSelected ? "§a§lBenar (Dipilih)" : "Benar");
+
+            boolean falseSelected = (currentAns != null && !currentAns);
+            builder.button(falseSelected ? "§a§lSalah (Dipilih)" : "Salah");
+        } else if (q.getType() == QuestionType.COMPLEX_MULTIPLE_CHOICE) {
+            int complexIdx = questionNum - 9;
+            for (int i = 0; i < 3; i++) {
+                int optIdx = i;
+                String optText = q.getOptions()[i];
+                boolean isSelected = session.getComplexOption(complexIdx, optIdx);
+                String buttonText = (optIdx + 1) + ". " + optText;
+                if (isSelected) {
+                    buttonText = "§a§l" + buttonText + " (Dipilih)";
+                }
+                builder.button(buttonText);
+            }
+        }
+
+        // Tombol Navigasi
+        if (questionNum > 1) {
+            builder.button("Sebelumnya");
+        }
+        builder.button(questionNum == 10 ? "Berikutnya (Konfirmasi)" : "Selanjutnya");
+
+        builder.validResultHandler(response -> {
+            int clickedId = response.clickedButtonId();
+            int numChoices = (q.getType() == QuestionType.MULTIPLE_CHOICE) ? 4 
+                           : (q.getType() == QuestionType.TRUE_FALSE) ? 2 
+                           : 3;
+
+            if (clickedId < numChoices) {
+                // User klik jawaban
+                if (q.getType() == QuestionType.MULTIPLE_CHOICE) {
+                    String[] optChars = {"A", "B", "C", "D"};
+                    session.setMcAnswer(questionNum - 1, optChars[clickedId]);
+                } else if (q.getType() == QuestionType.TRUE_FALSE) {
+                    session.setTfAnswer(questionNum - 7, clickedId == 0);
+                } else if (q.getType() == QuestionType.COMPLEX_MULTIPLE_CHOICE) {
+                    int complexIdx = questionNum - 9;
+                    boolean currentlySelected = session.getComplexOption(complexIdx, clickedId);
+                    session.setComplexOption(complexIdx, clickedId, !currentlySelected);
+                }
+                openExamQuestionBedrock(player, subject, questionNum); // Refresh UI
+            } else {
+                // User klik navigasi
+                boolean hasPrev = (questionNum > 1);
+                int prevButtonIdx = numChoices;
+                int nextButtonIdx = hasPrev ? (numChoices + 1) : numChoices;
+
+                if (hasPrev && clickedId == prevButtonIdx) {
+                    session.setCurrentQuestion(questionNum - 1);
+                    openExamQuestionBedrock(player, subject, questionNum - 1);
+                } else if (clickedId == nextButtonIdx) {
+                    if (questionNum == 10) {
+                        session.setCurrentQuestion(11);
+                        openExamConfirmationBedrock(player, subject);
+                    } else {
+                        session.setCurrentQuestion(questionNum + 1);
+                        openExamQuestionBedrock(player, subject, questionNum + 1);
+                    }
+                }
+            }
+        })
+        .closedResultHandler(() -> openExamQuestionBedrock(player, subject, questionNum)); // Locked UI
+
+        FloodgateApi.getInstance().sendForm(player.getUniqueId(), builder.build());
     }
 
-    /**
-     * [Bedrock] Soal 3 — Multiple Statement Checklist (SimpleForm, 3 toggle button + 2 navigasi).
-     * Klik pernyataan untuk toggle §a/plain. "Berikutnya" untuk konfirmasi.
-     */
-    public void openExamQuestion3Bedrock(Player player, String subject, boolean showWarning) {
-        ExamSession session = plugin.getUiManager().getExamSession(player.getUniqueId());
-        if (session == null) { openExamPortalBedrock(player); return; }
-
-        ExamQuestions.QuestionSet questions = ExamQuestions.getQuestions(subject);
-        if (questions == null) { openExamPortalBedrock(player); return; }
-
-        // Selected = §a (hijau). Unselected = plain text.
-        String btnStmt1 = (session.isStmt1() ? "\u00a7a1. " : "1. ") + questions.q3Stmt1;
-        String btnStmt2 = (session.isStmt2() ? "\u00a7a2. " : "2. ") + questions.q3Stmt2;
-        String btnStmt3 = (session.isStmt3() ? "\u00a7a3. " : "3. ") + questions.q3Stmt3;
-
-        SimpleForm form = SimpleForm.builder()
-            .title("Ujian: Soal 3/3")
-            .content("Mata Pelajaran: " + ExamQuestions.getSubjectDisplayName(subject) +
-                "\n\nPertanyaan (Pernyataan Majemuk):\n" + questions.q3Text +
-                "\n\nKlik pernyataan untuk mencentang/membatalkan centang, lalu pilih 'Berikutnya' jika sudah selesai:")
-            .button(btnStmt1)
-            .button(btnStmt2)
-            .button(btnStmt3)
-            .button("Berikutnya")
-            .button("Kembali ke Soal 2")
-            .validResultHandler(response -> {
-                int clickedId = response.clickedButtonId();
-                if (clickedId == 4) {
-                    session.setCurrentQuestion(2);
-                    plugin.getUiManager().openExamQuestion2(player, subject);
-                    return;
-                }
-                if (clickedId == 3) {
-                    session.setCurrentQuestion(4);
-                    plugin.getUiManager().openExamConfirmation(player, subject);
-                    return;
-                }
-                // Toggle checklist state
-                if (clickedId == 0) session.setStmt1(!session.isStmt1());
-                else if (clickedId == 1) session.setStmt2(!session.isStmt2());
-                else if (clickedId == 2) session.setStmt3(!session.isStmt3());
-
-                // Refresh form untuk tampilkan state terbaru
-                openExamQuestion3Bedrock(player, subject, showWarning);
-            })
-            .closedResultHandler(() -> openExamQuestion3Bedrock(player, subject, showWarning))
-            .build();
-
-        FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
-    }
-
-    /** [Bedrock] Konfirmasi pengiriman jawaban (CustomForm). */
+    /** [Bedrock] Konfirmasi Akhir (CustomForm dengan Dropdown dan 1 Tombol Submit). */
     public void openExamConfirmationBedrock(Player player, String subject) {
         ExamSession session = plugin.getUiManager().getExamSession(player.getUniqueId());
-        if (session == null) { openExamPortalBedrock(player); return; }
+        if (session == null) {
+            openExamPortalBedrockDropdown(player);
+            return;
+        }
 
         CustomForm form = CustomForm.builder()
             .title("Konfirmasi Akhir")
             .label("Apakah Anda yakin ingin menyelesaikan ujian dan mengirimkan jawaban Anda sekarang?")
             .dropdown("Pilih Tindakan",
                 "Kirim Jawaban",
-                "Kembali ke Soal 3"
+                "Kembali ke Soal 10"
             )
             .validResultHandler(response -> {
-                int selectedIndex = response.asDropdown(1); // Index 0 is label, Index 1 is dropdown
+                int selectedIndex = response.asDropdown(1);
                 if (selectedIndex == 0) {
                     int[] score = ExamQuestions.evaluateExam(session);
                     player.sendTitle("§a§lUJIAN SELESAI", "§7Benar: §a" + score[0] + " §f| Salah: §c" + score[1], 20, 100, 20);
                     player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
                     plugin.getUiManager().clearExamSession(player);
                 } else {
-                    session.setCurrentQuestion(3);
-                    plugin.getUiManager().openExamQuestion3(player, subject, false);
+                    session.setCurrentQuestion(10);
+                    openExamQuestionBedrock(player, subject, 10);
                 }
             })
-            .closedResultHandler(() -> openExamConfirmationBedrock(player, subject))
+            .closedResultHandler(() -> openExamConfirmationBedrock(player, subject)) // Locked UI
             .build();
 
         FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
     }
 
-    /** [Bedrock] Portal Ditutup — SimpleForm notice tanpa §-codes. */
+    /** [Bedrock] Portal Ditutup. */
     public void openExamClosedBedrock(Player player) {
         String adminMessage = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(
             MiniMessage.miniMessage().deserialize(plugin.getExamMessage())

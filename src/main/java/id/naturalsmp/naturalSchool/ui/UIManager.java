@@ -142,13 +142,7 @@ public class UIManager {
     // Exam Variants GUI routing  →  ExamVariantsGui
     // ─────────────────────────────────────────────────────────────────────────
 
-    public void openTestExam(Player player) {
-        if (isBedrockPlayer(player)) {
-            new id.naturalsmp.naturalSchool.ui.gui.DropdownBedrockGui(plugin).open(player);
-        } else {
-            new id.naturalsmp.naturalSchool.ui.gui.DropdownJavaGui(plugin).open(player);
-        }
-    }
+
 
     public void openExam1(Player player, boolean showWarning) {
         if (isBedrockPlayer(player)) bedrockHandler.openExam1(player, showWarning);
@@ -181,7 +175,7 @@ public class UIManager {
 
     public void openExamPortal(Player player) {
         if (isBedrockPlayer(player)) bedrockHandler.openExamPortal(player);
-        else examGui.openExamPortalJavaDropdown(player);
+        else examGui.openExamPortalJava(player);
     }
 
     public void openExamClosed(Player player) {
@@ -189,19 +183,14 @@ public class UIManager {
         else examGui.openExamClosedJava(player);
     }
 
-    public void openExamQuestion1(Player player, String subject, boolean showWarning) {
-        if (isBedrockPlayer(player)) bedrockHandler.openExamQuestion1(player, subject, showWarning);
-        else examGui.openExamQuestion1Java(player, subject, showWarning);
+    public void openExamPre(Player player, String subject) {
+        if (isBedrockPlayer(player)) bedrockHandler.openExamPre(player, subject);
+        else examGui.openExamPreJava(player, subject);
     }
 
-    public void openExamQuestion2(Player player, String subject) {
-        if (isBedrockPlayer(player)) bedrockHandler.openExamQuestion2(player, subject);
-        else examGui.openExamQuestion2Java(player, subject);
-    }
-
-    public void openExamQuestion3(Player player, String subject, boolean showWarning) {
-        if (isBedrockPlayer(player)) bedrockHandler.openExamQuestion3(player, subject, showWarning);
-        else examGui.openExamQuestion3Java(player, subject, showWarning);
+    public void openExamQuestion(Player player, String subject, int questionNum) {
+        if (isBedrockPlayer(player)) bedrockHandler.openExamQuestion(player, subject, questionNum);
+        else examGui.openExamQuestionJava(player, subject, questionNum);
     }
 
     public void openExamConfirmation(Player player, String subject) {
