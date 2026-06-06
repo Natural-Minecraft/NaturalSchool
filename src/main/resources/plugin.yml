@@ -1,5 +1,5 @@
 name: NaturalSchool
-version: '1.5.2'
+version: '1.6.0'
 main: id.naturalsmp.naturalSchool.NaturalSchool
 api-version: '1.21'
 load: STARTUP

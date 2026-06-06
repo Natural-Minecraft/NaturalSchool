@@ -2,6 +2,22 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.6.0] - 2026-06-06
+### Added
+- **10 Questions Exam Flow**: Revamped the entire `/school exam` subsystem from a 3-question sequence to a full 10-question sequence containing 6 Multiple Choice questions, 2 True/False statements, and 2 Complex Multiple Choice questions (multi-select checklist).
+- **Pre-Exam Information Screen**: Introduced a pre-exam landing interface for both Java and Bedrock displaying player details (Username, NIS), subject name, and total questions, with "Lanjut" and "Kembali ke Portal" buttons.
+- **Stateful Answer Selections**: Answer buttons no longer automatically advance. Selected choices now display as green bold with a suffix of `(Dipilih)`.
+- **Navigation Controls**: Added "Sebelumnya" and "Selanjutnya" navigation controls on every question to allow reviewing previous answers.
+- **Exam Lock Mechanism**: Disabled ESC/Escape closing for Java dialogs and forced Geyser form re-opens for Bedrock clients once the exam is started.
+
+### Changed
+- **Bedrock UI Compliance**: Enforced Bedrock Geyser Form button count limit rules. Bedrock's exam portal and final confirmation interfaces (dropdown-based) strictly use at most 1 button.
+- **Platform Code Restructuring**: Relocated Java and Bedrock dropdown GUI methods to their platform-specific Java Edition and Bedrock Edition code sections in `ExamGui.java`.
+
+### Removed
+- **Deleted Prototype Subcommands**: Cleaned up and deleted the legacy `/school testexam` command execution branch, help texts, tab completions, and variants from `SchoolCommand`, `UIManager`, `BedrockHandler`, and GUI factories.
+- **Merged Standalone GUIs**: Removed `DropdownJavaGui.java` and `DropdownBedrockGui.java` completely, merging their dropdown portal logic into `ExamGui.java`.
+
 ## [1.5.6] - 2026-06-06
 ### Added
 - **Java & Bedrock Dropdown Portal**: Added dropdown selector version of Exam Portal using Paper Dialog API's `SingleOptionDialogInput` for Java Edition and Geyser CustomForm's `dropdown` for Bedrock Edition.
