@@ -33,6 +33,8 @@ import java.util.List;
  */
 public class ExamGui {
 
+    public static final String GUI_VERSION = "1.5.3";
+
     private final NaturalSchool plugin;
 
     public ExamGui(NaturalSchool plugin) {
@@ -104,19 +106,19 @@ public class ExamGui {
 
         List<ActionButton> optionButtons = new ArrayList<>();
         optionButtons.add(createOptionButton(
-            session.isAnsA() ? "<green><bold>● A. " + questions.q1A + " (Terpilih)</bold></green>" : "<gray>○ A. " + questions.q1A + "</gray>",
+            session.isAnsA() ? "<green><bold>A. " + questions.q1A + " (Terpilih)</bold></green>" : "A. " + questions.q1A,
             subject, session, "A"
         ));
         optionButtons.add(createOptionButton(
-            session.isAnsB() ? "<green><bold>● B. " + questions.q1B + " (Terpilih)</bold></green>" : "<gray>○ B. " + questions.q1B + "</gray>",
+            session.isAnsB() ? "<green><bold>B. " + questions.q1B + " (Terpilih)</bold></green>" : "B. " + questions.q1B,
             subject, session, "B"
         ));
         optionButtons.add(createOptionButton(
-            session.isAnsC() ? "<green><bold>● C. " + questions.q1C + " (Terpilih)</bold></green>" : "<gray>○ C. " + questions.q1C + "</gray>",
+            session.isAnsC() ? "<green><bold>C. " + questions.q1C + " (Terpilih)</bold></green>" : "C. " + questions.q1C,
             subject, session, "C"
         ));
         optionButtons.add(createOptionButton(
-            session.isAnsD() ? "<green><bold>● D. " + questions.q1D + " (Terpilih)</bold></green>" : "<gray>○ D. " + questions.q1D + "</gray>",
+            session.isAnsD() ? "<green><bold>D. " + questions.q1D + " (Terpilih)</bold></green>" : "D. " + questions.q1D,
             subject, session, "D"
         ));
 
@@ -170,9 +172,9 @@ public class ExamGui {
         bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Pilih jawaban Anda:</yellow>")));
 
         String trueText  = (session.getTrueOrFalse() != null && session.getTrueOrFalse())
-            ? "<green><bold>● BENAR (Terpilih)</bold></green>" : "<gray>○ BENAR</gray>";
+            ? "<green><bold>BENAR (Terpilih)</bold></green>" : "BENAR";
         String falseText = (session.getTrueOrFalse() != null && !session.getTrueOrFalse())
-            ? "<red><bold>● SALAH (Terpilih)</bold></red>"   : "<gray>○ SALAH</gray>";
+            ? "<red><bold>SALAH (Terpilih)</bold></red>"   : "SALAH";
 
         List<ActionButton> tfButtons = new ArrayList<>();
         tfButtons.add(createTrueFalseButton(trueText,  true,  subject, session));

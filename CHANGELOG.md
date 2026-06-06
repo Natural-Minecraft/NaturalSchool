@@ -2,6 +2,14 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.5.3] - 2026-06-06
+### Added
+- **GUI version command**: Introduced command `/ns gui version` to print active GUI version for diagnostics.
+- **GUI Versioning**: Added static `GUI_VERSION` field to `ExamGui.java`.
+
+### Changed
+- **Java Edition — Choice Buttons Cleanup**: Removed circle symbols (`○` / `●`) from question option buttons in Soal 1 and Soal 2.
+
 ## [1.5.2] - 2026-06-06
 ### Fixed
 - **Bedrock — CustomForm Element Indices**: Corrected element index alignment for all Geyser/Cumulus `CustomForm` response handlers. Since every component (including static labels) counts as an element index in a `CustomForm` builder:
