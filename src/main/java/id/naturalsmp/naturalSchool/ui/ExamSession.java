@@ -7,6 +7,7 @@ public class ExamSession {
     private final UUID playerUuid;
     private final String subject;
     private int currentQuestion; // 0 for Pre-Exam UI, 1-10 for questions, 11 for confirmation
+    private boolean showWarning = false;
 
     // Answers for questions 1 to 6 (index 0 to 5)
     private final String[] mcAnswers = new String[6];
@@ -21,6 +22,15 @@ public class ExamSession {
         this.playerUuid = playerUuid;
         this.subject = subject;
         this.currentQuestion = 0; // Starts at Pre-Exam UI
+        this.showWarning = false;
+    }
+
+    public boolean isShowWarning() {
+        return showWarning;
+    }
+
+    public void setShowWarning(boolean showWarning) {
+        this.showWarning = showWarning;
     }
 
     public UUID getPlayerUuid() {

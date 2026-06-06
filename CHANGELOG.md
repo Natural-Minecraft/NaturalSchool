@@ -2,6 +2,15 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.6.1] - 2026-06-06
+### Added
+- **Mandatory Choice Validation**: Players are now blocked from advancing to the next question if they have not selected an answer. A red warning message is displayed directly under the question.
+- **Pre-Exam Back Navigation**: Enabled the "Sebelumnya" button on the first question to return the player back to the pre-exam information landing screen, preventing them from being forced into the exam.
+
+### Changed
+- **Exam Navigation Styling**: Styled the "Selanjutnya" button as bold orange and the "Sebelumnya" button as bold dark green on all question screens.
+- **Exam Navigation Layout**: Realigned the navigation buttons so that "Selanjutnya" is positioned to the left of "Sebelumnya" on Java Dialog (side-by-side) and above it on Bedrock SimpleForm.
+
 ## [1.6.0] - 2026-06-06
 ### Added
 - **10 Questions Exam Flow**: Revamped the entire `/school exam` subsystem from a 3-question sequence to a full 10-question sequence containing 6 Multiple Choice questions, 2 True/False statements, and 2 Complex Multiple Choice questions (multi-select checklist).

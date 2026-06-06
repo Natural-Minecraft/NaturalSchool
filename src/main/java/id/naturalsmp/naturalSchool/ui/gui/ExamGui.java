@@ -165,6 +165,10 @@ public class ExamGui {
         bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>Ujian: " + ExamQuestions.getSubjectDisplayName(subject) + " (Soal " + questionNum + "/10)</bold></gold>")));
         bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gray>Pertanyaan:</gray> <white>" + q.getText() + "</white>")));
 
+        if (session.isShowWarning()) {
+            bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<red><bold>Peringatan: Wajib memilih jawaban sebelum melanjutkan!</bold></red>")));
+        }
+
         if (q.getType() == QuestionType.COMPLEX_MULTIPLE_CHOICE) {
             bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Pilih lebih dari satu pernyataan (klik lagi untuk batal):</yellow>")));
         } else {
@@ -189,6 +193,7 @@ public class ExamGui {
                     .action(DialogAction.customClick((view, audience) -> {
                         if (audience instanceof Player p) {
                             session.setMcAnswer(questionNum - 1, optChar);
+                            session.setShowWarning(false);
                             openExamQuestionJava(p, subject, questionNum);
                         }
                     }, ClickCallback.Options.builder().uses(1).build()))
@@ -206,6 +211,7 @@ public class ExamGui {
                 .action(DialogAction.customClick((view, audience) -> {
                     if (audience instanceof Player p) {
                         session.setTfAnswer(questionNum - 7, true);
+                        session.setShowWarning(false);
                         openExamQuestionJava(p, subject, questionNum);
                     }
                 }, ClickCallback.Options.builder().uses(1).build()))
@@ -220,6 +226,7 @@ public class ExamGui {
                 .action(DialogAction.customClick((view, audience) -> {
                     if (audience instanceof Player p) {
                         session.setTfAnswer(questionNum - 7, false);
+                        session.setShowWarning(false);
                         openExamQuestionJava(p, subject, questionNum);
                     }
                 }, ClickCallback.Options.builder().uses(1).build()))
@@ -240,6 +247,7 @@ public class ExamGui {
                         if (audience instanceof Player p) {
                             boolean currentlySelected = session.getComplexOption(complexIdx, optIdx);
                             session.setComplexOption(complexIdx, optIdx, !currentlySelected);
+                            session.setShowWarning(false);
                             openExamQuestionJava(p, subject, questionNum);
                         }
                     }, ClickCallback.Options.builder().uses(1).build()))
@@ -247,31 +255,57 @@ public class ExamGui {
             }
         }
 
-        // Tombol Sebelumnya (Previous) dimasukkan ke actionButtons jika index > 1
-        if (questionNum > 1) {
-            optionButtons.add(ActionButton.builder(Component.text("Sebelumnya"))
-                .action(DialogAction.customClick((view, audience) -> {
-                    if (audience instanceof Player p) {
-                        session.setCurrentQuestion(questionNum - 1);
-                        openExamQuestionJava(p, subject, questionNum - 1);
-                    }
-                }, ClickCallback.Options.builder().uses(1).build()))
-                .build());
-        }
-
-        // Tombol Selanjutnya (Next) adalah primary button dari multiAction
-        ActionButton nextBtn = ActionButton.builder(Component.text(questionNum == 10 ? "Berikutnya (Konfirmasi)" : "Selanjutnya"))
+        // Buat tombol Selanjutnya (Next)
+        ActionButton nextBtn = ActionButton.builder(MiniMessage.miniMessage().deserialize("<orange><bold>" + (questionNum == 10 ? "Berikutnya (Konfirmasi)" : "Selanjutnya") + "</bold></orange>"))
             .action(DialogAction.customClick((view, audience) -> {
                 if (audience instanceof Player p) {
-                    if (questionNum == 10) {
-                        session.setCurrentQuestion(11);
-                        openExamConfirmationJava(p, subject);
+                    if (isAnswerEmpty(session, q, questionNum)) {
+                        session.setShowWarning(true);
+                        openExamQuestionJava(p, subject, questionNum);
                     } else {
-                        session.setCurrentQuestion(questionNum + 1);
-                        openExamQuestionJava(p, subject, questionNum + 1);
+                        session.setShowWarning(false);
+                        if (questionNum == 10) {
+                            session.setCurrentQuestion(11);
+                            openExamConfirmationJava(p, subject);
+                        } else {
+                            session.setCurrentQuestion(questionNum + 1);
+                            openExamQuestionJava(p, subject, questionNum + 1);
+                        }
                     }
                 }
             }, ClickCallback.Options.builder().uses(1).build()))
+            .build();
+
+        // Buat tombol Sebelumnya (Previous)
+        ActionButton prevBtn = ActionButton.builder(MiniMessage.miniMessage().deserialize("<dark_green><bold>Sebelumnya</bold></dark_green>"))
+            .action(DialogAction.customClick((view, audience) -> {
+                if (audience instanceof Player p) {
+                    session.setShowWarning(false);
+                    if (questionNum > 1) {
+                        session.setCurrentQuestion(questionNum - 1);
+                        openExamQuestionJava(p, subject, questionNum - 1);
+                    } else {
+                        session.setCurrentQuestion(0);
+                        openExamPreJava(p, subject);
+                    }
+                }
+            }, ClickCallback.Options.builder().uses(1).build()))
+            .build();
+
+        // Untuk COMPLEX_MULTIPLE_CHOICE yang memiliki 3 pilihan, tambahkan spacer
+        if (q.getType() == QuestionType.COMPLEX_MULTIPLE_CHOICE) {
+            optionButtons.add(ActionButton.builder(Component.text(" "))
+                .action(DialogAction.customClick((view, audience) -> {}, ClickCallback.Options.builder().uses(1).build()))
+                .build());
+        }
+
+        // Tambahkan Selanjutnya (kiri) dan Sebelumnya (kanan)
+        optionButtons.add(nextBtn);
+        optionButtons.add(prevBtn);
+
+        // Gunakan tombol status non-aktif sebagai primary button di bagian bawah
+        ActionButton statusBtn = ActionButton.builder(MiniMessage.miniMessage().deserialize("<gray>NaturalSchool — Ujian Aktif</gray>"))
+            .action(DialogAction.customClick((view, audience) -> {}, ClickCallback.Options.builder().uses(1).build()))
             .build();
 
         Dialog dialog = Dialog.create(builder -> builder.empty()
@@ -279,7 +313,7 @@ public class ExamGui {
                 .canCloseWithEscape(false) // Locked UI
                 .body(bodies)
                 .build())
-            .type(DialogType.multiAction(optionButtons, nextBtn, 2))
+            .type(DialogType.multiAction(optionButtons, statusBtn, 2))
         );
 
         player.showDialog(dialog);
@@ -455,13 +489,18 @@ public class ExamGui {
             return;
         }
 
+        String contentText = "Mata Pelajaran: " + ExamQuestions.getSubjectDisplayName(subject) + "\n\n";
+        contentText += "Pertanyaan:\n" + q.getText() + "\n\n";
+        if (session.isShowWarning()) {
+            contentText += "§c§lPeringatan: Wajib memilih jawaban sebelum melanjutkan!§r\n\n";
+        }
+        contentText += (q.getType() == QuestionType.COMPLEX_MULTIPLE_CHOICE 
+                    ? "Pilih lebih dari satu (klik lagi untuk batal):" 
+                    : "Pilih jawaban Anda:");
+
         SimpleForm.Builder builder = SimpleForm.builder()
             .title("Ujian: Soal " + questionNum + "/10")
-            .content("Mata Pelajaran: " + ExamQuestions.getSubjectDisplayName(subject) +
-                     "\n\nPertanyaan:\n" + q.getText() + "\n\n" +
-                     (q.getType() == QuestionType.COMPLEX_MULTIPLE_CHOICE 
-                      ? "Pilih lebih dari satu (klik lagi untuk batal):" 
-                      : "Pilih jawaban Anda:"));
+            .content(contentText);
 
         if (q.getType() == QuestionType.MULTIPLE_CHOICE) {
             String[] optChars = {"A", "B", "C", "D"};
@@ -498,11 +537,9 @@ public class ExamGui {
             }
         }
 
-        // Tombol Navigasi
-        if (questionNum > 1) {
-            builder.button("Sebelumnya");
-        }
-        builder.button(questionNum == 10 ? "Berikutnya (Konfirmasi)" : "Selanjutnya");
+        // Tombol Navigasi: Selanjutnya terlebih dahulu (atas), baru Sebelumnya (bawah)
+        builder.button(questionNum == 10 ? "§6§lBerikutnya (Konfirmasi)" : "§6§lSelanjutnya");
+        builder.button("§2§lSebelumnya");
 
         builder.validResultHandler(response -> {
             int clickedId = response.clickedButtonId();
@@ -511,6 +548,7 @@ public class ExamGui {
                            : 3;
 
             if (clickedId < numChoices) {
+                session.setShowWarning(false);
                 // User klik jawaban
                 if (q.getType() == QuestionType.MULTIPLE_CHOICE) {
                     String[] optChars = {"A", "B", "C", "D"};
@@ -525,20 +563,31 @@ public class ExamGui {
                 openExamQuestionBedrock(player, subject, questionNum); // Refresh UI
             } else {
                 // User klik navigasi
-                boolean hasPrev = (questionNum > 1);
-                int prevButtonIdx = numChoices;
-                int nextButtonIdx = hasPrev ? (numChoices + 1) : numChoices;
+                int nextButtonIdx = numChoices;
+                int prevButtonIdx = numChoices + 1;
 
-                if (hasPrev && clickedId == prevButtonIdx) {
-                    session.setCurrentQuestion(questionNum - 1);
-                    openExamQuestionBedrock(player, subject, questionNum - 1);
-                } else if (clickedId == nextButtonIdx) {
-                    if (questionNum == 10) {
-                        session.setCurrentQuestion(11);
-                        openExamConfirmationBedrock(player, subject);
+                if (clickedId == nextButtonIdx) {
+                    if (isAnswerEmpty(session, q, questionNum)) {
+                        session.setShowWarning(true);
+                        openExamQuestionBedrock(player, subject, questionNum);
                     } else {
-                        session.setCurrentQuestion(questionNum + 1);
-                        openExamQuestionBedrock(player, subject, questionNum + 1);
+                        session.setShowWarning(false);
+                        if (questionNum == 10) {
+                            session.setCurrentQuestion(11);
+                            openExamConfirmationBedrock(player, subject);
+                        } else {
+                            session.setCurrentQuestion(questionNum + 1);
+                            openExamQuestionBedrock(player, subject, questionNum + 1);
+                        }
+                    }
+                } else if (clickedId == prevButtonIdx) {
+                    session.setShowWarning(false);
+                    if (questionNum > 1) {
+                        session.setCurrentQuestion(questionNum - 1);
+                        openExamQuestionBedrock(player, subject, questionNum - 1);
+                    } else {
+                        session.setCurrentQuestion(0);
+                        openExamPreBedrock(player, subject);
                     }
                 }
             }
@@ -594,5 +643,26 @@ public class ExamGui {
             .build();
 
         FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
+    }
+
+    private boolean isAnswerEmpty(ExamSession session, Question q, int questionNum) {
+        if (q.getType() == QuestionType.MULTIPLE_CHOICE) {
+            String ans = session.getMcAnswer(questionNum - 1);
+            return ans == null || ans.isEmpty();
+        } else if (q.getType() == QuestionType.TRUE_FALSE) {
+            Boolean ans = session.getTfAnswer(questionNum - 7);
+            return ans == null;
+        } else if (q.getType() == QuestionType.COMPLEX_MULTIPLE_CHOICE) {
+            int complexIdx = questionNum - 9;
+            boolean anySelected = false;
+            for (int i = 0; i < 3; i++) {
+                if (session.getComplexOption(complexIdx, i)) {
+                    anySelected = true;
+                    break;
+                }
+            }
+            return !anySelected;
+        }
+        return false;
     }
 }
