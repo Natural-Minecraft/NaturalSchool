@@ -143,8 +143,11 @@ public class UIManager {
     // ─────────────────────────────────────────────────────────────────────────
 
     public void openTestExam(Player player) {
-        if (isBedrockPlayer(player)) bedrockHandler.openTestExam(player);
-        else examVariantsGui.openTestExamJava(player);
+        if (isBedrockPlayer(player)) {
+            new id.naturalsmp.naturalSchool.ui.gui.DropdownBedrockGui(plugin).open(player);
+        } else {
+            new id.naturalsmp.naturalSchool.ui.gui.DropdownJavaGui(plugin).open(player);
+        }
     }
 
     public void openExam1(Player player, boolean showWarning) {
@@ -178,7 +181,7 @@ public class UIManager {
 
     public void openExamPortal(Player player) {
         if (isBedrockPlayer(player)) bedrockHandler.openExamPortal(player);
-        else examGui.openExamPortalJava(player);
+        else examGui.openExamPortalJavaDropdown(player);
     }
 
     public void openExamClosed(Player player) {

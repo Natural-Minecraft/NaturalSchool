@@ -2,6 +2,11 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.5.6] - 2026-06-06
+### Added
+- **Java & Bedrock Dropdown Portal**: Added dropdown selector version of Exam Portal using Paper Dialog API's `SingleOptionDialogInput` for Java Edition and Geyser CustomForm's `dropdown` for Bedrock Edition.
+- **Separate Dropdown GUIs**: Created new `DropdownJavaGui` and `DropdownBedrockGui` classes to replicate the dropdown portal from scratch.
+
 ## [1.5.5] - 2026-06-06
 ### Changed
 - **Java Edition — Portal Subject Buttons Cleanup**: Removed color tags (`<aqua>...</aqua>`) from Java Edition exam portal subject buttons to display them with default client styling.

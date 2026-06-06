@@ -33,9 +33,97 @@ import java.util.List;
  */
 public class ExamGui {
 
-    public static final String GUI_VERSION = "1.5.5";
+    public static final String GUI_VERSION = "1.5.6";
 
     private final NaturalSchool plugin;
+
+    public void openExamPortalJavaDropdown(Player player) {
+        List<DialogBody> bodies = new ArrayList<>();
+        bodies.add(DialogBody.item(new ItemStack(Material.BOOKSHELF)).build());
+        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>Portal Ujian (Dropdown)</bold></gold>")));
+        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize(plugin.getExamMessage())));
+        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Pilih mata pelajaran untuk diuji di bawah ini:</yellow>")));
+
+        List<io.papermc.paper.registry.data.dialog.input.SingleOptionDialogInput.OptionEntry> entries = List.of(
+            io.papermc.paper.registry.data.dialog.input.SingleOptionDialogInput.OptionEntry.create("pengetahuan_umum", Component.text("Pengetahuan Umum"), false),
+            io.papermc.paper.registry.data.dialog.input.SingleOptionDialogInput.OptionEntry.create("ipa", Component.text("IPA"), false),
+            io.papermc.paper.registry.data.dialog.input.SingleOptionDialogInput.OptionEntry.create("ips", Component.text("IPS"), false),
+            io.papermc.paper.registry.data.dialog.input.SingleOptionDialogInput.OptionEntry.create("mtk", Component.text("Matematika (MTK)"), false),
+            io.papermc.paper.registry.data.dialog.input.SingleOptionDialogInput.OptionEntry.create("b_indo", Component.text("Bahasa Indonesia"), false),
+            io.papermc.paper.registry.data.dialog.input.SingleOptionDialogInput.OptionEntry.create("pkn", Component.text("PKN"), false),
+            io.papermc.paper.registry.data.dialog.input.SingleOptionDialogInput.OptionEntry.create("b_inggris", Component.text("Bahasa Inggris"), false)
+        );
+
+        ActionButton submitBtn = ActionButton.builder(Component.text("Lanjut"))
+            .action(DialogAction.customClick((view, audience) -> {
+                if (audience instanceof Player p) {
+                    String selectedSubject = view.getText("subject");
+                    if (selectedSubject != null && !selectedSubject.isEmpty()) {
+                        plugin.getUiManager().startExamSession(p, selectedSubject);
+                        plugin.getUiManager().openExamQuestion1(p, selectedSubject, false);
+                    }
+                }
+            }, ClickCallback.Options.builder().uses(1).build()))
+            .build();
+
+        ActionButton closeBtn = ActionButton.builder(Component.text("Tutup Portal"))
+            .action(DialogAction.customClick((view, audience) -> {
+                // Kembali ke gameplay
+            }, ClickCallback.Options.builder().uses(1).build()))
+            .build();
+
+        Dialog dialog = Dialog.create(builder -> builder.empty()
+            .base(DialogBase.builder(Component.text("Portal Ujian (Dropdown)"))
+                .canCloseWithEscape(true)
+                .body(bodies)
+                .inputs(List.of(
+                    io.papermc.paper.registry.data.dialog.input.DialogInput.singleOption("subject", Component.text("Mata Pelajaran"), entries).build()
+                ))
+                .build())
+            .type(DialogType.confirmation(submitBtn, closeBtn))
+        );
+
+        player.showDialog(dialog);
+    }
+
+    public void openExamPortalBedrockDropdown(Player player) {
+        String examMessage = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(
+            MiniMessage.miniMessage().deserialize(plugin.getExamMessage())
+        );
+
+        CustomForm form = CustomForm.builder()
+            .title("Portal Ujian (Dropdown)")
+            .label(examMessage + "\n\nPilih mata pelajaran untuk diuji di bawah ini:")
+            .dropdown("Mata Pelajaran",
+                "Pengetahuan Umum",
+                "IPA",
+                "IPS",
+                "Matematika (MTK)",
+                "Bahasa Indonesia",
+                "PKN",
+                "Bahasa Inggris"
+            )
+            .validResultHandler(response -> {
+                int selectedIndex = response.asDropdown(1); // Index 0 is label, Index 1 is dropdown
+                if (selectedIndex < 0) return;
+                String selectedSubject;
+                switch (selectedIndex) {
+                    case 0:  selectedSubject = "pengetahuan_umum"; break;
+                    case 1:  selectedSubject = "ipa";              break;
+                    case 2:  selectedSubject = "ips";              break;
+                    case 3:  selectedSubject = "mtk";              break;
+                    case 4:  selectedSubject = "b_indo";           break;
+                    case 5:  selectedSubject = "pkn";              break;
+                    case 6:  selectedSubject = "b_inggris";        break;
+                    default: selectedSubject = "pengetahuan_umum"; break;
+                }
+                plugin.getUiManager().startExamSession(player, selectedSubject);
+                plugin.getUiManager().openExamQuestion1(player, selectedSubject, false);
+            })
+            .build();
+
+        FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
+    }
 
     public ExamGui(NaturalSchool plugin) {
         this.plugin = plugin;
