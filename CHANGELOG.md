@@ -2,6 +2,10 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.5.5] - 2026-06-06
+### Changed
+- **Java Edition — Portal Subject Buttons Cleanup**: Removed color tags (`<aqua>...</aqua>`) from Java Edition exam portal subject buttons to display them with default client styling.
+
 ## [1.5.4] - 2026-06-06
 ### Changed
 - **Bedrock — Portal & Confirmation Layout Switch**: Swapped Bedrock exam portal layout to `SimpleForm` (vertical buttons list) and bedrock exam confirmation layout to `CustomForm` (with a dropdown selector actions menu).

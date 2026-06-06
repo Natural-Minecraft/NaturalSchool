@@ -33,7 +33,7 @@ import java.util.List;
  */
 public class ExamGui {
 
-    public static final String GUI_VERSION = "1.5.4";
+    public static final String GUI_VERSION = "1.5.5";
 
     private final NaturalSchool plugin;
 
@@ -54,13 +54,13 @@ public class ExamGui {
         bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Pilih mata pelajaran untuk diuji di bawah ini:</yellow>")));
 
         List<ActionButton> mapelButtons = new ArrayList<>();
-        mapelButtons.add(createMapelButton("<aqua>Pengetahuan Umum</aqua>", "pengetahuan_umum"));
-        mapelButtons.add(createMapelButton("<aqua>IPA</aqua>",              "ipa"));
-        mapelButtons.add(createMapelButton("<aqua>IPS</aqua>",              "ips"));
-        mapelButtons.add(createMapelButton("<aqua>Matematika (MTK)</aqua>", "mtk"));
-        mapelButtons.add(createMapelButton("<aqua>Bahasa Indonesia</aqua>", "b_indo"));
-        mapelButtons.add(createMapelButton("<aqua>PKN</aqua>",              "pkn"));
-        mapelButtons.add(createMapelButton("<aqua>Bahasa Inggris</aqua>",   "b_inggris"));
+        mapelButtons.add(createMapelButton("Pengetahuan Umum", "pengetahuan_umum"));
+        mapelButtons.add(createMapelButton("IPA",              "ipa"));
+        mapelButtons.add(createMapelButton("IPS",              "ips"));
+        mapelButtons.add(createMapelButton("Matematika (MTK)", "mtk"));
+        mapelButtons.add(createMapelButton("Bahasa Indonesia", "b_indo"));
+        mapelButtons.add(createMapelButton("PKN",              "pkn"));
+        mapelButtons.add(createMapelButton("Bahasa Inggris",   "b_inggris"));
 
         ActionButton closeBtn = ActionButton.builder(Component.text("Tutup Portal"))
             .action(DialogAction.customClick((view, audience) -> {
