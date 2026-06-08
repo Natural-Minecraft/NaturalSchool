@@ -332,4 +332,62 @@ public class SemesterManager {
         };
         return months[month - 1] + " " + year;
     }
+
+    /**
+     * Mengecek apakah waktu real-life saat ini adalah jadwal ujian semester.
+     * Jadwal ujian:
+     * - Hari: SUNDAY (dapat dikonfigurasi)
+     * - Jam: start-hour s/d end-hour (dapat dikonfigurasi)
+     * - Minggu ke-2 (tanggal 8-14) atau Minggu ke-4 / Akhir bulan (tanggal 22-31)
+     */
+    public boolean isAllowedExamTime() {
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+
+        // 1. Cek Hari
+        String configDay = plugin.getConfig().getString("exam-schedule.day-of-week", "SUNDAY").toUpperCase();
+        String currentDay = now.getDayOfWeek().name();
+        if (!currentDay.equals(configDay)) {
+            return false;
+        }
+
+        // 2. Cek Jam
+        int startHour = plugin.getConfig().getInt("exam-schedule.start-hour", 10);
+        int endHour = plugin.getConfig().getInt("exam-schedule.end-hour", 16);
+        int currentHour = now.getHour();
+        if (currentHour < startHour || currentHour >= endHour) {
+            return false;
+        }
+
+        // 3. Cek Minggu ke-2 (tanggal 8-14) atau Minggu ke-4/akhir bulan (tanggal 22-31)
+        int dayOfMonth = now.getDayOfMonth();
+        boolean isEndOfWeek2 = (dayOfMonth >= 8 && dayOfMonth <= 14);
+        boolean isEndOfWeek4Or5 = (dayOfMonth >= 22 && dayOfMonth <= 31);
+
+        return isEndOfWeek2 || isEndOfWeek4Or5;
+    }
+
+    public String getExamScheduleMessage() {
+        String configDay = plugin.getConfig().getString("exam-schedule.day-of-week", "SUNDAY").toLowerCase();
+        if (configDay.length() > 0) {
+            configDay = configDay.substring(0, 1).toUpperCase() + configDay.substring(1);
+        }
+        int startHour = plugin.getConfig().getInt("exam-schedule.start-hour", 10);
+        int endHour = plugin.getConfig().getInt("exam-schedule.end-hour", 16);
+
+        String dayIndo;
+        switch (configDay.toUpperCase()) {
+            case "SUNDAY": dayIndo = "Minggu"; break;
+            case "MONDAY": dayIndo = "Senin"; break;
+            case "TUESDAY": dayIndo = "Selasa"; break;
+            case "WEDNESDAY": dayIndo = "Rabu"; break;
+            case "THURSDAY": dayIndo = "Kamis"; break;
+            case "FRIDAY": dayIndo = "Jumat"; break;
+            case "SATURDAY": dayIndo = "Sabtu"; break;
+            default: dayIndo = configDay; break;
+        }
+
+        return "<red><bold>Portal Ujian Ditutup!</bold></red>\n" +
+               "<yellow>Ujian hanya dibuka pada hari " + dayIndo + " di akhir semester (Minggu ke-2 & ke-4) " +
+               "pukul " + String.format("%02d:00", startHour) + " - " + String.format("%02d:00", endHour) + " WIB.</yellow>";
+    }
 }

@@ -35,3 +35,9 @@ academic-settings:
 exam-settings:
   open: true
   message: "<yellow>Silakan pilih mata pelajaran untuk memulai ujian.</yellow>"
+
+# Schedule constraints for semester exams
+exam-schedule:
+  day-of-week: "SUNDAY"
+  start-hour: 10
+  end-hour: 16

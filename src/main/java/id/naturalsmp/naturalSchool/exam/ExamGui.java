@@ -47,6 +47,10 @@ public class ExamGui {
             openExamClosedJava(player);
             return;
         }
+        if (!plugin.getSemesterManager().isAllowedExamTime()) {
+            openExamScheduleClosedJava(player);
+            return;
+        }
 
         List<DialogBody> bodies = new ArrayList<>();
         bodies.add(DialogBody.item(new ItemStack(Material.BOOKSHELF)).build());
@@ -295,6 +299,29 @@ public class ExamGui {
         player.showDialog(dialog);
     }
 
+    /** [Java] Portal Ditutup — notice dengan pesan jadwal ujian semester. */
+    public void openExamScheduleClosedJava(Player player) {
+        List<DialogBody> bodies = new ArrayList<>();
+        bodies.add(DialogBody.item(new ItemStack(Material.BARRIER)).build());
+        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize(plugin.getSemesterManager().getExamScheduleMessage())));
+
+        ActionButton closeBtn = ActionButton.builder(Component.text("Tutup"))
+            .action(DialogAction.customClick((view, audience) -> {
+                // Kembali ke gameplay
+            }, ClickCallback.Options.builder().uses(1).build()))
+            .build();
+
+        Dialog dialog = Dialog.create(builder -> builder.empty()
+            .base(DialogBase.builder(Component.text("Portal Ditutup"))
+                .canCloseWithEscape(true)
+                .body(bodies)
+                .build())
+            .type(DialogType.notice(closeBtn))
+        );
+
+        player.showDialog(dialog);
+    }
+
     public void showErrorCode2Java(Player player) {
         List<DialogBody> bodies = List.of(
             DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<red><bold>Error</bold></red>")),
@@ -327,6 +354,10 @@ public class ExamGui {
         // Cek status portal dari ExamManager
         if ("CLOSED".equalsIgnoreCase(plugin.getExamManager().getPortalStatus())) {
             openExamClosedBedrock(player);
+            return;
+        }
+        if (!plugin.getSemesterManager().isAllowedExamTime()) {
+            openExamScheduleClosedBedrock(player);
             return;
         }
 
@@ -516,6 +547,21 @@ public class ExamGui {
         SimpleForm form = SimpleForm.builder()
             .title("Portal Ditutup")
             .content("Portal Sedang ditutup!\n\n" + adminMessage)
+            .button("Tutup")
+            .build();
+
+        FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
+    }
+
+    /** [Bedrock] Portal Ditutup — SimpleForm notice untuk jadwal ujian. */
+    public void openExamScheduleClosedBedrock(Player player) {
+        String scheduleMessage = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(
+            MiniMessage.miniMessage().deserialize(plugin.getSemesterManager().getExamScheduleMessage())
+        );
+
+        SimpleForm form = SimpleForm.builder()
+            .title("Portal Ditutup")
+            .content(scheduleMessage)
             .button("Tutup")
             .build();
 
