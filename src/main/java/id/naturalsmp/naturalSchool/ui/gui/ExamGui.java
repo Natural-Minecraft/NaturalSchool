@@ -381,29 +381,27 @@ public class ExamGui {
     // BEDROCK EDITION — Geyser/Floodgate Cumulus Form
     // ─────────────────────────────────────────────────────────────────────────
 
-    /** [Bedrock] Portal Ujian — pilih mata pelajaran (CustomForm Dropdown - 1 Submit Button). */
-    public void openExamPortalBedrockDropdown(Player player) {
+    /** [Bedrock] Portal Ujian — pilih mata pelajaran (SimpleForm). */
+    public void openExamPortalBedrock(Player player) {
         String examMessage = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(
             MiniMessage.miniMessage().deserialize(plugin.getExamMessage())
         );
 
-        CustomForm form = CustomForm.builder()
-            .title("Portal Ujian")
-            .label(examMessage + "\n\nPilih mata pelajaran untuk diuji di bawah ini:")
-            .dropdown("Mata Pelajaran",
-                "Pengetahuan Umum",
-                "IPA",
-                "IPS",
-                "Matematika (MTK)",
-                "Bahasa Indonesia",
-                "PKN",
-                "Bahasa Inggris"
-            )
+        SimpleForm form = SimpleForm.builder()
+            .title("PORTAL UJIAN")
+            .content(examMessage)
+            .button("Pengetahuan Umum")
+            .button("IPA")
+            .button("IPS")
+            .button("Matematika (MTK)")
+            .button("Bahasa Indonesia")
+            .button("PKN")
+            .button("Bahasa Inggris")
             .validResultHandler(response -> {
-                int selectedIndex = response.asDropdown(1);
-                if (selectedIndex < 0) return;
+                int clickedId = response.clickedButtonId();
+                if (clickedId < 0) return;
                 String selectedSubject;
-                switch (selectedIndex) {
+                switch (clickedId) {
                     case 0:  selectedSubject = "pengetahuan_umum"; break;
                     case 1:  selectedSubject = "ipa";              break;
                     case 2:  selectedSubject = "ips";              break;
@@ -445,7 +443,7 @@ public class ExamGui {
                     }
                 } else {
                     plugin.getUiManager().clearExamSession(player);
-                    openExamPortalBedrockDropdown(player);
+                    openExamPortalBedrock(player);
                 }
             })
             .closedResultHandler(() -> {
@@ -460,23 +458,24 @@ public class ExamGui {
     public void openExamQuestionBedrock(Player player, String subject, int questionNum) {
         ExamSession session = plugin.getUiManager().getExamSession(player.getUniqueId());
         if (session == null) {
-            openExamPortalBedrockDropdown(player);
+            openExamPortalBedrock(player);
             return;
         }
 
         ExamQuestions.QuestionSet questions = ExamQuestions.getQuestions(subject);
         if (questions == null) {
-            openExamPortalBedrockDropdown(player);
+            openExamPortalBedrock(player);
             return;
         }
 
         Question q = questions.getQuestion(questionNum - 1);
         if (q == null) {
-            openExamPortalBedrockDropdown(player);
+            openExamPortalBedrock(player);
             return;
         }
 
-        String contentText = "Mata Pelajaran: " + ExamQuestions.getSubjectDisplayName(subject) + "\n\n";
+        String contentText = "Mata Pelajaran: " + ExamQuestions.getSubjectDisplayName(subject) + "\n";
+        contentText += "Soal: " + questionNum + "/10\n\n";
         contentText += "Pertanyaan:\n" + q.getText() + "\n\n";
         if (session.isShowWarning()) {
             contentText += "\u00A7c\u00A7lPeringatan: Wajib memilih jawaban sebelum melanjutkan!\u00A7r\n\n";
@@ -486,7 +485,7 @@ public class ExamGui {
                     : "Pilih jawaban Anda:");
 
         SimpleForm.Builder builder = SimpleForm.builder()
-            .title("Ujian: Soal " + questionNum + "/10")
+            .title("Ujian")
             .content(contentText);
 
         if (q.getType() == QuestionType.MULTIPLE_CHOICE) {
@@ -510,6 +509,9 @@ public class ExamGui {
 
             boolean falseSelected = (currentAns != null && !currentAns);
             builder.button(falseSelected ? "\u00A7a\u00A7lSalah (Dipilih)" : "Salah");
+
+            builder.button("-");
+            builder.button("-");
         } else if (q.getType() == QuestionType.COMPLEX_MULTIPLE_CHOICE) {
             int complexIdx = questionNum - 9;
             for (int i = 0; i < 3; i++) {
@@ -522,59 +524,60 @@ public class ExamGui {
                 }
                 builder.button(buttonText);
             }
+            builder.button("-");
         }
 
-        // Tombol Navigasi: Sebelumnya terlebih dahulu, baru Selanjutnya/Berikutnya agar Selanjutnya berada di bagian paling bawah
-        builder.button("\u00A72\u00A7lSebelumnya");
-        builder.button(questionNum == 10 ? "\u00A76\u00A7lBerikutnya (Konfirmasi)" : "\u00A76\u00A7lSelanjutnya");
+        // Tombol Navigasi: Selalu berada di indeks 4 dan 5
+        builder.button("Sebelumnya");
+        builder.button(questionNum == 10 ? "Berikutnya" : "Selanjutnya");
 
         builder.validResultHandler(response -> {
             int clickedId = response.clickedButtonId();
-            int numChoices = (q.getType() == QuestionType.MULTIPLE_CHOICE) ? 4 
-                           : (q.getType() == QuestionType.TRUE_FALSE) ? 2 
-                           : 3;
+            if (clickedId < 0) return;
 
-            if (clickedId < numChoices) {
-                session.setShowWarning(false);
-                // User klik jawaban
+            if (clickedId <= 3) {
+                // Proses jawaban jika bukan tombol kosong
                 if (q.getType() == QuestionType.MULTIPLE_CHOICE) {
+                    session.setShowWarning(false);
                     String[] optChars = {"A", "B", "C", "D"};
                     session.setMcAnswer(questionNum - 1, optChars[clickedId]);
+                    openExamQuestionBedrock(player, subject, questionNum);
                 } else if (q.getType() == QuestionType.TRUE_FALSE) {
-                    session.setTfAnswer(questionNum - 7, clickedId == 0);
-                } else if (q.getType() == QuestionType.COMPLEX_MULTIPLE_CHOICE) {
-                    int complexIdx = questionNum - 9;
-                    boolean currentlySelected = session.getComplexOption(complexIdx, clickedId);
-                    session.setComplexOption(complexIdx, clickedId, !currentlySelected);
-                }
-                openExamQuestionBedrock(player, subject, questionNum); // Refresh UI
-            } else {
-                // User klik navigasi
-                int prevButtonIdx = numChoices;
-                int nextButtonIdx = numChoices + 1;
-
-                if (clickedId == prevButtonIdx) {
-                    session.setShowWarning(false);
-                    if (questionNum > 1) {
-                        session.setCurrentQuestion(questionNum - 1);
-                        openExamQuestionBedrock(player, subject, questionNum - 1);
-                    } else {
-                        session.setCurrentQuestion(0);
-                        openExamPreBedrock(player, subject);
-                    }
-                } else if (clickedId == nextButtonIdx) {
-                    if (isAnswerEmpty(session, q, questionNum)) {
-                        session.setShowWarning(true);
-                        openExamQuestionBedrock(player, subject, questionNum);
-                    } else {
+                    if (clickedId < 2) {
                         session.setShowWarning(false);
-                        if (questionNum == 10) {
-                            session.setCurrentQuestion(11);
-                            openExamConfirmationBedrock(player, subject);
-                        } else {
-                            session.setCurrentQuestion(questionNum + 1);
-                            openExamQuestionBedrock(player, subject, questionNum + 1);
-                        }
+                        session.setTfAnswer(questionNum - 7, clickedId == 0);
+                        openExamQuestionBedrock(player, subject, questionNum);
+                    }
+                } else if (q.getType() == QuestionType.COMPLEX_MULTIPLE_CHOICE) {
+                    if (clickedId < 3) {
+                        session.setShowWarning(false);
+                        int complexIdx = questionNum - 9;
+                        boolean currentlySelected = session.getComplexOption(complexIdx, clickedId);
+                        session.setComplexOption(complexIdx, clickedId, !currentlySelected);
+                        openExamQuestionBedrock(player, subject, questionNum);
+                    }
+                }
+            } else if (clickedId == 4) { // Sebelumnya
+                session.setShowWarning(false);
+                if (questionNum > 1) {
+                    session.setCurrentQuestion(questionNum - 1);
+                    openExamQuestionBedrock(player, subject, questionNum - 1);
+                } else {
+                    session.setCurrentQuestion(0);
+                    openExamPreBedrock(player, subject);
+                }
+            } else if (clickedId == 5) { // Selanjutnya / Berikutnya
+                if (isAnswerEmpty(session, q, questionNum)) {
+                    session.setShowWarning(true);
+                    openExamQuestionBedrock(player, subject, questionNum);
+                } else {
+                    session.setShowWarning(false);
+                    if (questionNum == 10) {
+                        session.setCurrentQuestion(11);
+                        openExamConfirmationBedrock(player, subject);
+                    } else {
+                        session.setCurrentQuestion(questionNum + 1);
+                        openExamQuestionBedrock(player, subject, questionNum + 1);
                     }
                 }
             }
@@ -588,7 +591,7 @@ public class ExamGui {
     public void openExamConfirmationBedrock(Player player, String subject) {
         ExamSession session = plugin.getUiManager().getExamSession(player.getUniqueId());
         if (session == null) {
-            openExamPortalBedrockDropdown(player);
+            openExamPortalBedrock(player);
             return;
         }
 

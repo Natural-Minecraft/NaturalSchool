@@ -78,7 +78,7 @@ public class BedrockHandlerImpl implements BedrockHandler {
     // ExamGui — /school exam (portal, pre-exam, questions 1-10, confirmation, closed)
     // ─────────────────────────────────────────────────────────────────────────
 
-    @Override public void openExamPortal(Player player)                                         { examGui.openExamPortalBedrockDropdown(player); }
+    @Override public void openExamPortal(Player player)                                         { examGui.openExamPortalBedrock(player); }
     @Override public void openExamPre(Player player, String subject)                            { examGui.openExamPreBedrock(player, subject); }
     @Override public void openExamQuestion(Player player, String subject, int questionNum)      { examGui.openExamQuestionBedrock(player, subject, questionNum); }
     @Override public void openExamConfirmation(Player player, String subject)                   { examGui.openExamConfirmationBedrock(player, subject); }
