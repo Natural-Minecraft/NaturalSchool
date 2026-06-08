@@ -47,7 +47,7 @@ public class ExamGui {
             openExamClosedJava(player);
             return;
         }
-        if (!plugin.getSemesterManager().isAllowedExamTime()) {
+        if (!plugin.isExamForceOpen() && !plugin.getSemesterManager().isAllowedExamTime()) {
             openExamScheduleClosedJava(player);
             return;
         }
@@ -356,7 +356,7 @@ public class ExamGui {
             openExamClosedBedrock(player);
             return;
         }
-        if (!plugin.getSemesterManager().isAllowedExamTime()) {
+        if (!plugin.isExamForceOpen() && !plugin.getSemesterManager().isAllowedExamTime()) {
             openExamScheduleClosedBedrock(player);
             return;
         }

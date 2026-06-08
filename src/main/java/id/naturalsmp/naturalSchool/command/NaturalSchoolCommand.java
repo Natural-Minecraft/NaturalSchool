@@ -186,9 +186,11 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
         String sub = args[1].toLowerCase();
         if ("open".equals(sub)) {
             plugin.setExamOpen(true);
-            sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>Portal Ujian berhasil DIBUKA.</green>"));
+            plugin.setExamForceOpen(true);
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>Portal Ujian berhasil DIBUKA secara paksa (Bypass jadwal semester).</green>"));
         } else if ("close".equals(sub)) {
             plugin.setExamOpen(false);
+            plugin.setExamForceOpen(false);
             sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Portal Ujian berhasil DITUTUP.</red>"));
         } else if ("message".equals(sub)) {
             if (args.length < 3) {

@@ -149,6 +149,16 @@ public final class NaturalSchool extends JavaPlugin {
         saveConfig();
     }
 
+    private boolean examForceOpen = false;
+
+    public boolean isExamForceOpen() {
+        return examForceOpen;
+    }
+
+    public void setExamForceOpen(boolean forceOpen) {
+        this.examForceOpen = forceOpen;
+    }
+
     public String getExamMessage() {
         return getConfig().getString("exam-settings.message", "<yellow>Silakan pilih mata pelajaran untuk memulai ujian.</yellow>");
     }
