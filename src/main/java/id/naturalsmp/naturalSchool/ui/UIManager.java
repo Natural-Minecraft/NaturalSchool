@@ -23,7 +23,7 @@ import java.util.logging.Level;
 
 public class UIManager {
 
-    public static final String GUI_VERSION = "1.6.2";
+    public static final String GUI_VERSION = "1.6.3";
 
     private static final MiniMessage MM = MiniMessage.miniMessage();
 
