@@ -2,6 +2,22 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.6.3] - 2026-06-08
+### Changed
+- **GUI Version Command**: Fixed `/ns gui version` to display the general GUI version reference from `UIManager.GUI_VERSION` instead of the old `ExamGui.GUI_VERSION`.
+- **Reload Command**: Integrated exam caching and webhook HTTP server reloading into `/ns reload` (`plugin.getExamManager().reload()`).
+- **Version Bump**: Upgraded project version to `1.6.3` in `pom.xml` and `UIManager.java`.
+
+## [1.6.2] - 2026-06-08
+### Added
+- **Data-Driven Exam Subsystem**: Replaced temporary hardcoded exam layouts with a dynamic system reading from local cache `exams.json` and MySQL tables (`nschool_exam_questions` and `nschool_core_state`).
+- **HTTP Webhook Server**: Integrated an internal HTTP server (listening on port 8080 `/school/exam/update`) to automatically sync and update the local `exams.json` cache on version bumps.
+- **Relocated Exam Subsystem**: Moved all Exam subsystem components (`ExamGui`, `ExamManager`, `ExamQuestions`, `ExamSession`, and `ExamVariantsGui`) into a dedicated package `id.naturalsmp.naturalSchool.exam`.
+- **Database Seeding**: Added tables initialization and default data seeding for `portal_status` and `exam_version` in `DatabaseManager.java`.
+
+### Removed
+- **Duplicate Cleanups**: Deleted duplicate legacy classes in the `ui` and `ui/gui` packages to clean up compilation references.
+
 ## [1.6.1] - 2026-06-06
 ### Added
 - **Mandatory Choice Validation**: Players are now blocked from advancing to the next question if they have not selected an answer. A red warning message is displayed directly under the question.
