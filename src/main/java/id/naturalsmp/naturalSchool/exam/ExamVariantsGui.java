@@ -1,6 +1,7 @@
-package id.naturalsmp.naturalSchool.ui.gui;
+package id.naturalsmp.naturalSchool.exam;
 
 import id.naturalsmp.naturalSchool.NaturalSchool;
+import id.naturalsmp.naturalSchool.ui.UIManager;
 import io.papermc.paper.dialog.Dialog;
 import io.papermc.paper.registry.data.dialog.DialogBase;
 import io.papermc.paper.registry.data.dialog.ActionButton;
@@ -42,8 +43,6 @@ public class ExamVariantsGui {
     // ─────────────────────────────────────────────────────────────────────────
     // JAVA EDITION — Paper Dialog API
     // ─────────────────────────────────────────────────────────────────────────
-
-
 
     /** [Java] Exam 1 — MCQ pilih-satu dengan validasi. */
     public void openExam1Java(Player player, boolean showMoreThanOneWarning) {
@@ -271,8 +270,6 @@ public class ExamVariantsGui {
     // ─────────────────────────────────────────────────────────────────────────
     // BEDROCK EDITION — Geyser/Floodgate Cumulus Form
     // ─────────────────────────────────────────────────────────────────────────
-
-
 
     /** [Bedrock] Exam 1 — MCQ pilih-satu dengan validasi (CustomForm toggle). */
     public void openExam1Bedrock(Player player, boolean showWarning) {

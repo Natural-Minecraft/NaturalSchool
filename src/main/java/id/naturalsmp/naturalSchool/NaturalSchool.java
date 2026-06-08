@@ -12,7 +12,7 @@ import id.naturalsmp.naturalSchool.command.NaturalSchoolCommand;
 import id.naturalsmp.naturalSchool.command.SchoolCommand;
 import id.naturalsmp.naturalSchool.placeholder.NaturalSchoolExpansion;
 import id.naturalsmp.naturalSchool.ui.UIManager;
-import id.naturalsmp.naturalSchool.ui.ExamManager;
+import id.naturalsmp.naturalSchool.exam.ExamManager;
 import id.naturalsmp.naturalSchool.semester.SemesterManager;
 import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;

@@ -1,9 +1,11 @@
 package id.naturalsmp.naturalSchool.ui;
 
 import id.naturalsmp.naturalSchool.NaturalSchool;
+import id.naturalsmp.naturalSchool.exam.ExamGui;
+import id.naturalsmp.naturalSchool.exam.ExamSession;
+import id.naturalsmp.naturalSchool.exam.ExamVariantsGui;
 import id.naturalsmp.naturalSchool.profile.StudentProfile;
 import id.naturalsmp.naturalSchool.profile.SchoolRank;
-import id.naturalsmp.naturalSchool.ui.gui.ExamVariantsGui;
 import id.naturalsmp.naturalSchool.ui.gui.ProfileGui;
 import id.naturalsmp.naturalSchool.ui.gui.RegistrationGui;
 import id.naturalsmp.naturalSchool.ui.gui.StaffPanelGui;
@@ -20,6 +22,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 
 public class UIManager {
+
+    public static final String GUI_VERSION = "1.6.2";
 
     private static final MiniMessage MM = MiniMessage.miniMessage();
 

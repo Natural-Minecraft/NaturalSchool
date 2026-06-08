@@ -1,4 +1,4 @@
-package id.naturalsmp.naturalSchool.ui;
+package id.naturalsmp.naturalSchool.exam;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -16,7 +16,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -163,6 +162,12 @@ public class ExamManager {
 
         // Start Webhook Server
         startWebhookServer();
+    }
+
+    public synchronized void reload() {
+        plugin.getLogger().info("Reloading Exam Subsystem configuration...");
+        stopWebhookServer();
+        initialize();
     }
 
     private List<ExamQuestions.Question> parseQuestionsFromRoot(JsonObject root) {

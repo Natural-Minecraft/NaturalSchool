@@ -1,9 +1,7 @@
-package id.naturalsmp.naturalSchool.ui;
+package id.naturalsmp.naturalSchool.exam;
 
 import id.naturalsmp.naturalSchool.NaturalSchool;
 import id.naturalsmp.naturalSchool.profile.StudentProfile;
-import id.naturalsmp.naturalSchool.ui.ExamQuestions;
-import id.naturalsmp.naturalSchool.ui.ExamSession;
 import io.papermc.paper.dialog.Dialog;
 import io.papermc.paper.registry.data.dialog.DialogBase;
 import io.papermc.paper.registry.data.dialog.ActionButton;
@@ -31,8 +29,6 @@ import java.util.List;
  * dalam satu file yang sama.
  */
 public class ExamGui {
-
-    public static final String GUI_VERSION = "1.6.2";
 
     private final NaturalSchool plugin;
 

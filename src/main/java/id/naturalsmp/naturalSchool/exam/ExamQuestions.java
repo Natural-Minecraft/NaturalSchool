@@ -1,4 +1,4 @@
-package id.naturalsmp.naturalSchool.ui;
+package id.naturalsmp.naturalSchool.exam;
 
 import java.util.List;
 

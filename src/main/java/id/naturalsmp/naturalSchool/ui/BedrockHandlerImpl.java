@@ -1,7 +1,8 @@
 package id.naturalsmp.naturalSchool.ui;
 
 import id.naturalsmp.naturalSchool.NaturalSchool;
-import id.naturalsmp.naturalSchool.ui.gui.ExamVariantsGui;
+import id.naturalsmp.naturalSchool.exam.ExamGui;
+import id.naturalsmp.naturalSchool.exam.ExamVariantsGui;
 import id.naturalsmp.naturalSchool.ui.gui.ProfileGui;
 import id.naturalsmp.naturalSchool.ui.gui.RegistrationGui;
 import id.naturalsmp.naturalSchool.ui.gui.StaffPanelGui;

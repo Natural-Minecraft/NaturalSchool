@@ -1,6 +1,7 @@
 package id.naturalsmp.naturalSchool.command;
 
 import id.naturalsmp.naturalSchool.NaturalSchool;
+import id.naturalsmp.naturalSchool.exam.ExamManager;
 import id.naturalsmp.naturalSchool.profile.SchoolRank;
 import id.naturalsmp.naturalSchool.profile.StudentProfile;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -118,6 +119,7 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
         plugin.reloadConfig();
         plugin.getRankPrefixConfig().load();
         plugin.getDatabaseManager().reload();
+        plugin.getExamManager().reload();
         sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>NaturalSchool configuration and database pool reloaded successfully.</green>"));
     }
 
@@ -551,7 +553,7 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
         String action = args[1].toLowerCase();
         if ("version".equals(action)) {
             sender.sendMessage(MiniMessage.miniMessage().deserialize(
-                "<gold>NaturalSchool GUI Version: <white>" + id.naturalsmp.naturalSchool.ui.ExamGui.GUI_VERSION + "</white></gold>"
+                "<gold>NaturalSchool GUI Version: <white>" + id.naturalsmp.naturalSchool.ui.UIManager.GUI_VERSION + "</white></gold>"
             ));
             return;
         }
