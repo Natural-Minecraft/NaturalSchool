@@ -551,7 +551,7 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
         String action = args[1].toLowerCase();
         if ("version".equals(action)) {
             sender.sendMessage(MiniMessage.miniMessage().deserialize(
-                "<gold>NaturalSchool GUI Version: <white>" + id.naturalsmp.naturalSchool.ui.gui.ExamGui.GUI_VERSION + "</white></gold>"
+                "<gold>NaturalSchool GUI Version: <white>" + id.naturalsmp.naturalSchool.ui.ExamGui.GUI_VERSION + "</white></gold>"
             ));
             return;
         }

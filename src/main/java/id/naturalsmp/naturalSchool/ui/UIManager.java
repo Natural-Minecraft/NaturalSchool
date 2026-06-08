@@ -3,7 +3,6 @@ package id.naturalsmp.naturalSchool.ui;
 import id.naturalsmp.naturalSchool.NaturalSchool;
 import id.naturalsmp.naturalSchool.profile.StudentProfile;
 import id.naturalsmp.naturalSchool.profile.SchoolRank;
-import id.naturalsmp.naturalSchool.ui.gui.ExamGui;
 import id.naturalsmp.naturalSchool.ui.gui.ExamVariantsGui;
 import id.naturalsmp.naturalSchool.ui.gui.ProfileGui;
 import id.naturalsmp.naturalSchool.ui.gui.RegistrationGui;

@@ -12,6 +12,7 @@ import id.naturalsmp.naturalSchool.command.NaturalSchoolCommand;
 import id.naturalsmp.naturalSchool.command.SchoolCommand;
 import id.naturalsmp.naturalSchool.placeholder.NaturalSchoolExpansion;
 import id.naturalsmp.naturalSchool.ui.UIManager;
+import id.naturalsmp.naturalSchool.ui.ExamManager;
 import id.naturalsmp.naturalSchool.semester.SemesterManager;
 import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -24,6 +25,7 @@ public final class NaturalSchool extends JavaPlugin {
     private UIManager uiManager;
     private NaturalSchoolAPI api;
     private SemesterManager semesterManager;
+    private ExamManager examManager;
 
     @Override
     public void onEnable() {
@@ -46,6 +48,10 @@ public final class NaturalSchool extends JavaPlugin {
         // Initialize Database Infrastructure
         databaseManager = new DatabaseManager(this);
         databaseManager.initialize();
+
+        // Initialize Exam Cache Manager & Webhook Server
+        examManager = new ExamManager(this);
+        examManager.initialize();
 
         // Initialize Profile Cache Manager
         profileManager = new ProfileManager(this, databaseManager);
@@ -94,6 +100,11 @@ public final class NaturalSchool extends JavaPlugin {
             profileManager.getProfileCache().clear();
         }
 
+        // Stop Webhook Server
+        if (examManager != null) {
+            examManager.stopWebhookServer();
+        }
+
         // Close Database Pools and Connections
         if (databaseManager != null) {
             databaseManager.close();
@@ -103,6 +114,10 @@ public final class NaturalSchool extends JavaPlugin {
 
     public DatabaseManager getDatabaseManager() {
         return databaseManager;
+    }
+
+    public ExamManager getExamManager() {
+        return examManager;
     }
 
     public ProfileManager getProfileManager() {

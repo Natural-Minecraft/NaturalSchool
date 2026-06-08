@@ -16,6 +16,10 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.UUID;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.logging.Level;
 
 public class DatabaseManager {
@@ -136,6 +140,8 @@ public class DatabaseManager {
     private void createTable() {
         String createTableSQL;
         String createLogTableSQL;
+        String createQuestionsTableSQL;
+        String createCoreStateTableSQL;
         if ("MYSQL".equals(storageType)) {
             createTableSQL = "CREATE TABLE IF NOT EXISTS nschool_students ("
                     + "uuid VARCHAR(36) PRIMARY KEY, "
@@ -153,6 +159,24 @@ public class DatabaseManager {
                     + "semester VARCHAR(6) NOT NULL, "
                     + "total_students_affected INT NOT NULL, "
                     + "timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+                    + ");";
+            createQuestionsTableSQL = "CREATE TABLE IF NOT EXISTS nschool_exam_questions ("
+                    + "id INT AUTO_INCREMENT PRIMARY KEY, "
+                    + "question_id VARCHAR(50) UNIQUE, "
+                    + "subject VARCHAR(50), "
+                    + "academic_class INT, "
+                    + "question_type VARCHAR(20), "
+                    + "question_text TEXT, "
+                    + "options JSON, "
+                    + "correct_answer TEXT, "
+                    + "correct_indices JSON, "
+                    + "INDEX idx_subject (subject), "
+                    + "INDEX idx_class (academic_class)"
+                    + ");";
+            createCoreStateTableSQL = "CREATE TABLE IF NOT EXISTS nschool_core_state ("
+                    + "state_key VARCHAR(50) PRIMARY KEY, "
+                    + "state_value TEXT, "
+                    + "description TEXT"
                     + ");";
         } else {
             createTableSQL = "CREATE TABLE IF NOT EXISTS nschool_students ("
@@ -172,12 +196,51 @@ public class DatabaseManager {
                     + "total_students_affected INTEGER NOT NULL, "
                     + "timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
                     + ");";
+            createQuestionsTableSQL = "CREATE TABLE IF NOT EXISTS nschool_exam_questions ("
+                    + "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                    + "question_id TEXT UNIQUE, "
+                    + "subject TEXT, "
+                    + "academic_class INTEGER, "
+                    + "question_type TEXT, "
+                    + "question_text TEXT, "
+                    + "options TEXT, "
+                    + "correct_answer TEXT, "
+                    + "correct_indices TEXT"
+                    + ");";
+            createCoreStateTableSQL = "CREATE TABLE IF NOT EXISTS nschool_core_state ("
+                    + "state_key TEXT PRIMARY KEY, "
+                    + "state_value TEXT, "
+                    + "description TEXT"
+                    + ");";
         }
 
         try (Connection conn = getConnection();
              Statement stmt = conn.createStatement()) {
             stmt.execute(createTableSQL);
             stmt.execute(createLogTableSQL);
+            stmt.execute(createQuestionsTableSQL);
+            stmt.execute(createCoreStateTableSQL);
+            
+            if (!"MYSQL".equals(storageType)) {
+                stmt.execute("CREATE INDEX IF NOT EXISTS idx_questions_sub ON nschool_exam_questions (subject);");
+                stmt.execute("CREATE INDEX IF NOT EXISTS idx_questions_cls ON nschool_exam_questions (academic_class);");
+            }
+            
+            // Seeding default values for nschool_core_state
+            String seedVersionSQL = "INSERT INTO nschool_core_state (state_key, state_value, description) "
+                    + "SELECT 'exam_version', '1', 'Exam questions version' "
+                    + "WHERE NOT EXISTS (SELECT 1 FROM nschool_core_state WHERE state_key = 'exam_version');";
+            String seedStatusSQL = "INSERT INTO nschool_core_state (state_key, state_value, description) "
+                    + "SELECT 'portal_status', 'CLOSED', 'Status of the exam portal' "
+                    + "WHERE NOT EXISTS (SELECT 1 FROM nschool_core_state WHERE state_key = 'portal_status');";
+            String seedMessageSQL = "INSERT INTO nschool_core_state (state_key, state_value, description) "
+                    + "SELECT 'portal_message', 'Portal Ujian Sedang ditutup!', 'Message displayed when the portal is closed' "
+                    + "WHERE NOT EXISTS (SELECT 1 FROM nschool_core_state WHERE state_key = 'portal_message');";
+            
+            stmt.execute(seedVersionSQL);
+            stmt.execute(seedStatusSQL);
+            stmt.execute(seedMessageSQL);
+
             plugin.getLogger().info("Database tables verified/created successfully.");
         } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to create database tables!", e);
@@ -320,5 +383,64 @@ public class DatabaseManager {
             }
         }
         return 0;
+    }
+
+    public String getCoreState(String key) {
+        String query = "SELECT state_value FROM nschool_core_state WHERE state_key = ?;";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setString(1, key);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("state_value");
+                }
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error loading core state for key: " + key, e);
+        }
+        return null;
+    }
+
+    public void setCoreState(String key, String value) {
+        String query;
+        if ("MYSQL".equals(storageType)) {
+            query = "INSERT INTO nschool_core_state (state_key, state_value) VALUES (?, ?) "
+                    + "ON DUPLICATE KEY UPDATE state_value = VALUES(state_value);";
+        } else {
+            query = "INSERT OR REPLACE INTO nschool_core_state (state_key, state_value) VALUES (?, ?);";
+        }
+
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setString(1, key);
+            ps.setString(2, value);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error setting core state for key: " + key, e);
+        }
+    }
+
+    public List<Map<String, Object>> getAllExamQuestions() {
+        List<Map<String, Object>> list = new ArrayList<>();
+        String query = "SELECT * FROM nschool_exam_questions;";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                Map<String, Object> map = new HashMap<>();
+                map.put("question_id", rs.getString("question_id"));
+                map.put("subject", rs.getString("subject"));
+                map.put("academic_class", rs.getInt("academic_class"));
+                map.put("question_type", rs.getString("question_type"));
+                map.put("question_text", rs.getString("question_text"));
+                map.put("options", rs.getString("options"));
+                map.put("correct_answer", rs.getString("correct_answer"));
+                map.put("correct_indices", rs.getString("correct_indices"));
+                list.add(map);
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error loading all exam questions from DB", e);
+        }
+        return list;
     }
 }

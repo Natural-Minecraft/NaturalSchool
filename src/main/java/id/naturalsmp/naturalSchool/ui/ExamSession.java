@@ -1,22 +1,16 @@
 package id.naturalsmp.naturalSchool.ui;
 
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ExamSession {
 
     private final UUID playerUuid;
     private final String subject;
-    private int currentQuestion; // 0 for Pre-Exam UI, 1-10 for questions, 11 for confirmation
+    private int currentQuestion; // 0 for Pre-Exam UI, 1-N for questions, N+1 for confirmation
     private boolean showWarning = false;
-
-    // Answers for questions 1 to 6 (index 0 to 5)
-    private final String[] mcAnswers = new String[6];
-
-    // Answers for questions 7 to 8 (index 0 to 1)
-    private final Boolean[] tfAnswers = new Boolean[2];
-
-    // Answers for questions 9 to 10 (index 0 to 1, each has 3 statements)
-    private final boolean[][] complexAnswers = new boolean[2][3];
+    private final Map<Integer, String> answers = new ConcurrentHashMap<>();
 
     public ExamSession(UUID playerUuid, String subject) {
         this.playerUuid = playerUuid;
@@ -49,49 +43,15 @@ public class ExamSession {
         this.currentQuestion = currentQuestion;
     }
 
-    public String getMcAnswer(int idx) {
-        if (idx < 0 || idx >= mcAnswers.length) {
-            return null;
-        }
-        return mcAnswers[idx];
+    public String getAnswer(int index) {
+        return answers.get(index);
     }
 
-    public void setMcAnswer(int idx, String answer) {
-        if (idx >= 0 && idx < mcAnswers.length) {
-            mcAnswers[idx] = answer;
-        }
-    }
-
-    public Boolean getTfAnswer(int idx) {
-        if (idx < 0 || idx >= tfAnswers.length) {
-            return null;
-        }
-        return tfAnswers[idx];
-    }
-
-    public void setTfAnswer(int idx, Boolean answer) {
-        if (idx >= 0 && idx < tfAnswers.length) {
-            tfAnswers[idx] = answer;
-        }
-    }
-
-    public boolean[] getComplexAnswer(int idx) {
-        if (idx < 0 || idx >= complexAnswers.length) {
-            return null;
-        }
-        return complexAnswers[idx];
-    }
-
-    public boolean getComplexOption(int idx, int optionIdx) {
-        if (idx < 0 || idx >= complexAnswers.length || optionIdx < 0 || optionIdx >= 3) {
-            return false;
-        }
-        return complexAnswers[idx][optionIdx];
-    }
-
-    public void setComplexOption(int idx, int optionIdx, boolean val) {
-        if (idx >= 0 && idx < complexAnswers.length && optionIdx >= 0 && optionIdx < 3) {
-            complexAnswers[idx][optionIdx] = val;
+    public void setAnswer(int index, String answer) {
+        if (answer == null) {
+            answers.remove(index);
+        } else {
+            answers.put(index, answer);
         }
     }
 }
