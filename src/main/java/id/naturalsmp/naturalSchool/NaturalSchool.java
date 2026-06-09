@@ -200,6 +200,10 @@ public final class NaturalSchool extends JavaPlugin {
         return semesterManager;
     }
 
+    public ClassManager getClassManager() {
+        return classManager;
+    }
+
     public boolean isExamOpen() {
         return getConfig().getBoolean("exam-settings.open", true);
     }
