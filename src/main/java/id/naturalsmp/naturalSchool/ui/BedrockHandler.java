@@ -17,6 +17,7 @@ public interface BedrockHandler {
     void openExam4(Player player);
     void openExam5(Player player, boolean showWarning);
     void openExamPortal(Player player);
+    void openPortalUjian(Player player, String examType, String warning);
     void openExamPre(Player player, String packetId);
     void openExamQuestion(Player player, String packetId, int questionNum);
     void openExamConfirmation(Player player, String packetId);

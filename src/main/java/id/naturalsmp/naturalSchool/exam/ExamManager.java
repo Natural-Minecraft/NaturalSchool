@@ -28,10 +28,12 @@ public class ExamManager {
     private final Object cacheLock = new Object();
 
     // Cache variables
-    private volatile String portalStatus = "CLOSED";
-    private volatile String portalMessage = "Portal Ujian Sedang ditutup!";
     private volatile int examVersion = 1;
-    private final List<String> activePacketIds = new ArrayList<>();
+    private final List<String> activeUhPackets = new ArrayList<>();
+    private volatile String portalSemesterStatus = "CLOSED"; // "OPEN"/"CLOSED"
+    private final List<String> currentActiveSemesterPackets = new ArrayList<>();
+    private volatile boolean semesterBreak = false; // "true"/"false"
+    private volatile String portalMessage = "Portal Ujian Sedang ditutup!";
     private final List<ExamQuestions.Question> cachedQuestions = new ArrayList<>();
 
     private HttpServer server;
@@ -43,9 +45,11 @@ public class ExamManager {
     public void initialize() {
         // 1. Pull core state from database synchronously on boot
         String dbVersionStr = plugin.getDatabaseManager().getCoreState("exam_version");
-        String dbStatus = plugin.getDatabaseManager().getCoreState("portal_status");
-        String dbMessage = plugin.getDatabaseManager().getCoreState("portal_message");
-        String dbActivePacketsStr = plugin.getDatabaseManager().getCoreState("active_packet_ids");
+        String dbPortalSemesterStatus = plugin.getDatabaseManager().getCoreState("portal_semester_status");
+        String dbPortalMessage = plugin.getDatabaseManager().getCoreState("portal_message");
+        String dbActiveUhPacketsStr = plugin.getDatabaseManager().getCoreState("active_uh_packets");
+        String dbCurrentActiveSemesterPacketsStr = plugin.getDatabaseManager().getCoreState("current_active_semester_packets");
+        String dbIsSemesterBreak = plugin.getDatabaseManager().getCoreState("is_semester_break");
 
         int dbVersion = 1;
         if (dbVersionStr != null) {
@@ -57,9 +61,11 @@ public class ExamManager {
         }
 
         final int finalDbVersion = dbVersion;
-        final String dbStatusVal = dbStatus != null ? dbStatus : "CLOSED";
-        final String dbMessageVal = dbMessage != null ? dbMessage : "Portal Ujian Sedang ditutup!";
-        final String dbActivePacketsVal = dbActivePacketsStr != null ? dbActivePacketsStr : "[]";
+        final String dbPortalSemesterStatusVal = dbPortalSemesterStatus != null ? dbPortalSemesterStatus : "CLOSED";
+        final String dbPortalMessageVal = dbPortalMessage != null ? dbPortalMessage : "Portal Ujian Sedang ditutup!";
+        final String dbActiveUhPacketsVal = dbActiveUhPacketsStr != null ? dbActiveUhPacketsStr : "[]";
+        final String dbCurrentActiveSemesterPacketsVal = dbCurrentActiveSemesterPacketsStr != null ? dbCurrentActiveSemesterPacketsStr : "[]";
+        final String dbIsSemesterBreakVal = dbIsSemesterBreak != null ? dbIsSemesterBreak : "false";
 
         // 2. Read local exams.json file
         File file = new File(plugin.getDataFolder(), "exams.json");
@@ -88,13 +94,20 @@ public class ExamManager {
                     List<Map<String, Object>> rows = plugin.getDatabaseManager().getAllExamQuestions();
                     JsonObject root = new JsonObject();
                     root.addProperty("version", finalDbVersion);
-                    root.addProperty("portal_status", dbStatusVal);
-                    root.addProperty("portal_message", dbMessageVal);
+                    root.addProperty("portal_semester_status", dbPortalSemesterStatusVal);
+                    root.addProperty("portal_message", dbPortalMessageVal);
+                    root.addProperty("is_semester_break", dbIsSemesterBreakVal);
                     
                     try {
-                        root.add("active_packet_ids", JsonParser.parseString(dbActivePacketsVal));
+                        root.add("active_uh_packets", JsonParser.parseString(dbActiveUhPacketsVal));
                     } catch (Exception e) {
-                        root.add("active_packet_ids", new JsonArray());
+                        root.add("active_uh_packets", new JsonArray());
+                    }
+
+                    try {
+                        root.add("current_active_semester_packets", JsonParser.parseString(dbCurrentActiveSemesterPacketsVal));
+                    } catch (Exception e) {
+                        root.add("current_active_semester_packets", new JsonArray());
                     }
 
                     JsonArray questionsArray = new JsonArray();
@@ -140,18 +153,8 @@ public class ExamManager {
                     }
 
                     // Parse into memory
-                    List<ExamQuestions.Question> tempQuestions = parseQuestionsFromRoot(root);
-                    List<String> tempActivePackets = parseActivePacketIdsFromRoot(root);
-                    synchronized (cacheLock) {
-                        this.examVersion = finalDbVersion;
-                        this.portalStatus = dbStatusVal;
-                        this.portalMessage = dbMessageVal;
-                        this.activePacketIds.clear();
-                        this.activePacketIds.addAll(tempActivePackets);
-                        this.cachedQuestions.clear();
-                        this.cachedQuestions.addAll(tempQuestions);
-                    }
-                    plugin.getLogger().info("exams.json successfully populated from database with " + tempQuestions.size() + " questions.");
+                    parseMemoryFromRoot(root);
+                    plugin.getLogger().info("exams.json successfully populated from database with " + cachedQuestions.size() + " questions.");
                 } catch (Exception e) {
                     plugin.getLogger().log(Level.SEVERE, "Failed to synchronize exams from database asynchronously", e);
                 }
@@ -161,22 +164,8 @@ public class ExamManager {
             plugin.getLogger().info("exams.json is up-to-date. Loading questions into memory...");
             try (FileReader reader = new FileReader(file, StandardCharsets.UTF_8)) {
                 JsonObject root = JsonParser.parseReader(reader).getAsJsonObject();
-                int ver = root.has("version") ? root.get("version").getAsInt() : localVersion;
-                String status = root.has("portal_status") ? root.get("portal_status").getAsString() : "CLOSED";
-                String msg = root.has("portal_message") ? root.get("portal_message").getAsString() : "Portal Ujian Sedang ditutup!";
-                
-                List<ExamQuestions.Question> tempQuestions = parseQuestionsFromRoot(root);
-                List<String> tempActivePackets = parseActivePacketIdsFromRoot(root);
-                synchronized (cacheLock) {
-                    this.examVersion = ver;
-                    this.portalStatus = status;
-                    this.portalMessage = msg;
-                    this.activePacketIds.clear();
-                    this.activePacketIds.addAll(tempActivePackets);
-                    this.cachedQuestions.clear();
-                    this.cachedQuestions.addAll(tempQuestions);
-                }
-                plugin.getLogger().info("exams.json successfully loaded with " + tempQuestions.size() + " questions.");
+                parseMemoryFromRoot(root);
+                plugin.getLogger().info("exams.json successfully loaded with " + cachedQuestions.size() + " questions.");
             } catch (Exception e) {
                 plugin.getLogger().log(Level.SEVERE, "Failed to load local exams.json", e);
             }
@@ -190,6 +179,49 @@ public class ExamManager {
         plugin.getLogger().info("Reloading Exam Subsystem configuration...");
         stopWebhookServer();
         initialize();
+    }
+
+    private void parseMemoryFromRoot(JsonObject root) {
+        synchronized (cacheLock) {
+            if (root.has("version")) {
+                this.examVersion = root.get("version").getAsInt();
+            }
+            if (root.has("portal_semester_status")) {
+                this.portalSemesterStatus = root.get("portal_semester_status").getAsString();
+            } else if (root.has("portal_status")) {
+                this.portalSemesterStatus = root.get("portal_status").getAsString();
+            }
+            if (root.has("portal_message")) {
+                this.portalMessage = root.get("portal_message").getAsString();
+            }
+            if (root.has("is_semester_break")) {
+                this.semesterBreak = "true".equalsIgnoreCase(root.get("is_semester_break").getAsString());
+            }
+
+            this.activeUhPackets.clear();
+            if (root.has("active_uh_packets") && !root.get("active_uh_packets").isJsonNull()) {
+                JsonArray arr = root.getAsJsonArray("active_uh_packets");
+                for (JsonElement el : arr) {
+                    this.activeUhPackets.add(el.getAsString());
+                }
+            } else if (root.has("active_packet_ids") && !root.get("active_packet_ids").isJsonNull()) {
+                JsonArray arr = root.getAsJsonArray("active_packet_ids");
+                for (JsonElement el : arr) {
+                    this.activeUhPackets.add(el.getAsString());
+                }
+            }
+
+            this.currentActiveSemesterPackets.clear();
+            if (root.has("current_active_semester_packets") && !root.get("current_active_semester_packets").isJsonNull()) {
+                JsonArray arr = root.getAsJsonArray("current_active_semester_packets");
+                for (JsonElement el : arr) {
+                    this.currentActiveSemesterPackets.add(el.getAsString());
+                }
+            }
+
+            this.cachedQuestions.clear();
+            this.cachedQuestions.addAll(parseQuestionsFromRoot(root));
+        }
     }
 
     private List<ExamQuestions.Question> parseQuestionsFromRoot(JsonObject root) {
@@ -231,21 +263,6 @@ public class ExamManager {
         return temp;
     }
 
-    private List<String> parseActivePacketIdsFromRoot(JsonObject root) {
-        List<String> list = new ArrayList<>();
-        if (root.has("active_packet_ids") && !root.get("active_packet_ids").isJsonNull()) {
-            try {
-                JsonArray arr = root.getAsJsonArray("active_packet_ids");
-                for (JsonElement el : arr) {
-                    list.add(el.getAsString());
-                }
-            } catch (Exception e) {
-                // ignore
-            }
-        }
-        return list;
-    }
-
     public void startWebhookServer() {
         int port = plugin.getConfig().getInt("api.port", 8080);
         try {
@@ -267,9 +284,6 @@ public class ExamManager {
 
                     // Parse & Validate
                     JsonObject root = JsonParser.parseString(body).getAsJsonObject();
-                    int version = root.get("version").getAsInt();
-                    String status = root.get("portal_status").getAsString();
-                    String msg = root.get("portal_message").getAsString();
 
                     // Overwrite local file
                     File file = new File(plugin.getDataFolder(), "exams.json");
@@ -278,19 +292,9 @@ public class ExamManager {
                     }
 
                     // Update memory
-                    List<ExamQuestions.Question> tempQuestions = parseQuestionsFromRoot(root);
-                    List<String> tempActivePackets = parseActivePacketIdsFromRoot(root);
-                    synchronized (cacheLock) {
-                        this.examVersion = version;
-                        this.portalStatus = status;
-                        this.portalMessage = msg;
-                        this.activePacketIds.clear();
-                        this.activePacketIds.addAll(tempActivePackets);
-                        this.cachedQuestions.clear();
-                        this.cachedQuestions.addAll(tempQuestions);
-                    }
+                    parseMemoryFromRoot(root);
 
-                    plugin.getLogger().info("Exam Subsystem updated via webhook. Version: " + version + ", Status: " + status);
+                    plugin.getLogger().info("Exam Subsystem updated via webhook. Version: " + examVersion + ", Status: " + portalSemesterStatus);
 
                     // Response 200 OK
                     byte[] response = "{\"status\":\"success\",\"message\":\"Exam cache updated successfully\"}".getBytes(StandardCharsets.UTF_8);
@@ -327,22 +331,42 @@ public class ExamManager {
         }
     }
 
-    public String getPortalStatus() {
-        return portalStatus;
+    public int getExamVersion() {
+        return examVersion;
+    }
+
+    public String getPortalSemesterStatus() {
+        return portalSemesterStatus;
     }
 
     public String getPortalMessage() {
         return portalMessage;
     }
 
-    public int getExamVersion() {
-        return examVersion;
+    public boolean isSemesterBreak() {
+        return semesterBreak;
     }
 
-    public List<String> getActivePacketIds() {
+    public List<String> getActiveUhPackets() {
         synchronized (cacheLock) {
-            return new ArrayList<>(activePacketIds);
+            return new ArrayList<>(activeUhPackets);
         }
+    }
+
+    public List<String> getCurrentActiveSemesterPackets() {
+        synchronized (cacheLock) {
+            return new ArrayList<>(currentActiveSemesterPackets);
+        }
+    }
+
+    @Deprecated
+    public String getPortalStatus() {
+        return portalSemesterStatus;
+    }
+
+    @Deprecated
+    public List<String> getActivePacketIds() {
+        return getActiveUhPackets();
     }
 
     public List<ExamQuestions.Question> getQuestionsForPacket(String packetId) {
@@ -357,4 +381,3 @@ public class ExamManager {
         return list;
     }
 }
-

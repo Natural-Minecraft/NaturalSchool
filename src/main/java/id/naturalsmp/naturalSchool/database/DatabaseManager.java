@@ -445,20 +445,28 @@ public class DatabaseManager {
                     stmt.execute("INSERT INTO nschool_core_state (state_key, state_value, description) VALUES "
                             + "('exam_version', '1', 'Exam questions version') ON DUPLICATE KEY UPDATE state_key = state_key;");
                     stmt.execute("INSERT INTO nschool_core_state (state_key, state_value, description) VALUES "
-                            + "('portal_status', 'CLOSED', 'Status of the exam portal') ON DUPLICATE KEY UPDATE state_key = state_key;");
+                            + "('portal_semester_status', 'CLOSED', 'Semester exam status (OPEN/CLOSED)') ON DUPLICATE KEY UPDATE state_key = state_key;");
                     stmt.execute("INSERT INTO nschool_core_state (state_key, state_value, description) VALUES "
                             + "('portal_message', 'Portal Ujian Sedang ditutup!', 'Message displayed when the portal is closed') ON DUPLICATE KEY UPDATE state_key = state_key;");
                     stmt.execute("INSERT INTO nschool_core_state (state_key, state_value, description) VALUES "
-                            + "('active_packet_ids', '[]', 'JSON list of active packet IDs') ON DUPLICATE KEY UPDATE state_key = state_key;");
+                            + "('active_uh_packets', '[]', 'JSON list of active UH packet IDs') ON DUPLICATE KEY UPDATE state_key = state_key;");
+                    stmt.execute("INSERT INTO nschool_core_state (state_key, state_value, description) VALUES "
+                            + "('current_active_semester_packets', '[]', 'JSON list of active semester packet IDs') ON DUPLICATE KEY UPDATE state_key = state_key;");
+                    stmt.execute("INSERT INTO nschool_core_state (state_key, state_value, description) VALUES "
+                            + "('is_semester_break', 'false', 'Status of semester break') ON DUPLICATE KEY UPDATE state_key = state_key;");
                 } else {
                     stmt.execute("INSERT OR IGNORE INTO nschool_core_state (state_key, state_value, description) VALUES "
                             + "('exam_version', '1', 'Exam questions version');");
                     stmt.execute("INSERT OR IGNORE INTO nschool_core_state (state_key, state_value, description) VALUES "
-                            + "('portal_status', 'CLOSED', 'Status of the exam portal');");
+                            + "('portal_semester_status', 'CLOSED', 'Semester exam status (OPEN/CLOSED)');");
                     stmt.execute("INSERT OR IGNORE INTO nschool_core_state (state_key, state_value, description) VALUES "
                             + "('portal_message', 'Portal Ujian Sedang ditutup!');");
                     stmt.execute("INSERT OR IGNORE INTO nschool_core_state (state_key, state_value, description) VALUES "
-                            + "('active_packet_ids', '[]');");
+                            + "('active_uh_packets', '[]');");
+                    stmt.execute("INSERT OR IGNORE INTO nschool_core_state (state_key, state_value, description) VALUES "
+                            + "('current_active_semester_packets', '[]');");
+                    stmt.execute("INSERT OR IGNORE INTO nschool_core_state (state_key, state_value, description) VALUES "
+                            + "('is_semester_break', 'false');");
                 }
 
                 plugin.getLogger().info("Database tables verified/created successfully.");
@@ -639,6 +647,23 @@ public class DatabaseManager {
         } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "Error setting core state for key: " + key, e);
         }
+    }
+
+    public List<String> getAttemptedPackets(UUID uuid) {
+        List<String> list = new ArrayList<>();
+        String query = "SELECT packet_id FROM nschool_student_exam_attempts WHERE uuid = ?;";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setString(1, uuid.toString());
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    list.add(rs.getString("packet_id"));
+                }
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Failed to load attempts for " + uuid, e);
+        }
+        return list;
     }
 
     public boolean hasAttemptedExam(UUID uuid, String packetId) {

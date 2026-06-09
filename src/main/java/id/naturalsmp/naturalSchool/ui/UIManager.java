@@ -23,7 +23,7 @@ import java.util.logging.Level;
 
 public class UIManager {
 
-    public static final String GUI_VERSION = "1.6.4";
+    public static final String GUI_VERSION = "1.6.5";
 
     private static final MiniMessage MM = MiniMessage.miniMessage();
 
@@ -179,6 +179,15 @@ public class UIManager {
     public void openExamPortal(Player player) {
         if (isBedrockPlayer(player)) bedrockHandler.openExamPortal(player);
         else examGui.openExamPortalJava(player);
+    }
+
+    public void openPortalUjian(Player player, String examType) {
+        openPortalUjian(player, examType, null);
+    }
+
+    public void openPortalUjian(Player player, String examType, String warning) {
+        if (isBedrockPlayer(player)) bedrockHandler.openPortalUjian(player, examType, warning);
+        else examGui.openPortalUjianJava(player, examType, warning);
     }
 
     public void openExamClosed(Player player) {

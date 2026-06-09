@@ -25,8 +25,8 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * GUI mandiri untuk alur Ujian utama (/school exam).
- * Terintegrasi dengan Packet-Based Architecture dan validasi asinkron (v1.6.4).
+ * Single-engine centralized dynamic GUI for the Exam Subsystem (v1.6.5).
+ * Powered by State-Passing and anti-retake database isolation.
  */
 public class ExamGui {
 
@@ -36,25 +36,9 @@ public class ExamGui {
         this.plugin = plugin;
     }
 
-    private List<String> getAvailablePacketsForPlayer(Player player) {
-        StudentProfile profile = plugin.getProfileManager().getProfile(player.getUniqueId());
-        int playerClass = (profile != null) ? profile.getAcademicClass() : 1;
-        List<String> activePackets = plugin.getExamManager().getActivePacketIds();
-        List<String> available = new ArrayList<>();
-        for (String packetId : activePackets) {
-            String[] parts = packetId.split("_");
-            if (parts.length >= 2) {
-                try {
-                    int packetClass = Integer.parseInt(parts[1]);
-                    if (packetClass == playerClass) {
-                        available.add(packetId);
-                    }
-                } catch (NumberFormatException e) {
-                    // Ignore malformed packets
-                }
-            }
-        }
-        return available;
+    private String cleanBedrockText(String text) {
+        if (text == null) return "";
+        return text.replaceAll("§[0-9a-fk-orA-FK-OR]", "").replace("○", "").replace("●", "").trim();
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -62,103 +46,204 @@ public class ExamGui {
     // ─────────────────────────────────────────────────────────────────────────
 
     public void openExamPortalJava(Player player) {
-        // Validation A: Portal Closed
-        if ("CLOSED".equalsIgnoreCase(plugin.getExamManager().getPortalStatus())) {
+        // Global Portal master check
+        if (!plugin.isExamOpen()) {
             openExamClosedJava(player);
             return;
         }
-        if (!plugin.isExamForceOpen() && !plugin.getSemesterManager().isAllowedExamTime()) {
-            openExamScheduleClosedJava(player);
-            return;
-        }
 
-        List<String> availablePackets = getAvailablePacketsForPlayer(player);
-        if (availablePackets.isEmpty()) {
-            List<DialogBody> bodies = List.of(
-                DialogBody.item(new ItemStack(Material.BARRIER)).build(),
-                DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<red><bold>Portal Ujian</bold></red>")),
-                DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Tidak ada paket ujian aktif untuk kelas Anda saat ini.</yellow>"))
-            );
+        List<DialogBody> bodies = List.of(
+            DialogBody.item(new ItemStack(Material.BOOKSHELF)).build(),
+            DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>Portal Sekolah</bold></gold>")),
+            DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Selamat datang di Portal Sekolah</yellow>"))
+        );
 
-            ActionButton closeBtn = ActionButton.builder(Component.text("Tutup Portal"))
-                .action(DialogAction.customClick((view, audience) -> {}, ClickCallback.Options.builder().uses(1).build()))
-                .build();
-
-            Dialog dialog = Dialog.create(builder -> builder.empty()
-                .base(DialogBase.builder(Component.text("Portal Ujian"))
-                    .canCloseWithEscape(true)
-                    .body(bodies)
-                    .build())
-                .type(DialogType.notice(closeBtn))
-            );
-            player.showDialog(dialog);
-            return;
-        }
-
-        List<DialogBody> bodies = new ArrayList<>();
-        bodies.add(DialogBody.item(new ItemStack(Material.BOOKSHELF)).build());
-        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>Portal Ujian</bold></gold>")));
-        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize(plugin.getExamManager().getPortalMessage())));
-        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Pilih paket ujian di bawah ini untuk memulai:</yellow>")));
-
-        List<ActionButton> packetButtons = new ArrayList<>();
-        for (String packetId : availablePackets) {
-            String[] parts = packetId.split("_");
-            int subjectId = 1;
-            String examType = "";
-            try {
-                subjectId = Integer.parseInt(parts[0]);
-                examType = parts[2];
-            } catch (Exception e) {}
-            String subjectName = ExamQuestions.getSubjectName(subjectId);
-            String displayName = subjectName + " (" + examType + ")";
-
-            packetButtons.add(ActionButton.builder(Component.text(displayName))
+        List<ActionButton> buttons = List.of(
+            ActionButton.builder(Component.text("[ Ujian Harian ]"))
                 .action(DialogAction.customClick((view, audience) -> {
                     if (audience instanceof Player p) {
-                        runPreExamChecksJava(p, packetId);
+                        openPortalUjianJava(p, "UH", null);
                     }
                 }, ClickCallback.Options.builder().uses(1).build()))
-                .build());
-        }
+                .build(),
+            ActionButton.builder(Component.text("[ Ujian Semester ]"))
+                .action(DialogAction.customClick((view, audience) -> {
+                    if (audience instanceof Player p) {
+                        openPortalUjianJava(p, "UTS", null);
+                    }
+                }, ClickCallback.Options.builder().uses(1).build()))
+                .build(),
+            ActionButton.builder(Component.text("[ Ujian Akhir Semester / Kelulusan ]"))
+                .action(DialogAction.customClick((view, audience) -> {
+                    if (audience instanceof Player p) {
+                        openPortalUjianJava(p, "UAS", null);
+                    }
+                }, ClickCallback.Options.builder().uses(1).build()))
+                .build()
+        );
 
-        ActionButton closeBtn = ActionButton.builder(Component.text("Tutup Portal"))
+        ActionButton closeBtn = ActionButton.builder(Component.text("Tutup"))
             .action(DialogAction.customClick((view, audience) -> {}, ClickCallback.Options.builder().uses(1).build()))
             .build();
 
         Dialog dialog = Dialog.create(builder -> builder.empty()
-            .base(DialogBase.builder(Component.text("Portal Ujian"))
+            .base(DialogBase.builder(Component.text("Portal Sekolah"))
                 .canCloseWithEscape(true)
                 .body(bodies)
                 .build())
-            .type(DialogType.multiAction(packetButtons, closeBtn, 2))
+            .type(DialogType.multiAction(buttons, closeBtn, 2))
         );
 
         player.showDialog(dialog);
     }
 
-    private void runPreExamChecksJava(Player player, String packetId) {
-        CompletableFuture.supplyAsync(() -> plugin.getDatabaseManager().hasAttemptedExam(player.getUniqueId(), packetId),
+    public void openPortalUjianJava(Player player, String examType, String warning) {
+        CompletableFuture.supplyAsync(() -> plugin.getDatabaseManager().getAttemptedPackets(player.getUniqueId()),
+            runnable -> Bukkit.getScheduler().runTaskAsynchronously(plugin, runnable))
+        .thenAccept(attempts -> {
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                renderPortalUjianJava(player, examType, warning, attempts);
+            });
+        });
+    }
+
+    private void renderPortalUjianJava(Player player, String examType, String warning, List<String> attemptedPackets) {
+        StudentProfile profile = plugin.getProfileManager().getProfile(player.getUniqueId());
+        if (profile == null) {
+            showErrorCode2Java(player);
+            return;
+        }
+        int academicClass = profile.getAcademicClass();
+        String name = player.getName();
+        String nis = profile.getNis() != null ? profile.getNis() : "";
+
+        List<DialogBody> bodies = new ArrayList<>();
+        bodies.add(DialogBody.item(new ItemStack(Material.BOOK)).build());
+        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>Portal Ujian - " + examType + "</bold></gold>")));
+        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gray>Siswa: " + name + " | NIS: " + nis + " | Kelas: " + academicClass + "</gray>")));
+
+        if (warning != null && !warning.isEmpty()) {
+            bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize(warning)));
+        } else {
+            bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Pilih mata pelajaran di bawah ini untuk memulai:</yellow>")));
+        }
+
+        List<ActionButton> buttons = new ArrayList<>();
+
+        int startHour = plugin.getConfig().getInt("exam-schedule.start-hour", 10);
+        int endHour = plugin.getConfig().getInt("exam-schedule.end-hour", 16);
+        String hours = String.format("%02d:00 - %02d:00", startHour, endHour);
+
+        for (int subjectId = 1; subjectId <= 7; subjectId++) {
+            String subjectName = ExamQuestions.getSubjectName(subjectId);
+            String targetPacketId = subjectId + "_" + academicClass + "_" + examType;
+
+            // Determine status
+            boolean completed = attemptedPackets.contains(targetPacketId);
+            boolean active = false;
+            if ("UH".equalsIgnoreCase(examType)) {
+                active = plugin.getExamManager().getActiveUhPackets().contains(targetPacketId);
+            } else {
+                active = "OPEN".equalsIgnoreCase(plugin.getExamManager().getPortalSemesterStatus())
+                    && plugin.getExamManager().getCurrentActiveSemesterPackets().contains(targetPacketId);
+            }
+
+            String statusLegend;
+            if (completed) {
+                statusLegend = "<green>[Sudah Selesai]</green>";
+            } else if (active) {
+                statusLegend = "<yellow>[Aktif]</yellow>";
+            } else {
+                statusLegend = "<red>[Tidak Aktif]</red>";
+            }
+
+            String buttonText = subjectName + " - " + statusLegend + " (" + hours + ")";
+
+            buttons.add(ActionButton.builder(MiniMessage.miniMessage().deserialize(buttonText))
+                .action(DialogAction.customClick((view, audience) -> {
+                    if (audience instanceof Player p) {
+                        handleSubjectClickJava(p, examType, targetPacketId);
+                    }
+                }, ClickCallback.Options.builder().uses(1).build()))
+                .build());
+        }
+
+        ActionButton backBtn = ActionButton.builder(Component.text("Kembali"))
+            .action(DialogAction.customClick((view, audience) -> {
+                if (audience instanceof Player p) {
+                    openExamPortalJava(p);
+                }
+            }, ClickCallback.Options.builder().uses(1).build()))
+            .build();
+
+        Dialog dialog = Dialog.create(builder -> builder.empty()
+            .base(DialogBase.builder(Component.text("Portal Ujian - " + examType))
+                .canCloseWithEscape(true)
+                .body(bodies)
+                .build())
+            .type(DialogType.multiAction(buttons, backBtn, 2))
+        );
+
+        player.showDialog(dialog);
+    }
+
+    private void handleSubjectClickJava(Player player, String examType, String targetPacketId) {
+        // Scenario 1: "TIDAK AKTIF"
+        boolean active = false;
+        if ("UH".equalsIgnoreCase(examType)) {
+            active = plugin.getExamManager().getActiveUhPackets().contains(targetPacketId);
+        } else {
+            active = "OPEN".equalsIgnoreCase(plugin.getExamManager().getPortalSemesterStatus())
+                && plugin.getExamManager().getCurrentActiveSemesterPackets().contains(targetPacketId);
+        }
+
+        if (!active) {
+            openPortalUjianJava(player, examType, "<red><bold>[!] Error: Mata pelajaran tersebut sedang tidak aktif!</bold></red>");
+            return;
+        }
+
+        // Scenario 2: "TIDAK ADA SOAL"
+        List<ExamQuestions.Question> questions = plugin.getExamManager().getQuestionsForPacket(targetPacketId);
+        if (questions == null || questions.isEmpty()) {
+            openPortalUjianJava(player, examType, "<yellow><bold>[!] Peringatan: Tidak ada soal pada mata pelajaran tersebut! (Hubungi Pengawas)</bold></yellow>");
+            return;
+        }
+
+        // Scenario 3: "SUDAH MENGERJAKAN"
+        CompletableFuture.supplyAsync(() -> plugin.getDatabaseManager().hasAttemptedExam(player.getUniqueId(), targetPacketId),
             runnable -> Bukkit.getScheduler().runTaskAsynchronously(plugin, runnable))
         .thenAccept(hasAttempted -> {
             Bukkit.getScheduler().runTask(plugin, () -> {
-                // Validation B: Anti-Retake Shield
                 if (hasAttempted) {
-                    showErrorCode3Java(player);
-                    return;
+                    player.closeInventory();
+                    showExamAlreadyCompletedJava(player);
+                } else {
+                    plugin.getUiManager().startExamSession(player, targetPacketId);
+                    plugin.getUiManager().openExamPre(player, targetPacketId);
                 }
-
-                // Validation C: Fail-Safe Empty Packet Check
-                List<ExamQuestions.Question> questions = plugin.getExamManager().getQuestionsForPacket(packetId);
-                if (questions == null || questions.isEmpty()) {
-                    showErrorCode2Java(player);
-                    return;
-                }
-
-                plugin.getUiManager().startExamSession(player, packetId);
-                plugin.getUiManager().openExamPre(player, packetId);
             });
         });
+    }
+
+    public void showExamAlreadyCompletedJava(Player player) {
+        List<DialogBody> bodies = List.of(
+            DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<green><bold>Ujian Selesai</bold></green>")),
+            DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("§aKamu telah menyelesaikan Ujian untuk mata pelajaran ini. Silahkan tunggu hasil keluar!"))
+        );
+
+        ActionButton okBtn = ActionButton.builder(Component.text("Ok"))
+            .action(DialogAction.customClick((view, audience) -> {}, ClickCallback.Options.builder().uses(1).build()))
+            .build();
+
+        Dialog dialog = Dialog.create(builder -> builder.empty()
+            .base(DialogBase.builder(Component.text("Ujian Selesai"))
+                .canCloseWithEscape(true)
+                .body(bodies)
+                .build())
+            .type(DialogType.notice(okBtn))
+        );
+
+        player.showDialog(dialog);
     }
 
     public void openExamPreJava(Player player, String packetId) {
@@ -190,7 +275,7 @@ public class ExamGui {
             .action(DialogAction.customClick((view, audience) -> {
                 if (audience instanceof Player p) {
                     plugin.getUiManager().clearExamSession(p);
-                    plugin.getUiManager().openExamPortal(p);
+                    openPortalUjianJava(p, parts[2], null);
                 }
             }, ClickCallback.Options.builder().uses(1).build()))
             .build();
@@ -328,7 +413,6 @@ public class ExamGui {
         ActionButton confirmBtn = ActionButton.builder(Component.text("Kirim Jawaban"))
             .action(DialogAction.customClick((view, audience) -> {
                 if (audience instanceof Player p) {
-                    // Submit & Upsert rapor asynchronously
                     int[] score = ExamQuestions.evaluateExam(session, questions);
                     double pctScore = questions != null && !questions.isEmpty()
                         ? ((double) score[0] / questions.size()) * 100.0
@@ -342,7 +426,7 @@ public class ExamGui {
                         // 1. Save attempt
                         plugin.getDatabaseManager().saveExamAttempt(p.getUniqueId(), nis, packetId, pctScore);
 
-                        // 2. Parse packet_id
+                        // 2. Parse packet_id dynamically
                         String[] parts = packetId.split("_");
                         int subjectId = Integer.parseInt(parts[0]);
                         int academicClass = Integer.parseInt(parts[1]);
@@ -352,7 +436,6 @@ public class ExamGui {
                         plugin.getDatabaseManager().upsertStudentRapor(p.getUniqueId(), nis, academicClass, semester, subjectId, examType, pctScore);
                     }, runnable -> Bukkit.getScheduler().runTaskAsynchronously(plugin, runnable))
                     .thenRun(() -> {
-                        // Return to main thread
                         Bukkit.getScheduler().runTask(plugin, () -> {
                             p.sendTitle("§a§lUJIAN SELESAI", "§7Benar: §a" + score[0] + " §f| Salah: §c" + score[1], 20, 100, 20);
                             p.playSound(p.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
@@ -405,51 +488,10 @@ public class ExamGui {
         player.showDialog(dialog);
     }
 
-    public void openExamScheduleClosedJava(Player player) {
-        List<DialogBody> bodies = new ArrayList<>();
-        bodies.add(DialogBody.item(new ItemStack(Material.BARRIER)).build());
-        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize(plugin.getSemesterManager().getExamScheduleMessage())));
-
-        ActionButton closeBtn = ActionButton.builder(Component.text("Tutup"))
-            .action(DialogAction.customClick((view, audience) -> {}, ClickCallback.Options.builder().uses(1).build()))
-            .build();
-
-        Dialog dialog = Dialog.create(builder -> builder.empty()
-            .base(DialogBase.builder(Component.text("Portal Ditutup"))
-                .canCloseWithEscape(true)
-                .body(bodies)
-                .build())
-            .type(DialogType.notice(closeBtn))
-        );
-
-        player.showDialog(dialog);
-    }
-
     public void showErrorCode2Java(Player player) {
         List<DialogBody> bodies = List.of(
             DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<red><bold>Error</bold></red>")),
             DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("Maaf terjadi kesalahan (Code: 2). Jika masalah tetap berlanjut silahkan hubungi kementrian"))
-        );
-
-        ActionButton okBtn = ActionButton.builder(Component.text("Ok"))
-            .action(DialogAction.customClick((view, audience) -> {}, ClickCallback.Options.builder().uses(1).build()))
-            .build();
-
-        Dialog dialog = Dialog.create(builder -> builder.empty()
-            .base(DialogBase.builder(Component.text("Error"))
-                .canCloseWithEscape(true)
-                .body(bodies)
-                .build())
-            .type(DialogType.notice(okBtn))
-        );
-
-        player.showDialog(dialog);
-    }
-
-    public void showErrorCode3Java(Player player) {
-        List<DialogBody> bodies = List.of(
-            DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<red><bold>Error</bold></red>")),
-            DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("Kamu sudah menyelesaikan paket ujian ini dan tidak dapat mengulangnya kembali!"))
         );
 
         ActionButton okBtn = ActionButton.builder(Component.text("Ok"))
@@ -472,82 +514,164 @@ public class ExamGui {
     // ─────────────────────────────────────────────────────────────────────────
 
     public void openExamPortalBedrock(Player player) {
-        // Validation A: Portal Closed
-        if ("CLOSED".equalsIgnoreCase(plugin.getExamManager().getPortalStatus())) {
+        // Global Portal master check
+        if (!plugin.isExamOpen()) {
             openExamClosedBedrock(player);
             return;
         }
-        if (!plugin.isExamForceOpen() && !plugin.getSemesterManager().isAllowedExamTime()) {
-            openExamScheduleClosedBedrock(player);
+
+        SimpleForm form = SimpleForm.builder()
+            .title("Portal Sekolah")
+            .content("Selamat datang di Portal Sekolah")
+            .button("[ Ujian Harian ]")
+            .button("[ Ujian Semester ]")
+            .button("[ Ujian Ujian Akhir Semester / Kelulusan ]") // Matches standard request UI path
+            .button("Tutup")
+            .validResultHandler(response -> {
+                int clickedId = response.clickedButtonId();
+                if (clickedId == 0) {
+                    openPortalUjianBedrock(player, "UH", null);
+                } else if (clickedId == 1) {
+                    openPortalUjianBedrock(player, "UTS", null);
+                } else if (clickedId == 2) {
+                    openPortalUjianBedrock(player, "UAS", null);
+                }
+            })
+            .build();
+
+        FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
+    }
+
+    public void openPortalUjianBedrock(Player player, String examType, String warning) {
+        CompletableFuture.supplyAsync(() -> plugin.getDatabaseManager().getAttemptedPackets(player.getUniqueId()),
+            runnable -> Bukkit.getScheduler().runTaskAsynchronously(plugin, runnable))
+        .thenAccept(attempts -> {
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                renderPortalUjianBedrock(player, examType, warning, attempts);
+            });
+        });
+    }
+
+    private void renderPortalUjianBedrock(Player player, String examType, String warning, List<String> attemptedPackets) {
+        StudentProfile profile = plugin.getProfileManager().getProfile(player.getUniqueId());
+        if (profile == null) {
+            showErrorCode2Bedrock(player);
             return;
         }
+        int academicClass = profile.getAcademicClass();
+        String name = player.getName();
+        String nis = profile.getNis() != null ? profile.getNis() : "";
 
-        List<String> availablePackets = getAvailablePacketsForPlayer(player);
-        if (availablePackets.isEmpty()) {
-            SimpleForm form = SimpleForm.builder()
-                .title("Portal Ujian")
-                .content("Tidak ada paket ujian aktif untuk kelas Anda saat ini.")
-                .button("Tutup")
-                .build();
-            FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
-            return;
+        String title = "Portal Ujian - " + examType;
+
+        StringBuilder content = new StringBuilder();
+        content.append("Siswa: ").append(name).append(" | NIS: ").append(nis).append(" | Kelas: ").append(academicClass).append("\n\n");
+        if (warning != null && !warning.isEmpty()) {
+            content.append(warning).append("\n\n");
+        } else {
+            content.append("Pilih mata pelajaran di bawah ini untuk memulai:\n\n");
         }
 
-        String examMessage = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(
-            MiniMessage.miniMessage().deserialize(plugin.getExamManager().getPortalMessage())
-        );
+        SimpleForm.Builder formBuilder = SimpleForm.builder()
+            .title(title)
+            .content(content.toString());
 
-        CustomForm.Builder formBuilder = CustomForm.builder()
-            .title("Portal Ujian")
-            .label(examMessage + "\n\nPilih paket ujian di bawah ini untuk memulai:");
+        int startHour = plugin.getConfig().getInt("exam-schedule.start-hour", 10);
+        int endHour = plugin.getConfig().getInt("exam-schedule.end-hour", 16);
+        String hours = String.format("%02d:00 - %02d:00", startHour, endHour);
 
-        List<String> dropdownOptions = new ArrayList<>();
-        for (String packetId : availablePackets) {
-            String[] parts = packetId.split("_");
-            int subjectId = 1;
-            String examType = "";
-            try {
-                subjectId = Integer.parseInt(parts[0]);
-                examType = parts[2];
-            } catch (Exception e) {}
+        List<String> targetPacketIds = new ArrayList<>();
+
+        for (int subjectId = 1; subjectId <= 7; subjectId++) {
             String subjectName = ExamQuestions.getSubjectName(subjectId);
-            dropdownOptions.add(subjectName + " (" + examType + ")");
+            String targetPacketId = subjectId + "_" + academicClass + "_" + examType;
+            targetPacketIds.add(targetPacketId);
+
+            // Determine status
+            boolean completed = attemptedPackets.contains(targetPacketId);
+            boolean active = false;
+            if ("UH".equalsIgnoreCase(examType)) {
+                active = plugin.getExamManager().getActiveUhPackets().contains(targetPacketId);
+            } else {
+                active = "OPEN".equalsIgnoreCase(plugin.getExamManager().getPortalSemesterStatus())
+                    && plugin.getExamManager().getCurrentActiveSemesterPackets().contains(targetPacketId);
+            }
+
+            String statusLegend;
+            if (completed) {
+                statusLegend = "[Sudah Selesai]";
+            } else if (active) {
+                statusLegend = "[Aktif]";
+            } else {
+                statusLegend = "[Tidak Aktif]";
+            }
+
+            String buttonText = subjectName + " - " + statusLegend + " (" + hours + ")";
+            formBuilder.button(buttonText);
         }
 
-        formBuilder.dropdown("Daftar Ujian Aktif", dropdownOptions);
+        formBuilder.button("Kembali");
+
         formBuilder.validResultHandler(response -> {
-            int selectedIndex = response.asDropdown(1);
-            if (selectedIndex >= 0 && selectedIndex < availablePackets.size()) {
-                String packetId = availablePackets.get(selectedIndex);
-                runPreExamChecksBedrock(player, packetId);
+            int clickedId = response.clickedButtonId();
+            if (clickedId == 7) {
+                openExamPortalBedrock(player);
+                return;
+            }
+            if (clickedId >= 0 && clickedId < 7) {
+                String targetPacketId = targetPacketIds.get(clickedId);
+                handleSubjectClickBedrock(player, examType, targetPacketId);
             }
         });
 
         FloodgateApi.getInstance().sendForm(player.getUniqueId(), formBuilder.build());
     }
 
-    private void runPreExamChecksBedrock(Player player, String packetId) {
-        CompletableFuture.supplyAsync(() -> plugin.getDatabaseManager().hasAttemptedExam(player.getUniqueId(), packetId),
+    private void handleSubjectClickBedrock(Player player, String examType, String targetPacketId) {
+        // Scenario 1: "TIDAK AKTIF"
+        boolean active = false;
+        if ("UH".equalsIgnoreCase(examType)) {
+            active = plugin.getExamManager().getActiveUhPackets().contains(targetPacketId);
+        } else {
+            active = "OPEN".equalsIgnoreCase(plugin.getExamManager().getPortalSemesterStatus())
+                && plugin.getExamManager().getCurrentActiveSemesterPackets().contains(targetPacketId);
+        }
+
+        if (!active) {
+            openPortalUjianBedrock(player, examType, "§c[!] Error: Mata pelajaran tersebut sedang tidak aktif!");
+            return;
+        }
+
+        // Scenario 2: "TIDAK ADA SOAL"
+        List<ExamQuestions.Question> questions = plugin.getExamManager().getQuestionsForPacket(targetPacketId);
+        if (questions == null || questions.isEmpty()) {
+            openPortalUjianBedrock(player, examType, "§e[!] Peringatan: Tidak ada soal pada mata pelajaran tersebut! (Hubungi Pengawas)");
+            return;
+        }
+
+        // Scenario 3: "SUDAH MENGERJAKAN"
+        CompletableFuture.supplyAsync(() -> plugin.getDatabaseManager().hasAttemptedExam(player.getUniqueId(), targetPacketId),
             runnable -> Bukkit.getScheduler().runTaskAsynchronously(plugin, runnable))
         .thenAccept(hasAttempted -> {
             Bukkit.getScheduler().runTask(plugin, () -> {
-                // Validation B: Anti-Retake Shield
                 if (hasAttempted) {
-                    showErrorCode3Bedrock(player);
-                    return;
+                    showExamAlreadyCompletedBedrock(player);
+                } else {
+                    plugin.getUiManager().startExamSession(player, targetPacketId);
+                    plugin.getUiManager().openExamPre(player, targetPacketId);
                 }
-
-                // Validation C: Fail-Safe Empty Packet Check
-                List<ExamQuestions.Question> questions = plugin.getExamManager().getQuestionsForPacket(packetId);
-                if (questions == null || questions.isEmpty()) {
-                    showErrorCode2Bedrock(player);
-                    return;
-                }
-
-                plugin.getUiManager().startExamSession(player, packetId);
-                plugin.getUiManager().openExamPre(player, packetId);
             });
         });
+    }
+
+    public void showExamAlreadyCompletedBedrock(Player player) {
+        SimpleForm form = SimpleForm.builder()
+            .title("Ujian Selesai")
+            .content("§aKamu telah menyelesaikan Ujian untuk mata pelajaran ini. Silahkan tunggu hasil keluar!")
+            .button("Ok")
+            .build();
+
+        FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
     }
 
     public void openExamPreBedrock(Player player, String packetId) {
@@ -571,7 +695,7 @@ public class ExamGui {
                     plugin.getUiManager().openExamQuestion(player, packetId, 1);
                 } else {
                     plugin.getUiManager().clearExamSession(player);
-                    plugin.getUiManager().openExamPortal(player);
+                    openPortalUjianBedrock(player, parts[2], null);
                 }
             })
             .closedResultHandler(() -> openExamPreBedrock(player, packetId))
@@ -614,8 +738,10 @@ public class ExamGui {
             for (int i = 0; i < finalOptions.size(); i++) {
                 String optText = finalOptions.get(i);
                 String optChar = String.valueOf((char) ('A' + i));
-                // STRIPPED of raw formatting codes and decorative symbols to avoid Bedrock layout bugs
-                String btnText = optChar + ". " + optText + (optChar.equalsIgnoreCase(currentAns) ? " (Terpilih)" : "");
+                
+                // Sanitize Bedrock UI buttons option texts of raw format codes and decorative prefixes
+                String optTextClean = cleanBedrockText(optText);
+                String btnText = optChar + ". " + optTextClean + (optChar.equalsIgnoreCase(currentAns) ? " (Terpilih)" : "");
                 optionButtons.add(btnText);
             }
         }
@@ -689,7 +815,6 @@ public class ExamGui {
             .validResultHandler(response -> {
                 int selectedIndex = response.asDropdown(1);
                 if (selectedIndex == 0) {
-                    // Submit & Recalculate asynchronously
                     int[] score = ExamQuestions.evaluateExam(session, questions);
                     double pctScore = questions != null && !questions.isEmpty()
                         ? ((double) score[0] / questions.size()) * 100.0
@@ -703,7 +828,7 @@ public class ExamGui {
                         // 1. Save attempt
                         plugin.getDatabaseManager().saveExamAttempt(player.getUniqueId(), nis, packetId, pctScore);
 
-                        // 2. Parse packet_id
+                        // 2. Parse packet_id dynamically
                         String[] parts = packetId.split("_");
                         int subjectId = Integer.parseInt(parts[0]);
                         int academicClass = Integer.parseInt(parts[1]);
@@ -713,7 +838,6 @@ public class ExamGui {
                         plugin.getDatabaseManager().upsertStudentRapor(player.getUniqueId(), nis, academicClass, semester, subjectId, examType, pctScore);
                     }, runnable -> Bukkit.getScheduler().runTaskAsynchronously(plugin, runnable))
                     .thenRun(() -> {
-                        // Return to main thread
                         Bukkit.getScheduler().runTask(plugin, () -> {
                             player.sendTitle("§a§lUJIAN SELESAI", "§7Benar: §a" + score[0] + " §f| Salah: §c" + score[1], 20, 100, 20);
                             player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
@@ -746,34 +870,10 @@ public class ExamGui {
         FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
     }
 
-    public void openExamScheduleClosedBedrock(Player player) {
-        String scheduleMessage = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(
-            MiniMessage.miniMessage().deserialize(plugin.getSemesterManager().getExamScheduleMessage())
-        );
-
-        SimpleForm form = SimpleForm.builder()
-            .title("Portal Ditutup")
-            .content(scheduleMessage)
-            .button("Tutup")
-            .build();
-
-        FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
-    }
-
     public void showErrorCode2Bedrock(Player player) {
         SimpleForm form = SimpleForm.builder()
             .title("Error")
             .content("Maaf terjadi kesalahan (Code: 2). Jika masalah tetap berlanjut silahkan hubungi kementrian")
-            .button("Ok")
-            .build();
-
-        FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
-    }
-
-    public void showErrorCode3Bedrock(Player player) {
-        SimpleForm form = SimpleForm.builder()
-            .title("Error")
-            .content("Kamu sudah menyelesaikan paket ujian ini dan tidak dapat mengulangnya kembali!")
             .button("Ok")
             .build();
 
