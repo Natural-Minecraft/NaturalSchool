@@ -140,8 +140,12 @@ public class DatabaseManager {
     private void createTable() {
         String createTableSQL;
         String createLogTableSQL;
+        String createSubjectsTableSQL;
         String createQuestionsTableSQL;
+        String createAttemptsTableSQL;
+        String createRaporTableSQL;
         String createCoreStateTableSQL;
+        
         if ("MYSQL".equals(storageType)) {
             createTableSQL = "CREATE TABLE IF NOT EXISTS nschool_students ("
                     + "uuid VARCHAR(36) PRIMARY KEY, "
@@ -160,18 +164,48 @@ public class DatabaseManager {
                     + "total_students_affected INT NOT NULL, "
                     + "timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
                     + ");";
+            createSubjectsTableSQL = "CREATE TABLE IF NOT EXISTS nschool_subjects ("
+                    + "id INT AUTO_INCREMENT PRIMARY KEY, "
+                    + "subject_code VARCHAR(50) NOT NULL UNIQUE, "
+                    + "subject_name VARCHAR(100) NOT NULL"
+                    + ");";
             createQuestionsTableSQL = "CREATE TABLE IF NOT EXISTS nschool_exam_questions ("
                     + "id INT AUTO_INCREMENT PRIMARY KEY, "
-                    + "question_id VARCHAR(50) UNIQUE, "
-                    + "subject VARCHAR(50), "
-                    + "academic_class INT, "
-                    + "question_type VARCHAR(20), "
-                    + "question_text TEXT, "
-                    + "options JSON, "
-                    + "correct_answer TEXT, "
-                    + "correct_indices JSON, "
-                    + "INDEX idx_subject (subject), "
-                    + "INDEX idx_class (academic_class)"
+                    + "packet_id VARCHAR(50) NOT NULL, "
+                    + "academic_class INT NOT NULL, "
+                    + "question_number INT NOT NULL, "
+                    + "question_type VARCHAR(50) NOT NULL, "
+                    + "question_text TEXT NOT NULL, "
+                    + "options JSON NULL, "
+                    + "correct_answer TEXT NULL, "
+                    + "correct_indices JSON NULL, "
+                    + "INDEX idx_packet_id (packet_id), "
+                    + "INDEX idx_academic_class (academic_class)"
+                    + ");";
+            createAttemptsTableSQL = "CREATE TABLE IF NOT EXISTS nschool_student_exam_attempts ("
+                    + "id INT AUTO_INCREMENT PRIMARY KEY, "
+                    + "uuid VARCHAR(36) NOT NULL, "
+                    + "nis VARCHAR(20) NOT NULL, "
+                    + "packet_id VARCHAR(50) NOT NULL, "
+                    + "final_score DOUBLE NOT NULL, "
+                    + "completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+                    + "INDEX idx_uuid (uuid), "
+                    + "INDEX idx_packet (packet_id)"
+                    + ");";
+            createRaporTableSQL = "CREATE TABLE IF NOT EXISTS nschool_student_rapor ("
+                    + "id INT AUTO_INCREMENT PRIMARY KEY, "
+                    + "uuid VARCHAR(36) NOT NULL, "
+                    + "nis VARCHAR(20) NOT NULL, "
+                    + "academic_class INT NOT NULL, "
+                    + "semester VARCHAR(10) NOT NULL, "
+                    + "subject_id INT NOT NULL, "
+                    + "score_harian DOUBLE NOT NULL DEFAULT 0.0, "
+                    + "score_uts DOUBLE NOT NULL DEFAULT 0.0, "
+                    + "score_uas DOUBLE NOT NULL DEFAULT 0.0, "
+                    + "final_score DOUBLE NOT NULL DEFAULT 0.0, "
+                    + "grade_letter VARCHAR(2) NOT NULL, "
+                    + "status VARCHAR(20) NOT NULL, "
+                    + "UNIQUE KEY uq_rapor (uuid, academic_class, semester, subject_id)"
                     + ");";
             createCoreStateTableSQL = "CREATE TABLE IF NOT EXISTS nschool_core_state ("
                     + "state_key VARCHAR(50) PRIMARY KEY, "
@@ -196,16 +230,44 @@ public class DatabaseManager {
                     + "total_students_affected INTEGER NOT NULL, "
                     + "timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
                     + ");";
+            createSubjectsTableSQL = "CREATE TABLE IF NOT EXISTS nschool_subjects ("
+                    + "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                    + "subject_code TEXT NOT NULL UNIQUE, "
+                    + "subject_name TEXT NOT NULL"
+                    + ");";
             createQuestionsTableSQL = "CREATE TABLE IF NOT EXISTS nschool_exam_questions ("
                     + "id INTEGER PRIMARY KEY AUTOINCREMENT, "
-                    + "question_id TEXT UNIQUE, "
-                    + "subject TEXT, "
-                    + "academic_class INTEGER, "
-                    + "question_type TEXT, "
-                    + "question_text TEXT, "
-                    + "options TEXT, "
-                    + "correct_answer TEXT, "
-                    + "correct_indices TEXT"
+                    + "packet_id TEXT NOT NULL, "
+                    + "academic_class INTEGER NOT NULL, "
+                    + "question_number INTEGER NOT NULL, "
+                    + "question_type TEXT NOT NULL, "
+                    + "question_text TEXT NOT NULL, "
+                    + "options TEXT NULL, "
+                    + "correct_answer TEXT NULL, "
+                    + "correct_indices TEXT NULL"
+                    + ");";
+            createAttemptsTableSQL = "CREATE TABLE IF NOT EXISTS nschool_student_exam_attempts ("
+                    + "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                    + "uuid TEXT NOT NULL, "
+                    + "nis TEXT NOT NULL, "
+                    + "packet_id TEXT NOT NULL, "
+                    + "final_score REAL NOT NULL, "
+                    + "completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+                    + ");";
+            createRaporTableSQL = "CREATE TABLE IF NOT EXISTS nschool_student_rapor ("
+                    + "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                    + "uuid TEXT NOT NULL, "
+                    + "nis TEXT NOT NULL, "
+                    + "academic_class INTEGER NOT NULL, "
+                    + "semester TEXT NOT NULL, "
+                    + "subject_id INTEGER NOT NULL, "
+                    + "score_harian REAL NOT NULL DEFAULT 0.0, "
+                    + "score_uts REAL NOT NULL DEFAULT 0.0, "
+                    + "score_uas REAL NOT NULL DEFAULT 0.0, "
+                    + "final_score REAL NOT NULL DEFAULT 0.0, "
+                    + "grade_letter TEXT NOT NULL, "
+                    + "status TEXT NOT NULL, "
+                    + "UNIQUE(uuid, academic_class, semester, subject_id)"
                     + ");";
             createCoreStateTableSQL = "CREATE TABLE IF NOT EXISTS nschool_core_state ("
                     + "state_key TEXT PRIMARY KEY, "
@@ -214,34 +276,77 @@ public class DatabaseManager {
                     + ");";
         }
 
-        try (Connection conn = getConnection();
-             Statement stmt = conn.createStatement()) {
-            stmt.execute(createTableSQL);
-            stmt.execute(createLogTableSQL);
-            stmt.execute(createQuestionsTableSQL);
-            stmt.execute(createCoreStateTableSQL);
-            
-            if (!"MYSQL".equals(storageType)) {
-                stmt.execute("CREATE INDEX IF NOT EXISTS idx_questions_sub ON nschool_exam_questions (subject);");
-                stmt.execute("CREATE INDEX IF NOT EXISTS idx_questions_cls ON nschool_exam_questions (academic_class);");
+        try (Connection conn = getConnection()) {
+            if (hasColumn(conn, "nschool_exam_questions", "question_id")) {
+                plugin.getLogger().info("Old nschool_exam_questions table structure detected. Recreating to match 1.6.4 schema...");
+                try (Statement stmt = conn.createStatement()) {
+                    stmt.execute("DROP TABLE nschool_exam_questions;");
+                }
             }
-            
-            // Seeding default values for nschool_core_state
-            String seedVersionSQL = "INSERT INTO nschool_core_state (state_key, state_value, description) "
-                    + "SELECT 'exam_version', '1', 'Exam questions version' "
-                    + "WHERE NOT EXISTS (SELECT 1 FROM nschool_core_state WHERE state_key = 'exam_version');";
-            String seedStatusSQL = "INSERT INTO nschool_core_state (state_key, state_value, description) "
-                    + "SELECT 'portal_status', 'CLOSED', 'Status of the exam portal' "
-                    + "WHERE NOT EXISTS (SELECT 1 FROM nschool_core_state WHERE state_key = 'portal_status');";
-            String seedMessageSQL = "INSERT INTO nschool_core_state (state_key, state_value, description) "
-                    + "SELECT 'portal_message', 'Portal Ujian Sedang ditutup!', 'Message displayed when the portal is closed' "
-                    + "WHERE NOT EXISTS (SELECT 1 FROM nschool_core_state WHERE state_key = 'portal_message');";
-            
-            stmt.execute(seedVersionSQL);
-            stmt.execute(seedStatusSQL);
-            stmt.execute(seedMessageSQL);
 
-            plugin.getLogger().info("Database tables verified/created successfully.");
+            try (Statement stmt = conn.createStatement()) {
+                stmt.execute(createTableSQL);
+                stmt.execute(createLogTableSQL);
+                stmt.execute(createSubjectsTableSQL);
+                stmt.execute(createQuestionsTableSQL);
+                stmt.execute(createAttemptsTableSQL);
+                stmt.execute(createRaporTableSQL);
+                stmt.execute(createCoreStateTableSQL);
+                
+                if (!"MYSQL".equals(storageType)) {
+                    stmt.execute("CREATE INDEX IF NOT EXISTS idx_questions_packet ON nschool_exam_questions (packet_id);");
+                    stmt.execute("CREATE INDEX IF NOT EXISTS idx_questions_cls ON nschool_exam_questions (academic_class);");
+                    stmt.execute("CREATE INDEX IF NOT EXISTS idx_attempts_uuid ON nschool_student_exam_attempts (uuid);");
+                    stmt.execute("CREATE INDEX IF NOT EXISTS idx_attempts_packet ON nschool_student_exam_attempts (packet_id);");
+                }
+
+                // Seed default 7 subjects
+                if ("MYSQL".equals(storageType)) {
+                    String seedSubjectsMySQL = "INSERT INTO nschool_subjects (id, subject_code, subject_name) VALUES "
+                            + "(1, 'PENGETAHUAN_UMUM', 'Pengetahuan Umum'), "
+                            + "(2, 'PENDIDIKAN_PANCASILA', 'Pendidikan Pancasila'), "
+                            + "(3, 'BAHASA_INDONESIA', 'Bahasa Indonesia'), "
+                            + "(4, 'BAHASA_INGGRIS', 'Bahasa Inggris'), "
+                            + "(5, 'MATEMATIKA', 'Matematika'), "
+                            + "(6, 'ILMU_PENGETAHUAN_ALAM', 'Ilmu Pengetahuan Alam'), "
+                            + "(7, 'ILMU_PENGETAHUAN_SOSIAL', 'Ilmu Pengetahuan Sosial') "
+                            + "ON DUPLICATE KEY UPDATE subject_code = VALUES(subject_code);";
+                    stmt.execute(seedSubjectsMySQL);
+                } else {
+                    String seedSubjectsSQLite = "INSERT OR IGNORE INTO nschool_subjects (id, subject_code, subject_name) VALUES "
+                            + "(1, 'PENGETAHUAN_UMUM', 'Pengetahuan Umum'), "
+                            + "(2, 'PENDIDIKAN_PANCASILA', 'Pendidikan Pancasila'), "
+                            + "(3, 'BAHASA_INDONESIA', 'Bahasa Indonesia'), "
+                            + "(4, 'BAHASA_INGGRIS', 'Bahasa Inggris'), "
+                            + "(5, 'MATEMATIKA', 'Matematika'), "
+                            + "(6, 'ILMU_PENGETAHUAN_ALAM', 'Ilmu Pengetahuan Alam'), "
+                            + "(7, 'ILMU_PENGETAHUAN_SOSIAL', 'Ilmu Pengetahuan Sosial');";
+                    stmt.execute(seedSubjectsSQLite);
+                }
+
+                // Seeding default values for nschool_core_state
+                if ("MYSQL".equals(storageType)) {
+                    stmt.execute("INSERT INTO nschool_core_state (state_key, state_value, description) VALUES "
+                            + "('exam_version', '1', 'Exam questions version') ON DUPLICATE KEY UPDATE state_key = state_key;");
+                    stmt.execute("INSERT INTO nschool_core_state (state_key, state_value, description) VALUES "
+                            + "('portal_status', 'CLOSED', 'Status of the exam portal') ON DUPLICATE KEY UPDATE state_key = state_key;");
+                    stmt.execute("INSERT INTO nschool_core_state (state_key, state_value, description) VALUES "
+                            + "('portal_message', 'Portal Ujian Sedang ditutup!', 'Message displayed when the portal is closed') ON DUPLICATE KEY UPDATE state_key = state_key;");
+                    stmt.execute("INSERT INTO nschool_core_state (state_key, state_value, description) VALUES "
+                            + "('active_packet_ids', '[]', 'JSON list of active packet IDs') ON DUPLICATE KEY UPDATE state_key = state_key;");
+                } else {
+                    stmt.execute("INSERT OR IGNORE INTO nschool_core_state (state_key, state_value, description) VALUES "
+                            + "('exam_version', '1', 'Exam questions version');");
+                    stmt.execute("INSERT OR IGNORE INTO nschool_core_state (state_key, state_value, description) VALUES "
+                            + "('portal_status', 'CLOSED', 'Status of the exam portal');");
+                    stmt.execute("INSERT OR IGNORE INTO nschool_core_state (state_key, state_value, description) VALUES "
+                            + "('portal_message', 'Portal Ujian Sedang ditutup!');");
+                    stmt.execute("INSERT OR IGNORE INTO nschool_core_state (state_key, state_value, description) VALUES "
+                            + "('active_packet_ids', '[]');");
+                }
+
+                plugin.getLogger().info("Database tables verified/created successfully.");
+            }
         } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to create database tables!", e);
         }
@@ -420,17 +525,161 @@ public class DatabaseManager {
         }
     }
 
+    public boolean hasAttemptedExam(UUID uuid, String packetId) {
+        String query = "SELECT 1 FROM nschool_student_exam_attempts WHERE uuid = ? AND packet_id = ? LIMIT 1;";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setString(1, uuid.toString());
+            ps.setString(2, packetId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error checking exam attempt for " + uuid + " and " + packetId, e);
+            return false;
+        }
+    }
+
+    public void saveExamAttempt(UUID uuid, String nis, String packetId, double finalScore) {
+        String query;
+        if ("MYSQL".equals(storageType)) {
+            query = "INSERT INTO nschool_student_exam_attempts (uuid, nis, packet_id, final_score, completed_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP);";
+        } else {
+            query = "INSERT INTO nschool_student_exam_attempts (uuid, nis, packet_id, final_score) VALUES (?, ?, ?, ?);";
+        }
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setString(1, uuid.toString());
+            ps.setString(2, nis != null ? nis : "");
+            ps.setString(3, packetId);
+            ps.setDouble(4, finalScore);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Failed to save exam attempt for " + uuid, e);
+        }
+    }
+
+    public double getAverageUhScore(UUID uuid, int subjectId, int academicClass) {
+        String packetPrefix = subjectId + "_" + academicClass + "_UH%";
+        String query = "SELECT AVG(final_score) FROM nschool_student_exam_attempts WHERE uuid = ? AND packet_id LIKE ?;";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setString(1, uuid.toString());
+            ps.setString(2, packetPrefix);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getDouble(1);
+                }
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Failed to calculate average UH score for " + uuid, e);
+        }
+        return 0.0;
+    }
+
+    public void upsertStudentRapor(UUID uuid, String nis, int academicClass, String semester, int subjectId, String examType, double score) {
+        String selectQuery = "SELECT score_harian, score_uts, score_uas FROM nschool_student_rapor WHERE uuid = ? AND academic_class = ? AND semester = ? AND subject_id = ?;";
+        double scoreHarian = 0.0;
+        double scoreUts = 0.0;
+        double scoreUas = 0.0;
+        boolean exists = false;
+
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(selectQuery)) {
+            ps.setString(1, uuid.toString());
+            ps.setInt(2, academicClass);
+            ps.setString(3, semester);
+            ps.setInt(4, subjectId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    scoreHarian = rs.getDouble("score_harian");
+                    scoreUts = rs.getDouble("score_uts");
+                    scoreUas = rs.getDouble("score_uas");
+                    exists = true;
+                }
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Failed to query existing student rapor for " + uuid, e);
+        }
+
+        if (examType.toUpperCase().contains("UH")) {
+            scoreHarian = getAverageUhScore(uuid, subjectId, academicClass);
+        } else if (examType.equalsIgnoreCase("UTS")) {
+            scoreUts = score;
+        } else if (examType.equalsIgnoreCase("UAS")) {
+            scoreUas = score;
+        }
+
+        double finalScore = (scoreHarian * 0.4) + (scoreUts * 0.3) + (scoreUas * 0.3);
+
+        String gradeLetter;
+        String status;
+        if (finalScore >= 85) {
+            gradeLetter = "A";
+            status = "LULUS";
+        } else if (finalScore >= 70) {
+            gradeLetter = "B";
+            status = "LULUS";
+        } else if (finalScore >= 55) {
+            gradeLetter = "C";
+            status = "LULUS";
+        } else {
+            gradeLetter = "D";
+            status = "REMEDI";
+        }
+
+        String query;
+        if (exists) {
+            query = "UPDATE nschool_student_rapor SET score_harian = ?, score_uts = ?, score_uas = ?, final_score = ?, grade_letter = ?, status = ? WHERE uuid = ? AND academic_class = ? AND semester = ? AND subject_id = ?;";
+            try (Connection conn = getConnection();
+                 PreparedStatement ps = conn.prepareStatement(query)) {
+                ps.setDouble(1, scoreHarian);
+                ps.setDouble(2, scoreUts);
+                ps.setDouble(3, scoreUas);
+                ps.setDouble(4, finalScore);
+                ps.setString(5, gradeLetter);
+                ps.setString(6, status);
+                ps.setString(7, uuid.toString());
+                ps.setInt(8, academicClass);
+                ps.setString(9, semester);
+                ps.setInt(10, subjectId);
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                plugin.getLogger().log(Level.SEVERE, "Failed to update student rapor for " + uuid, e);
+            }
+        } else {
+            query = "INSERT INTO nschool_student_rapor (uuid, nis, academic_class, semester, subject_id, score_harian, score_uts, score_uas, final_score, grade_letter, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+            try (Connection conn = getConnection();
+                 PreparedStatement ps = conn.prepareStatement(query)) {
+                ps.setString(1, uuid.toString());
+                ps.setString(2, nis != null ? nis : "");
+                ps.setInt(3, academicClass);
+                ps.setString(4, semester);
+                ps.setInt(5, subjectId);
+                ps.setDouble(6, scoreHarian);
+                ps.setDouble(7, scoreUts);
+                ps.setDouble(8, scoreUas);
+                ps.setDouble(9, finalScore);
+                ps.setString(10, gradeLetter);
+                ps.setString(11, status);
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                plugin.getLogger().log(Level.SEVERE, "Failed to insert student rapor for " + uuid, e);
+            }
+        }
+    }
+
     public List<Map<String, Object>> getAllExamQuestions() {
         List<Map<String, Object>> list = new ArrayList<>();
-        String query = "SELECT * FROM nschool_exam_questions;";
+        String query = "SELECT * FROM nschool_exam_questions ORDER BY question_number ASC;";
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(query);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
                 Map<String, Object> map = new HashMap<>();
-                map.put("question_id", rs.getString("question_id"));
-                map.put("subject", rs.getString("subject"));
+                map.put("packet_id", rs.getString("packet_id"));
                 map.put("academic_class", rs.getInt("academic_class"));
+                map.put("question_number", rs.getInt("question_number"));
                 map.put("question_type", rs.getString("question_type"));
                 map.put("question_text", rs.getString("question_text"));
                 map.put("options", rs.getString("options"));

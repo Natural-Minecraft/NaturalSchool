@@ -31,6 +31,7 @@ public class ExamManager {
     private volatile String portalStatus = "CLOSED";
     private volatile String portalMessage = "Portal Ujian Sedang ditutup!";
     private volatile int examVersion = 1;
+    private final List<String> activePacketIds = new ArrayList<>();
     private final List<ExamQuestions.Question> cachedQuestions = new ArrayList<>();
 
     private HttpServer server;
@@ -44,6 +45,7 @@ public class ExamManager {
         String dbVersionStr = plugin.getDatabaseManager().getCoreState("exam_version");
         String dbStatus = plugin.getDatabaseManager().getCoreState("portal_status");
         String dbMessage = plugin.getDatabaseManager().getCoreState("portal_message");
+        String dbActivePacketsStr = plugin.getDatabaseManager().getCoreState("active_packet_ids");
 
         int dbVersion = 1;
         if (dbVersionStr != null) {
@@ -53,13 +55,11 @@ public class ExamManager {
                 // Keep default 1
             }
         }
-        this.examVersion = dbVersion;
-        if (dbStatus != null) {
-            this.portalStatus = dbStatus;
-        }
-        if (dbMessage != null) {
-            this.portalMessage = dbMessage;
-        }
+
+        final int finalDbVersion = dbVersion;
+        final String dbStatusVal = dbStatus != null ? dbStatus : "CLOSED";
+        final String dbMessageVal = dbMessage != null ? dbMessage : "Portal Ujian Sedang ditutup!";
+        final String dbActivePacketsVal = dbActivePacketsStr != null ? dbActivePacketsStr : "[]";
 
         // 2. Read local exams.json file
         File file = new File(plugin.getDataFolder(), "exams.json");
@@ -87,16 +87,22 @@ public class ExamManager {
                 try {
                     List<Map<String, Object>> rows = plugin.getDatabaseManager().getAllExamQuestions();
                     JsonObject root = new JsonObject();
-                    root.addProperty("version", this.examVersion);
-                    root.addProperty("portal_status", this.portalStatus);
-                    root.addProperty("portal_message", this.portalMessage);
+                    root.addProperty("version", finalDbVersion);
+                    root.addProperty("portal_status", dbStatusVal);
+                    root.addProperty("portal_message", dbMessageVal);
+                    
+                    try {
+                        root.add("active_packet_ids", JsonParser.parseString(dbActivePacketsVal));
+                    } catch (Exception e) {
+                        root.add("active_packet_ids", new JsonArray());
+                    }
 
                     JsonArray questionsArray = new JsonArray();
                     for (Map<String, Object> row : rows) {
                         JsonObject qObj = new JsonObject();
-                        qObj.addProperty("question_id", (String) row.get("question_id"));
-                        qObj.addProperty("subject", (String) row.get("subject"));
+                        qObj.addProperty("packet_id", (String) row.get("packet_id"));
                         qObj.addProperty("academic_class", (Integer) row.get("academic_class"));
+                        qObj.addProperty("question_number", (Integer) row.get("question_number"));
                         qObj.addProperty("question_type", (String) row.get("question_type"));
                         qObj.addProperty("question_text", (String) row.get("question_text"));
 
@@ -135,9 +141,15 @@ public class ExamManager {
 
                     // Parse into memory
                     List<ExamQuestions.Question> tempQuestions = parseQuestionsFromRoot(root);
+                    List<String> tempActivePackets = parseActivePacketIdsFromRoot(root);
                     synchronized (cacheLock) {
-                        cachedQuestions.clear();
-                        cachedQuestions.addAll(tempQuestions);
+                        this.examVersion = finalDbVersion;
+                        this.portalStatus = dbStatusVal;
+                        this.portalMessage = dbMessageVal;
+                        this.activePacketIds.clear();
+                        this.activePacketIds.addAll(tempActivePackets);
+                        this.cachedQuestions.clear();
+                        this.cachedQuestions.addAll(tempQuestions);
                     }
                     plugin.getLogger().info("exams.json successfully populated from database with " + tempQuestions.size() + " questions.");
                 } catch (Exception e) {
@@ -149,10 +161,20 @@ public class ExamManager {
             plugin.getLogger().info("exams.json is up-to-date. Loading questions into memory...");
             try (FileReader reader = new FileReader(file, StandardCharsets.UTF_8)) {
                 JsonObject root = JsonParser.parseReader(reader).getAsJsonObject();
+                int ver = root.has("version") ? root.get("version").getAsInt() : localVersion;
+                String status = root.has("portal_status") ? root.get("portal_status").getAsString() : "CLOSED";
+                String msg = root.has("portal_message") ? root.get("portal_message").getAsString() : "Portal Ujian Sedang ditutup!";
+                
                 List<ExamQuestions.Question> tempQuestions = parseQuestionsFromRoot(root);
+                List<String> tempActivePackets = parseActivePacketIdsFromRoot(root);
                 synchronized (cacheLock) {
-                    cachedQuestions.clear();
-                    cachedQuestions.addAll(tempQuestions);
+                    this.examVersion = ver;
+                    this.portalStatus = status;
+                    this.portalMessage = msg;
+                    this.activePacketIds.clear();
+                    this.activePacketIds.addAll(tempActivePackets);
+                    this.cachedQuestions.clear();
+                    this.cachedQuestions.addAll(tempQuestions);
                 }
                 plugin.getLogger().info("exams.json successfully loaded with " + tempQuestions.size() + " questions.");
             } catch (Exception e) {
@@ -180,9 +202,9 @@ public class ExamManager {
         for (JsonElement el : qArray) {
             try {
                 JsonObject qObj = el.getAsJsonObject();
-                String qId = qObj.get("question_id").getAsString();
-                String sub = qObj.get("subject").getAsString();
+                String packetId = qObj.get("packet_id").getAsString();
                 int cls = qObj.get("academic_class").getAsInt();
+                int num = qObj.get("question_number").getAsInt();
                 String type = qObj.get("question_type").getAsString();
                 String text = qObj.get("question_text").getAsString();
 
@@ -201,12 +223,27 @@ public class ExamManager {
                     correctInds = gson.fromJson(qObj.get("correct_indices"), new TypeToken<List<Integer>>(){}.getType());
                 }
 
-                temp.add(new ExamQuestions.Question(qId, sub, cls, type, text, opts, correctAns, correctInds));
+                temp.add(new ExamQuestions.Question(packetId, cls, num, type, text, opts, correctAns, correctInds));
             } catch (Exception e) {
                 plugin.getLogger().log(Level.WARNING, "Failed to parse question object in JSON, skipping.", e);
             }
         }
         return temp;
+    }
+
+    private List<String> parseActivePacketIdsFromRoot(JsonObject root) {
+        List<String> list = new ArrayList<>();
+        if (root.has("active_packet_ids") && !root.get("active_packet_ids").isJsonNull()) {
+            try {
+                JsonArray arr = root.getAsJsonArray("active_packet_ids");
+                for (JsonElement el : arr) {
+                    list.add(el.getAsString());
+                }
+            } catch (Exception e) {
+                // ignore
+            }
+        }
+        return list;
     }
 
     public void startWebhookServer() {
@@ -241,14 +278,16 @@ public class ExamManager {
                     }
 
                     // Update memory
-                    this.examVersion = version;
-                    this.portalStatus = status;
-                    this.portalMessage = msg;
-
                     List<ExamQuestions.Question> tempQuestions = parseQuestionsFromRoot(root);
+                    List<String> tempActivePackets = parseActivePacketIdsFromRoot(root);
                     synchronized (cacheLock) {
-                        cachedQuestions.clear();
-                        cachedQuestions.addAll(tempQuestions);
+                        this.examVersion = version;
+                        this.portalStatus = status;
+                        this.portalMessage = msg;
+                        this.activePacketIds.clear();
+                        this.activePacketIds.addAll(tempActivePackets);
+                        this.cachedQuestions.clear();
+                        this.cachedQuestions.addAll(tempQuestions);
                     }
 
                     plugin.getLogger().info("Exam Subsystem updated via webhook. Version: " + version + ", Status: " + status);
@@ -300,11 +339,17 @@ public class ExamManager {
         return examVersion;
     }
 
-    public List<ExamQuestions.Question> getQuestions(String subject, int academicClass) {
+    public List<String> getActivePacketIds() {
+        synchronized (cacheLock) {
+            return new ArrayList<>(activePacketIds);
+        }
+    }
+
+    public List<ExamQuestions.Question> getQuestionsForPacket(String packetId) {
         List<ExamQuestions.Question> list = new ArrayList<>();
         synchronized (cacheLock) {
             for (ExamQuestions.Question q : cachedQuestions) {
-                if (q.subject != null && q.subject.equalsIgnoreCase(subject) && q.academicClass == academicClass) {
+                if (q.packetId != null && q.packetId.equalsIgnoreCase(packetId)) {
                     list.add(q);
                 }
             }
@@ -312,3 +357,4 @@ public class ExamManager {
         return list;
     }
 }
+

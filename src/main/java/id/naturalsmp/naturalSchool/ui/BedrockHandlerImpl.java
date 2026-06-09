@@ -79,8 +79,8 @@ public class BedrockHandlerImpl implements BedrockHandler {
     // ─────────────────────────────────────────────────────────────────────────
 
     @Override public void openExamPortal(Player player)                                         { examGui.openExamPortalBedrock(player); }
-    @Override public void openExamPre(Player player, String subject)                            { examGui.openExamPreBedrock(player, subject); }
-    @Override public void openExamQuestion(Player player, String subject, int questionNum)      { examGui.openExamQuestionBedrock(player, subject, questionNum); }
-    @Override public void openExamConfirmation(Player player, String subject)                   { examGui.openExamConfirmationBedrock(player, subject); }
+    @Override public void openExamPre(Player player, String packetId)                           { examGui.openExamPreBedrock(player, packetId); }
+    @Override public void openExamQuestion(Player player, String packetId, int questionNum)     { examGui.openExamQuestionBedrock(player, packetId, questionNum); }
+    @Override public void openExamConfirmation(Player player, String packetId)                  { examGui.openExamConfirmationBedrock(player, packetId); }
     @Override public void openExamClosed(Player player)                                         { examGui.openExamClosedBedrock(player); }
 }

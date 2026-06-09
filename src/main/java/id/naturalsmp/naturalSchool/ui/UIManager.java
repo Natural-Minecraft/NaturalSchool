@@ -23,7 +23,7 @@ import java.util.logging.Level;
 
 public class UIManager {
 
-    public static final String GUI_VERSION = "1.6.3";
+    public static final String GUI_VERSION = "1.6.4";
 
     private static final MiniMessage MM = MiniMessage.miniMessage();
 
@@ -186,19 +186,19 @@ public class UIManager {
         else examGui.openExamClosedJava(player);
     }
 
-    public void openExamPre(Player player, String subject) {
-        if (isBedrockPlayer(player)) bedrockHandler.openExamPre(player, subject);
-        else examGui.openExamPreJava(player, subject);
+    public void openExamPre(Player player, String packetId) {
+        if (isBedrockPlayer(player)) bedrockHandler.openExamPre(player, packetId);
+        else examGui.openExamPreJava(player, packetId);
     }
 
-    public void openExamQuestion(Player player, String subject, int questionNum) {
-        if (isBedrockPlayer(player)) bedrockHandler.openExamQuestion(player, subject, questionNum);
-        else examGui.openExamQuestionJava(player, subject, questionNum);
+    public void openExamQuestion(Player player, String packetId, int questionNum) {
+        if (isBedrockPlayer(player)) bedrockHandler.openExamQuestion(player, packetId, questionNum);
+        else examGui.openExamQuestionJava(player, packetId, questionNum);
     }
 
-    public void openExamConfirmation(Player player, String subject) {
-        if (isBedrockPlayer(player)) bedrockHandler.openExamConfirmation(player, subject);
-        else examGui.openExamConfirmationJava(player, subject);
+    public void openExamConfirmation(Player player, String packetId) {
+        if (isBedrockPlayer(player)) bedrockHandler.openExamConfirmation(player, packetId);
+        else examGui.openExamConfirmationJava(player, packetId);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -207,8 +207,8 @@ public class UIManager {
 
     public ExamSession getExamSession(UUID uuid) { return activeExamSessions.get(uuid); }
 
-    public void startExamSession(Player player, String subject) {
-        activeExamSessions.put(player.getUniqueId(), new ExamSession(player.getUniqueId(), subject));
+    public void startExamSession(Player player, String packetId) {
+        activeExamSessions.put(player.getUniqueId(), new ExamSession(player.getUniqueId(), packetId));
     }
 
     public void clearExamSession(Player player) {

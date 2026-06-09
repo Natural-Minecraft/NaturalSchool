@@ -7,14 +7,14 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ExamSession {
 
     private final UUID playerUuid;
-    private final String subject;
+    private final String packetId;
     private int currentQuestion; // 0 for Pre-Exam UI, 1-N for questions, N+1 for confirmation
     private boolean showWarning = false;
     private final Map<Integer, String> answers = new ConcurrentHashMap<>();
 
-    public ExamSession(UUID playerUuid, String subject) {
+    public ExamSession(UUID playerUuid, String packetId) {
         this.playerUuid = playerUuid;
-        this.subject = subject;
+        this.packetId = packetId;
         this.currentQuestion = 0; // Starts at Pre-Exam UI
         this.showWarning = false;
     }
@@ -31,8 +31,8 @@ public class ExamSession {
         return playerUuid;
     }
 
-    public String getSubject() {
-        return subject;
+    public String getPacketId() {
+        return packetId;
     }
 
     public int getCurrentQuestion() {
@@ -55,3 +55,4 @@ public class ExamSession {
         }
     }
 }
+

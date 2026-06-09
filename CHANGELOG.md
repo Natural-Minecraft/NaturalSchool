@@ -2,6 +2,13 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.6.4] - 2026-06-09
+### Added
+- **Production Data-Driven Exam & E-Rapor Subsystem**: Implemented dynamic packet-based exam architecture (`1.6.4`) powered by `exams.json` local cache and centralized database tables.
+- **Anti-Retake Shield**: Added strict attempt checking (`nschool_student_exam_attempts` database table check) to prevent players from re-taking completed exams.
+- **Dynamic Grading & E-Rapor Upsert**: Added auto-evaluation on submit, recalculation of average UH scores, and upserting into the `nschool_student_rapor` table with standard weights (40% UH, 30% UTS, 30% UAS) and letter grade assignments (A/B/C/D).
+- **Bedrock Layout Refinements**: Stripped formatting codes and decorative symbols from Geyser/Floodgate Bedrock buttons to prevent blank rendering bugs.
+
 ## [1.6.3] - 2026-06-08
 ### Changed
 - **GUI Version Command**: Fixed `/ns gui version` to display the general GUI version reference from `UIManager.GUI_VERSION` instead of the old `ExamGui.GUI_VERSION`.

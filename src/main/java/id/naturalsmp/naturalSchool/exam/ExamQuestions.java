@@ -5,25 +5,38 @@ import java.util.List;
 public final class ExamQuestions {
 
     public static class Question {
-        public final String questionId;
-        public final String subject;
+        public final String packetId;
         public final int academicClass;
+        public final int questionNumber;
         public final String questionType;
         public final String questionText;
         public final List<String> options;
         public final String correctAnswer;
         public final List<Integer> correctIndices;
 
-        public Question(String questionId, String subject, int academicClass, String questionType,
+        public Question(String packetId, int academicClass, int questionNumber, String questionType,
                         String questionText, List<String> options, String correctAnswer, List<Integer> correctIndices) {
-            this.questionId = questionId;
-            this.subject = subject;
+            this.packetId = packetId;
             this.academicClass = academicClass;
+            this.questionNumber = questionNumber;
             this.questionType = questionType;
             this.questionText = questionText;
             this.options = options;
             this.correctAnswer = correctAnswer;
             this.correctIndices = correctIndices;
+        }
+    }
+
+    public static String getSubjectName(int subjectId) {
+        switch (subjectId) {
+            case 1: return "Pengetahuan Umum";
+            case 2: return "Pendidikan Pancasila";
+            case 3: return "Bahasa Indonesia";
+            case 4: return "Bahasa Inggris";
+            case 5: return "Matematika";
+            case 6: return "Ilmu Pengetahuan Alam";
+            case 7: return "Ilmu Pengetahuan Sosial";
+            default: return "Unknown Subject";
         }
     }
 
@@ -61,3 +74,4 @@ public final class ExamQuestions {
         return new int[]{benar, salah};
     }
 }
+
