@@ -346,9 +346,23 @@ Untuk memastikan keseimbangan hidup riil para pemain, siklus jam operasional sek
 * **Pukul 20.00 WIB (Batas Toleransi Mengunci):** Pintu absensi ditutup oleh sistem otomatis `NaturalSchool`. Murid baru yang melewati batas pintu kelas atau baru melakukan login ke server di atas jam ini akan otomatis dijatuhi status kehadiran permanent berkode **`TERLAMBAT`** pada database record harian.
 * **Pukul 21.00 WIB (Kelas Selesai & Pembubaran):** Sesi pengajaran resmi ditutup secara global. Pemain yang tercatat online di server game namun tidak berada di dalam wilayah kelas dari rentang waktu 18.00 - 20.00 WIB akan langsung dijatuhi hukuman otomatis berkode **`ALFA`** (Membolos).
 
-### 4.2 Sistem Perintah Guru, Materi Pembelajaran & Soal Ujian
+### 4.2 Sistem Perintah Terpadu (Unifikasi Command & Aliases)
 
-> **Prinsip Auto-Detect Region:** Seluruh command `/kelas` **tidak memerlukan `<id_kelas>` sebagai argumen**. Plugin secara otomatis mendeteksi region WorldGuard tempat Guru berdiri saat ini (misal: region `kelas8`) menggunakan API WorldGuard. Jika Guru tidak berada di dalam region kelas manapun saat menjalankan command, sistem menampilkan pesan error: `§cKamu tidak berada di dalam region kelas manapun!`
+Sistem akademik NaturalSchool menggunakan sistem perintah terpadu dengan empat basis perintah (aliases) yang saling terhubung untuk kenyamanan pemain:
+
+* **Bahasa Inggris (Utama & Pendek):**
+  * `/school` — Basis utama sistem sekolah (untuk murid & umum).
+  * `/class` — Alias pendek untuk kemudahan penulisan.
+* **Bahasa Indonesia (Utama & Pendek):**
+  * `/sekolah` — Basis utama sistem sekolah versi lokal.
+  * `/kelas` — Alias pendek versi lokal.
+
+> [!NOTE]
+> Keempat perintah ini (`/school`, `/class`, `/sekolah`, `/kelas`) mengarah pada mesin logika backend yang sama. Untuk menjaga estetika lokalisasi:
+> - Subcommand berbahasa Indonesia (`start`, `selesai`, `pembelajaran`, `tanya`, `ujian`, dll) direkomendasikan dipasangkan dengan `/sekolah` atau `/kelas`.
+> - Subcommand berbahasa Inggris (`start`, `finish`/`end`, `lesson`, `ask`, `exam`, dll) direkomendasikan dipasangkan dengan `/school` atau `/class`.
+
+> **Prinsip Auto-Detect Region:** Seluruh command di atas **tidak memerlukan `<id_kelas>` sebagai argumen**. Plugin secara otomatis mendeteksi region WorldGuard tempat Guru berdiri saat ini (misal: region `kelas8`) menggunakan API WorldGuard. Jika Guru tidak berada di dalam region kelas manapun saat menjalankan command, sistem menampilkan pesan error: `§cKamu tidak berada di dalam region kelas manapun!`
 
 Helper memiliki dua perintah utama yang **harus dijalankan secara manual** sebelum sesi kelas dimulai, yaitu memuat materi proyektor dan memuat soal kuis. File sumber kedua perintah ini disiapkan terlebih dahulu oleh Helper melalui **dashboard website** dan disimpan di sistem database pusat.
 
@@ -1137,7 +1151,7 @@ Skenario: **Ketua OSIS `MasRevo` ingin merencanakan event pasar malam bersama MP
 
 ### 7.10 Command Reference Lengkap (NaturalChat + NaturalSchool)
 
-> **Catatan Penting:** Seluruh command `/kelas` **tidak memerlukan `<id_kelas>`**. Plugin auto-detect region WorldGuard tempat pemain berdiri.
+> **Catatan Penting:** Seluruh command sekolah dan kelas di bawah ini mendukung 4 basis unifikasi command: `/school`, `/class`, `/sekolah`, dan `/kelas`. Plugin secara otomatis mendeteksi region WorldGuard tempat pemain/guru berdiri tanpa memerlukan argumen `<id_kelas>`.
 
 ---
 
