@@ -1155,13 +1155,16 @@ Skenario: **Ketua OSIS `MasRevo` ingin merencanakan event pasar malam bersama MP
 
 ---
 
-#### Perintah Murid — Sistem Tanya Jawab
+#### Perintah Murid — Sistem Tanya Jawab & Portal Akademik
 
-| Command | Fungsi |
-| :--- | :--- |
-| `/kelas tanya <pertanyaan>` | Ajukan pertanyaan ke antrian tanya-jawab kelas (auto-detect region) |
+| Perintah Utama (Indo) | Alias (Inggris) | Fungsi |
+| :--- | :--- | :--- |
+| `/kelas tanya <pertanyaan>` | `/school ask <question>` | Ajukan pertanyaan ke antrian tanya-jawab kelas (auto-detect region) |
+| `/kelas ujian` | `/school exam` | Buka Portal Ujian sekolah (Ujian Harian/Semester/UAS) |
+| `/kelas info` | `/school info` | Menampilkan GUI dialog Informasi Pelajar / Profil Anda |
+| `/kelas rapor` | `/school report` | Membuka E-Rapor digital |
 
-**Cara pakai:**
+**Cara pakai `/kelas tanya`:**
 ```
 /kelas tanya Pak, apa bedanya sel hewan dan sel tumbuhan?
 ```
@@ -1174,15 +1177,15 @@ Sistem otomatis:
 
 #### Perintah Guru/Helper — Sistem Antrian & Jawaban
 
-| Command | Fungsi |
-| :--- | :--- |
-| `/kelas pertanyaan` | Buka **Custom GUI** antrian pertanyaan murid (auto-detect region) |
-| `/kelas jawab <nomor> <jawaban>` | Jawab pertanyaan nomor tertentu dari antrian |
-| `/kelas pertanyaan skip <nomor>` | Lewati pertanyaan tertentu (ditandai DILEWATI) |
-| `/kelas pertanyaan tutup` | Tutup antrian sementara (murid tidak bisa /kelas tanya) |
-| `/kelas pertanyaan buka` | Buka kembali antrian |
-| `/kelas chat-rekap` | Arsip semua Q&A hari ini ke database Perpustakaan Digital |
-| `/ch broadcast <id> <pesan>` | Kirim pengumuman highlight ke channel tertentu |
+| Perintah Utama (Indo) | Alias (Inggris) | Fungsi |
+| :--- | :--- | :--- |
+| `/kelas pertanyaan` | `/school questions` | Buka **Custom GUI** antrian pertanyaan murid (auto-detect region) |
+| `/kelas jawab <nomor> <jawaban>` | `/school answer <number> <answer>` | Jawab pertanyaan nomor tertentu dari antrian |
+| `/kelas pertanyaan skip <nomor>` | `/school questions skip <number>` | Lewati pertanyaan tertentu (ditandai DILEWATI) |
+| `/kelas pertanyaan tutup` | `/school questions close` | Tutup antrian sementara (murid tidak bisa /kelas tanya) |
+| `/kelas pertanyaan buka` | `/school questions open` | Buka kembali antrian |
+| `/kelas chat-rekap` | `/school chat-rekap` | Arsip semua Q&A hari ini ke database Perpustakaan Digital |
+| `/ch broadcast <id> <pesan>` | `/ch broadcast <id> <message>` | Kirim pengumuman highlight ke channel tertentu |
 
 **Cara pakai `/kelas jawab`:**
 ```
@@ -1340,7 +1343,7 @@ Berikut adalah cetak biru (*blueprint*) alur kerja sistem dari hulu ke hilir:
 
 Siklus dimulai dari interaksi langsung siswa di dalam game Minecraft.
 
-1. **Eksekusi Command:** Siswa mengetik perintah `/school exam` di kolom obrolan game.
+1. **Eksekusi Command:** Siswa mengetik perintah `/kelas ujian` (atau alias `/school exam` dalam Bahasa Inggris) di kolom obrolan game.
 2. **Penanganan Command (`SchoolCommand.java`):**
    * Kelas *Command Listener* menangkap perintah tersebut.
    * Sistem memeriksa apakah pemain adalah seorang siswa terdaftar dan mengambil data profilnya (seperti `uuid`, `nis`, dan `academic_class`).
@@ -1444,5 +1447,5 @@ Seluruh pergerakan alur kompleks di atas didukung oleh fondasi database yang ram
 * **`nschool_exam_questions`**: Bank data yang menyuplai isi teks pertanyaan ke dalam file cache game `exams.json`.
 * **`nschool_core_state`**: Menjadi otak kendali jarak jauh (sakelar) bagi Wali kelas dan Kementerian untuk membuka-tutup tombol ujian di dalam game secara *real-time*.
 * **`nschool_student_exam_attempts`**: Benteng keamanan (*Anti-Retake*) untuk mengunci paket yang sudah dikerjakan siswa.
-* **`nschool_student_rapor`**: Transkrip akhir tempat bermuaranya seluruh akumulasi nilai rata-rata UH, nilai UTS, dan nilai UAS siswa yang siap dipanggil kapan saja lewat perintah `/school rapor` maupun halaman Web Dashboard Orang Tua.
+* **`nschool_student_rapor`**: Transkrip akhir tempat bermuaranya seluruh akumulasi nilai rata-rata UH, nilai UTS, dan nilai UAS siswa yang siap dipanggil kapan saja lewat perintah `/kelas rapor` (atau alias `/school report` / `/school rapor`) maupun halaman Web Dashboard Orang Tua.
 
