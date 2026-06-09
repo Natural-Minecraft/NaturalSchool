@@ -2,6 +2,25 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.6.5] - 2026-06-10
+### Added
+- **Centralized Single-Engine State-Passing Portal**: Introduced a new `/school exam` main menu UI mapping to `openExamPortal()` that routes to specific sub-categories (`UH`, `UTS`, `UAS`) through a single unified compiler [openPortalUjian](file:///c:/Users/ThinkPad/Documents/NaturalSMP/plugin/NaturalSchool/src/main/java/id/naturalsmp/naturalSchool/exam/ExamGui.java) in [ExamGui.java](file:///c:/Users/ThinkPad/Documents/NaturalSMP/plugin/NaturalSchool/src/main/java/id/naturalsmp/naturalSchool/exam/ExamGui.java).
+- **Asynchronous Attempt Pre-Fetching**: Added [getAttemptedPackets](file:///c:/Users/ThinkPad/Documents/NaturalSMP/plugin/NaturalSchool/src/main/java/id/naturalsmp/naturalSchool/database/DatabaseManager.java#L649-L666) in `DatabaseManager` to query all of a player's previous attempts in a single async database call, optimizing layout compilation on menu load.
+- **Dynamic Subject List Rendering**: Generates button listings for all 7 official subjects with dynamic status legends (`[Sudah Selesai]`, `[Aktif]`, `[Tidak Aktif]`) and schedule hours formatted directly into their text labels.
+- **Bedrock Button Form Content Cleaners**: Introduced `cleanBedrockText()` helper in `ExamGui` to sanitize choice buttons by removing raw escape codes (`§`) and circle symbols (`○`, `●`), eliminating rendering anomalies.
+- **Core Cache State Keys**: Seeded and synchronized new state variables in `nschool_core_state` (`active_uh_packets`, `current_active_semester_packets`, `portal_semester_status`, `is_semester_break`) inside the SQLite/MySQL engine and the `exams.json` cache mapping.
+
+### Changed
+- **Unified Validation Interceptors**: Modified subject clicks to evaluate three distinct safety scenarios in sequence:
+  - *Scenario 1 (TIDAK AKTIF)*: Refresh portal instantly injecting a colored error message (`§c[!] Error: Mata pelajaran tersebut sedang tidak aktif!`) at the top of the menu layout.
+  - *Scenario 2 (TIDAK ADA SOAL)*: Refresh portal instantly injecting warning text (`§e[!] Peringatan: Tidak ada soal pada mata pelajaran tersebut! (Hubungi Pengawas)`) on missing questions cache.
+  - *Scenario 3 (SUDAH MENGERJAKAN)*: Force-close the active inventory to avoid spoofing and display a standalone Dialog (Java) / Modal (Bedrock) displaying closure notification.
+- **Maven Version Bump**: Bumped the plugin artifact version to `1.6.5` in [pom.xml](file:///c:/Users/ThinkPad/Documents/NaturalSMP/plugin/NaturalSchool/pom.xml) and [UIManager.java](file:///c:/Users/ThinkPad/Documents/NaturalSMP/plugin/NaturalSchool/src/main/java/id/naturalsmp/naturalSchool/ui/UIManager.java).
+- **Dynamic Subject Parsing**: Extracted mapel ID references dynamically from packet string prefixes (e.g. `5_1_UH` resolves to Subject ID `5`), deprecating the old `subject_id` DB column.
+
+### Deprecated
+- **Deprecated Columns & Keys**: Deprecated `subject_id` field in the bank questions schema and `active_packet_ids` key in core states.
+
 ## [1.6.4] - 2026-06-09
 ### Added
 - **Production Data-Driven Exam & E-Rapor Subsystem**: Implemented dynamic packet-based exam architecture (`1.6.4`) powered by `exams.json` local cache and centralized database tables.
