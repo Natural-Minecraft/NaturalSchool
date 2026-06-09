@@ -2,6 +2,13 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.6.6] - 2026-06-10
+### Added
+- **Semester Break Time Interceptor**: Implemented chronological checks in both Java and Bedrock subject click listeners to block players from starting UTS/UAS attempts during global break windows (`is_semester_break` flag).
+- **Macro-Gatekeeper Security Hardening**: Integrated macro-gatekeeper checks in `openExamPortalJava`/`openExamPortalBedrock` that abort routing to UTS/UAS sub-menus if `portal_semester_status` is not `"OPEN"`, displaying a dedicated notice Dialog/Form.
+- **Dynamic Live Whitelist Statuses**: Replaced static time config button labels with dynamic whitelist evaluation statuses: `[Sudah Selesai]`, `[Aktif] - (Sedang Berlangsung)`, and `[Tidak Aktif] - (Belum Dimulai / Selesai)`.
+- **Version bump**: Elevated the system version to `1.6.6` in [pom.xml](file:///c:/Users/ThinkPad/Documents/NaturalSMP/plugin/NaturalSchool/pom.xml) and [UIManager.java](file:///c:/Users/ThinkPad/Documents/NaturalSMP/plugin/NaturalSchool/src/main/java/id/naturalsmp/naturalSchool/ui/UIManager.java).
+
 ## [1.6.5] - 2026-06-10
 ### Added
 - **Centralized Single-Engine State-Passing Portal**: Introduced a new `/school exam` main menu UI mapping to `openExamPortal()` that routes to specific sub-categories (`UH`, `UTS`, `UAS`) through a single unified compiler [openPortalUjian](file:///c:/Users/ThinkPad/Documents/NaturalSMP/plugin/NaturalSchool/src/main/java/id/naturalsmp/naturalSchool/exam/ExamGui.java) in [ExamGui.java](file:///c:/Users/ThinkPad/Documents/NaturalSMP/plugin/NaturalSchool/src/main/java/id/naturalsmp/naturalSchool/exam/ExamGui.java).

@@ -25,8 +25,8 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Single-engine centralized dynamic GUI for the Exam Subsystem (v1.6.5).
- * Powered by State-Passing and anti-retake database isolation.
+ * Stateful Single-engine core GUI for the Exam Subsystem (v1.6.6).
+ * Features macro/micro security gatekeepers, break-time interceptors, and Bedrock UI sanitizations.
  */
 public class ExamGui {
 
@@ -69,14 +69,24 @@ public class ExamGui {
             ActionButton.builder(Component.text("[ Ujian Semester ]"))
                 .action(DialogAction.customClick((view, audience) -> {
                     if (audience instanceof Player p) {
-                        openPortalUjianJava(p, "UTS", null);
+                        // Patch Spec 1: Macro-Gatekeeper Semester Lock
+                        if (!"OPEN".equalsIgnoreCase(plugin.getExamManager().getPortalSemesterStatus())) {
+                            showSemesterClosedJava(p);
+                        } else {
+                            openPortalUjianJava(p, "UTS", null);
+                        }
                     }
                 }, ClickCallback.Options.builder().uses(1).build()))
                 .build(),
             ActionButton.builder(Component.text("[ Ujian Akhir Semester / Kelulusan ]"))
                 .action(DialogAction.customClick((view, audience) -> {
                     if (audience instanceof Player p) {
-                        openPortalUjianJava(p, "UAS", null);
+                        // Patch Spec 1: Macro-Gatekeeper Semester Lock
+                        if (!"OPEN".equalsIgnoreCase(plugin.getExamManager().getPortalSemesterStatus())) {
+                            showSemesterClosedJava(p);
+                        } else {
+                            openPortalUjianJava(p, "UAS", null);
+                        }
                     }
                 }, ClickCallback.Options.builder().uses(1).build()))
                 .build()
@@ -92,6 +102,28 @@ public class ExamGui {
                 .body(bodies)
                 .build())
             .type(DialogType.multiAction(buttons, closeBtn, 2))
+        );
+
+        player.showDialog(dialog);
+    }
+
+    public void showSemesterClosedJava(Player player) {
+        List<DialogBody> bodies = List.of(
+            DialogBody.item(new ItemStack(Material.BARRIER)).build(),
+            DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<red><bold>Portal Ditutup</bold></red>")),
+            DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("Maaf, saat ini portal ujian semester/Akhir Semester tidak dibuka, jika menurut anda ini kesalahan mohon hubungi Kepala Sekolah atau Kementerian!"))
+        );
+
+        ActionButton okBtn = ActionButton.builder(Component.text("Ok"))
+            .action(DialogAction.customClick((view, audience) -> {}, ClickCallback.Options.builder().uses(1).build()))
+            .build();
+
+        Dialog dialog = Dialog.create(builder -> builder.empty()
+            .base(DialogBase.builder(Component.text("Portal Ditutup"))
+                .canCloseWithEscape(true)
+                .body(bodies)
+                .build())
+            .type(DialogType.notice(okBtn))
         );
 
         player.showDialog(dialog);
@@ -130,15 +162,11 @@ public class ExamGui {
 
         List<ActionButton> buttons = new ArrayList<>();
 
-        int startHour = plugin.getConfig().getInt("exam-schedule.start-hour", 10);
-        int endHour = plugin.getConfig().getInt("exam-schedule.end-hour", 16);
-        String hours = String.format("%02d:00 - %02d:00", startHour, endHour);
-
         for (int subjectId = 1; subjectId <= 7; subjectId++) {
             String subjectName = ExamQuestions.getSubjectName(subjectId);
             String targetPacketId = subjectId + "_" + academicClass + "_" + examType;
 
-            // Determine status
+            // Determine live status
             boolean completed = attemptedPackets.contains(targetPacketId);
             boolean active = false;
             if ("UH".equalsIgnoreCase(examType)) {
@@ -148,16 +176,17 @@ public class ExamGui {
                     && plugin.getExamManager().getCurrentActiveSemesterPackets().contains(targetPacketId);
             }
 
+            // Patch Spec 3: Dynamic Status Labels
             String statusLegend;
             if (completed) {
                 statusLegend = "<green>[Sudah Selesai]</green>";
             } else if (active) {
-                statusLegend = "<yellow>[Aktif]</yellow>";
+                statusLegend = "<yellow>[Aktif] - (Sedang Berlangsung)</yellow>";
             } else {
-                statusLegend = "<red>[Tidak Aktif]</red>";
+                statusLegend = "<red>[Tidak Aktif] - (Belum Dimulai / Selesai)</red>";
             }
 
-            String buttonText = subjectName + " - " + statusLegend + " (" + hours + ")";
+            String buttonText = subjectName + " - " + statusLegend;
 
             buttons.add(ActionButton.builder(MiniMessage.miniMessage().deserialize(buttonText))
                 .action(DialogAction.customClick((view, audience) -> {
@@ -188,6 +217,13 @@ public class ExamGui {
     }
 
     private void handleSubjectClickJava(Player player, String examType, String targetPacketId) {
+        // Patch Spec 2: Semester Break Time Interceptor
+        if (("UTS".equalsIgnoreCase(examType) || "UAS".equalsIgnoreCase(examType))
+            && plugin.getExamManager().isSemesterBreak()) {
+            openPortalUjianJava(player, examType, "<red><bold>[!] Error: Saat ini sedang masa jeda/istirahat antar mata pelajaran. Mohon tunggu mapel berikutnya dibuka.</bold></red>");
+            return;
+        }
+
         // Scenario 1: "TIDAK AKTIF"
         boolean active = false;
         if ("UH".equalsIgnoreCase(examType)) {
@@ -525,18 +561,38 @@ public class ExamGui {
             .content("Selamat datang di Portal Sekolah")
             .button("[ Ujian Harian ]")
             .button("[ Ujian Semester ]")
-            .button("[ Ujian Ujian Akhir Semester / Kelulusan ]") // Matches standard request UI path
+            .button("[ Ujian Ujian Akhir Semester / Kelulusan ]")
             .button("Tutup")
             .validResultHandler(response -> {
                 int clickedId = response.clickedButtonId();
                 if (clickedId == 0) {
                     openPortalUjianBedrock(player, "UH", null);
                 } else if (clickedId == 1) {
-                    openPortalUjianBedrock(player, "UTS", null);
+                    // Patch Spec 1: Macro-Gatekeeper Semester Lock
+                    if (!"OPEN".equalsIgnoreCase(plugin.getExamManager().getPortalSemesterStatus())) {
+                        showSemesterClosedBedrock(player);
+                    } else {
+                        openPortalUjianBedrock(player, "UTS", null);
+                    }
                 } else if (clickedId == 2) {
-                    openPortalUjianBedrock(player, "UAS", null);
+                    // Patch Spec 1: Macro-Gatekeeper Semester Lock
+                    if (!"OPEN".equalsIgnoreCase(plugin.getExamManager().getPortalSemesterStatus())) {
+                        showSemesterClosedBedrock(player);
+                    } else {
+                        openPortalUjianBedrock(player, "UAS", null);
+                    }
                 }
             })
+            .build();
+
+        FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
+    }
+
+    public void showSemesterClosedBedrock(Player player) {
+        SimpleForm form = SimpleForm.builder()
+            .title("Portal Ditutup")
+            .content("Maaf, saat ini portal ujian semester/Akhir Semester tidak dibuka, jika menurut anda ini kesalahan mohon hubungi Kepala Sekolah atau Kementerian!")
+            .button("Ok")
             .build();
 
         FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
@@ -576,10 +632,6 @@ public class ExamGui {
             .title(title)
             .content(content.toString());
 
-        int startHour = plugin.getConfig().getInt("exam-schedule.start-hour", 10);
-        int endHour = plugin.getConfig().getInt("exam-schedule.end-hour", 16);
-        String hours = String.format("%02d:00 - %02d:00", startHour, endHour);
-
         List<String> targetPacketIds = new ArrayList<>();
 
         for (int subjectId = 1; subjectId <= 7; subjectId++) {
@@ -597,16 +649,18 @@ public class ExamGui {
                     && plugin.getExamManager().getCurrentActiveSemesterPackets().contains(targetPacketId);
             }
 
+            // Patch Spec 3: Dynamic Status Labels
             String statusLegend;
             if (completed) {
                 statusLegend = "[Sudah Selesai]";
             } else if (active) {
-                statusLegend = "[Aktif]";
+                statusLegend = "[Aktif] - (Sedang Berlangsung)";
             } else {
-                statusLegend = "[Tidak Aktif]";
+                statusLegend = "[Tidak Aktif] - (Belum Dimulai / Selesai)";
             }
 
-            String buttonText = subjectName + " - " + statusLegend + " (" + hours + ")";
+            String buttonTextRaw = subjectName + " - " + statusLegend;
+            String buttonText = cleanBedrockText(buttonTextRaw);
             formBuilder.button(buttonText);
         }
 
@@ -628,6 +682,13 @@ public class ExamGui {
     }
 
     private void handleSubjectClickBedrock(Player player, String examType, String targetPacketId) {
+        // Patch Spec 2: Semester Break Time Interceptor
+        if (("UTS".equalsIgnoreCase(examType) || "UAS".equalsIgnoreCase(examType))
+            && plugin.getExamManager().isSemesterBreak()) {
+            openPortalUjianBedrock(player, examType, "§c[!] Error: Saat ini sedang masa jeda/istirahat antar mata pelajaran. Mohon tunggu mapel berikutnya dibuka.");
+            return;
+        }
+
         // Scenario 1: "TIDAK AKTIF"
         boolean active = false;
         if ("UH".equalsIgnoreCase(examType)) {
