@@ -212,4 +212,9 @@ public class NaturalSchoolAPIImpl implements NaturalSchoolAPI {
             });
         }
     }
+
+    @Override
+    public id.naturalsmp.naturalSchool.classsession.ClassManager getClassManager() {
+        return plugin.getClassManager();
+    }
 }

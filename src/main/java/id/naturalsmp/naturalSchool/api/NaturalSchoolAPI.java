@@ -83,4 +83,11 @@ public interface NaturalSchoolAPI {
      * @param stage new academic stage (SD, SMP, SMA)
      */
     void setPlayerStage(UUID uuid, String stage);
+
+    /**
+     * Gets the ClassManager instance to control class sessions, projector display, quizzes, and webhooks.
+     *
+     * @return ClassManager instance
+     */
+    id.naturalsmp.naturalSchool.classsession.ClassManager getClassManager();
 }

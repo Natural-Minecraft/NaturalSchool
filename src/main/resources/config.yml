@@ -41,3 +41,8 @@ exam-schedule:
   day-of-week: "SUNDAY"
   start-hour: 10
   end-hour: 16
+
+# Webhook and API settings
+api:
+  discord-webhook-url: "none"
+
