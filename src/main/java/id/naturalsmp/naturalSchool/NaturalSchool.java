@@ -3,6 +3,9 @@ package id.naturalsmp.naturalSchool;
 import id.naturalsmp.naturalSchool.api.NaturalSchoolAPI;
 import id.naturalsmp.naturalSchool.api.NaturalSchoolAPIImpl;
 import id.naturalsmp.naturalSchool.api.NaturalSchoolProvider;
+import id.naturalsmp.naturalSchool.classsession.ClassManager;
+import id.naturalsmp.naturalSchool.classsession.ClassSession;
+import id.naturalsmp.naturalSchool.command.KelasCommand;
 import id.naturalsmp.naturalSchool.database.DatabaseManager;
 import id.naturalsmp.naturalSchool.database.RankPrefixConfig;
 import id.naturalsmp.naturalSchool.listener.PlayerListener;
@@ -14,6 +17,8 @@ import id.naturalsmp.naturalSchool.placeholder.NaturalSchoolExpansion;
 import id.naturalsmp.naturalSchool.ui.UIManager;
 import id.naturalsmp.naturalSchool.exam.ExamManager;
 import id.naturalsmp.naturalSchool.semester.SemesterManager;
+import net.kyori.adventure.text.minimessage.MiniMessage;
+import org.bukkit.Bukkit;
 import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -26,6 +31,7 @@ public final class NaturalSchool extends JavaPlugin {
     private NaturalSchoolAPI api;
     private SemesterManager semesterManager;
     private ExamManager examManager;
+    private ClassManager classManager;
 
     @Override
     public void onEnable() {
@@ -34,6 +40,9 @@ public final class NaturalSchool extends JavaPlugin {
 
         // Initialize Semester Manager
         semesterManager = new SemesterManager(this);
+
+        // Initialize Class Manager
+        classManager = new ClassManager(this);
 
         // Initialize & Register Developer API
         NaturalSchoolAPIImpl apiImpl = new NaturalSchoolAPIImpl(this);
@@ -77,11 +86,62 @@ public final class NaturalSchool extends JavaPlugin {
             schoolCmd.setTabCompleter(schoolCommand);
         }
 
+        KelasCommand kelasCommand = new KelasCommand(this);
+        org.bukkit.command.PluginCommand kelasCmd = getCommand("kelas");
+        if (kelasCmd != null) {
+            kelasCmd.setExecutor(kelasCommand);
+            kelasCmd.setTabCompleter(kelasCommand);
+        }
+
         // Register PlaceholderAPI Expansion if PAPI is present on the server
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
             new NaturalSchoolExpansion(this).register();
             getLogger().info("PlaceholderAPI integration registered successfully.");
         }
+
+        // Automatic time scheduler task (WIB / GMT+7)
+        getServer().getScheduler().runTaskTimer(this, () -> {
+            java.time.ZonedDateTime nowWib = java.time.ZonedDateTime.now(java.time.ZoneId.of("Asia/Jakarta"));
+            int hour = nowWib.getHour();
+            int minute = nowWib.getMinute();
+
+            if (minute == 0 && hour == 18) {
+                // 18:00 WIB - Start sessions for all classes automatically (SD/SMP/SMA classes 1-12)
+                for (int i = 1; i <= 12; i++) {
+                    String classId = "kelas" + i;
+                    if (classManager.getSession(classId) == null) {
+                        classManager.startSession(classId, "Pelajaran Umum", null);
+                    }
+                }
+            }
+
+            if (minute == 15 && hour == 18) {
+                // 18:15 WIB - Auto Fallback check
+                for (int i = 1; i <= 12; i++) {
+                    String classId = "kelas" + i;
+                    ClassSession session = classManager.getSession(classId);
+                    if (session != null) {
+                        if (session.getProjectorFileName() == null && session.getQuizFileName() == null) {
+                            classManager.runAutoFallback(classId);
+                        }
+                    }
+                }
+            }
+
+            if (minute == 0 && hour == 20) {
+                // 20:00 WIB - Tolerance limit warning
+                Bukkit.broadcast(MiniMessage.miniMessage().deserialize("<gray>[NaturalSchool]</gray> <red>Batas toleransi keterlambatan telah dikunci! Murid yang baru hadir/masuk kelas mulai sekarang akan dicatat sebagai TERLAMBAT.</red>"));
+                classManager.sendDiscordLog("Batas Presensi Terkunci ⏱️", "Waktu toleransi keterlambatan (20:00 WIB) telah tercapai. Murid baru dicatat sebagai TERLAMBAT.", 16753920);
+            }
+
+            if (minute == 0 && hour == 21) {
+                // 21:00 WIB - End class session globally
+                for (int i = 1; i <= 12; i++) {
+                    String classId = "kelas" + i;
+                    classManager.stopSession(classId);
+                }
+            }
+        }, 200L, 1200L); // check every 60s
 
         getLogger().info("NaturalSchool has been enabled successfully.");
     }
@@ -138,6 +198,10 @@ public final class NaturalSchool extends JavaPlugin {
 
     public SemesterManager getSemesterManager() {
         return semesterManager;
+    }
+
+    public ClassManager getClassManager() {
+        return classManager;
     }
 
     public boolean isExamOpen() {
