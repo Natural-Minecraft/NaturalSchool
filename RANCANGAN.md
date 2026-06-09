@@ -346,23 +346,28 @@ Untuk memastikan keseimbangan hidup riil para pemain, siklus jam operasional sek
 * **Pukul 20.00 WIB (Batas Toleransi Mengunci):** Pintu absensi ditutup oleh sistem otomatis `NaturalSchool`. Murid baru yang melewati batas pintu kelas atau baru melakukan login ke server di atas jam ini akan otomatis dijatuhi status kehadiran permanent berkode **`TERLAMBAT`** pada database record harian.
 * **Pukul 21.00 WIB (Kelas Selesai & Pembubaran):** Sesi pengajaran resmi ditutup secara global. Pemain yang tercatat online di server game namun tidak berada di dalam wilayah kelas dari rentang waktu 18.00 - 20.00 WIB akan langsung dijatuhi hukuman otomatis berkode **`ALFA`** (Membolos).
 
-### 4.2 Sistem Perintah Terpadu (Unifikasi Command & Aliases)
+### 4.2 Arsitektur Sistem Perintah (Command Structure)
 
-Sistem akademik NaturalSchool menggunakan sistem perintah terpadu dengan empat basis perintah (aliases) yang saling terhubung untuk kenyamanan pemain:
+Sistem akademik NaturalSchool membagi fungsionalitas perintah menjadi 3 kategori utama yang bersih dan terstruktur untuk menjaga pemisahan wewenang serta kenyamanan pengguna:
 
-* **Bahasa Inggris (Utama & Pendek):**
-  * `/school` — Basis utama sistem sekolah (untuk murid & umum).
-  * `/class` — Alias pendek untuk kemudahan penulisan.
-* **Bahasa Indonesia (Utama & Pendek):**
-  * `/sekolah` — Basis utama sistem sekolah versi lokal.
-  * `/kelas` — Alias pendek versi lokal.
+#### 1. Perintah Admin (`/naturalschool`)
+* **Base Command:** `/naturalschool` (Alias: `/nschool`, `/ns`)
+* **Fungsi:** Digunakan oleh Administrator untuk manajemen konfigurasi, reload plugin, pemaksaan status sakelar ujian global, dan penanganan visual dialog debug.
 
-> [!NOTE]
-> Keempat perintah ini (`/school`, `/class`, `/sekolah`, `/kelas`) mengarah pada mesin logika backend yang sama. Untuk menjaga estetika lokalisasi:
-> - Subcommand berbahasa Indonesia (`start`, `selesai`, `pembelajaran`, `tanya`, `ujian`, dll) direkomendasikan dipasangkan dengan `/sekolah` atau `/kelas`.
-> - Subcommand berbahasa Inggris (`start`, `finish`/`end`, `lesson`, `ask`, `exam`, dll) direkomendasikan dipasangkan dengan `/school` atau `/class`.
+#### 2. Perintah Portal Siswa Universal (`/school` / `/sekolah`)
+* **Base Command:** `/school` (Alias: `/sekolah`)
+* **Fungsi:** Digunakan secara universal/global oleh siswa untuk mengakses menu portal akademik umum (tidak terikat region/kelas tertentu).
+* **Format Subcommand:**
+  * **Inggris:** `/school exam` (Ujian), `/school info` (Profil), `/school report` (Rapor).
+  * **Indonesia:** `/sekolah ujian` (Ujian), `/sekolah info` (Profil), `/sekolah rapor` (Rapor).
 
-> **Prinsip Auto-Detect Region:** Seluruh command di atas **tidak memerlukan `<id_kelas>` sebagai argumen**. Plugin secara otomatis mendeteksi region WorldGuard tempat Guru berdiri saat ini (misal: region `kelas8`) menggunakan API WorldGuard. Jika Guru tidak berada di dalam region kelas manapun saat menjalankan command, sistem menampilkan pesan error: `§cKamu tidak berada di dalam region kelas manapun!`
+#### 3. Perintah Kegiatan Kelas Regional (`/class` / `/kelas`)
+* **Base Command:** `/class` (Alias: `/kelas`, `/k`)
+* **Fungsi:** Digunakan oleh Guru/Helper dan Murid khusus untuk interaksi belajar-mengajar di dalam sesi kelas aktif (bersifat spasial/regional, mendeteksi wilayah secara otomatis).
+* **Format Subcommand (Guru):** `start`, `selesai` / `finish`, `pembelajaran` / `lesson`, `startsoal` / `startquiz`, `selesaikan` / `dismiss`, `rekap` / `compile`, `pertanyaan` / `questions`, `jawab` / `answer`, `chat-rekap`.
+* **Format Subcommand (Murid):** `tanya` / `ask`.
+
+> **Prinsip Auto-Detect Region:** Seluruh perintah kegiatan kelas (`/class` / `/kelas`) **tidak memerlukan `<id_kelas>` sebagai argumen**. Plugin secara otomatis mendeteksi region WorldGuard tempat Guru/Siswa berdiri saat ini (misal: region `kelas8`) menggunakan API WorldGuard. Jika Guru/Siswa tidak berada di dalam region kelas manapun saat menjalankan command, sistem menampilkan pesan error: `§cKamu tidak berada di dalam region kelas manapun!`
 
 Helper memiliki dua perintah utama yang **harus dijalankan secara manual** sebelum sesi kelas dimulai, yaitu memuat materi proyektor dan memuat soal kuis. File sumber kedua perintah ini disiapkan terlebih dahulu oleh Helper melalui **dashboard website** dan disimpan di sistem database pusat.
 
@@ -1151,7 +1156,10 @@ Skenario: **Ketua OSIS `MasRevo` ingin merencanakan event pasar malam bersama MP
 
 ### 7.10 Command Reference Lengkap (NaturalChat + NaturalSchool)
 
-> **Catatan Penting:** Seluruh command sekolah dan kelas di bawah ini mendukung 4 basis unifikasi command: `/school`, `/class`, `/sekolah`, dan `/kelas`. Plugin secara otomatis mendeteksi region WorldGuard tempat pemain/guru berdiri tanpa memerlukan argumen `<id_kelas>`.
+> **Catatan Penting Pemisahan Command:**
+> 1. **`/naturalschool` (Alias: `/nschool`, `/ns`):** Perintah khusus manajemen administrator.
+> 2. **`/school` (Alias: `/sekolah`):** Perintah portal siswa secara universal (global, tidak terikat wilayah kelas).
+> 3. **`/class` (Alias: `/kelas`, `/k`):** Perintah kegiatan kelas regional/spasial (menggunakan deteksi otomatis wilayah kelas WorldGuard tanpa parameter ID kelas).
 
 ---
 
@@ -1173,10 +1181,10 @@ Skenario: **Ketua OSIS `MasRevo` ingin merencanakan event pasar malam bersama MP
 
 | Perintah Utama (Indo) | Alias (Inggris) | Fungsi |
 | :--- | :--- | :--- |
-| `/kelas tanya <pertanyaan>` | `/school ask <question>` | Ajukan pertanyaan ke antrian tanya-jawab kelas (auto-detect region) |
-| `/kelas ujian` | `/school exam` | Buka Portal Ujian sekolah (Ujian Harian/Semester/UAS) |
-| `/kelas info` | `/school info` | Menampilkan GUI dialog Informasi Pelajar / Profil Anda |
-| `/kelas rapor` | `/school report` | Membuka E-Rapor digital |
+| `/kelas tanya <pertanyaan>` | `/class ask <question>` | Ajukan pertanyaan ke antrian tanya-jawab kelas (auto-detect region) |
+| `/sekolah ujian` | `/school exam` | Buka Portal Ujian sekolah (Ujian Harian/Semester/UAS) |
+| `/sekolah info` | `/school info` | Menampilkan GUI dialog Informasi Pelajar / Profil Anda |
+| `/sekolah rapor` | `/school report` | Membuka E-Rapor digital |
 
 **Cara pakai `/kelas tanya`:**
 ```
@@ -1193,12 +1201,12 @@ Sistem otomatis:
 
 | Perintah Utama (Indo) | Alias (Inggris) | Fungsi |
 | :--- | :--- | :--- |
-| `/kelas pertanyaan` | `/school questions` | Buka **Custom GUI** antrian pertanyaan murid (auto-detect region) |
-| `/kelas jawab <nomor> <jawaban>` | `/school answer <number> <answer>` | Jawab pertanyaan nomor tertentu dari antrian |
-| `/kelas pertanyaan skip <nomor>` | `/school questions skip <number>` | Lewati pertanyaan tertentu (ditandai DILEWATI) |
-| `/kelas pertanyaan tutup` | `/school questions close` | Tutup antrian sementara (murid tidak bisa /kelas tanya) |
-| `/kelas pertanyaan buka` | `/school questions open` | Buka kembali antrian |
-| `/kelas chat-rekap` | `/school chat-rekap` | Arsip semua Q&A hari ini ke database Perpustakaan Digital |
+| `/kelas pertanyaan` | `/class questions` | Buka **Custom GUI** antrian pertanyaan murid (auto-detect region) |
+| `/kelas jawab <nomor> <jawaban>` | `/class answer <number> <answer>` | Jawab pertanyaan nomor tertentu dari antrian |
+| `/kelas pertanyaan skip <nomor>` | `/class questions skip <number>` | Lewati pertanyaan tertentu (ditandai DILEWATI) |
+| `/kelas pertanyaan tutup` | `/class questions close` | Tutup antrian sementara (murid tidak bisa /kelas tanya) |
+| `/kelas pertanyaan buka` | `/class questions open` | Buka kembali antrian |
+| `/kelas chat-rekap` | `/class chat-rekap` | Arsip semua Q&A hari ini ke database Perpustakaan Digital |
 | `/ch broadcast <id> <pesan>` | `/ch broadcast <id> <message>` | Kirim pengumuman highlight ke channel tertentu |
 
 **Cara pakai `/kelas jawab`:**
@@ -1357,7 +1365,7 @@ Berikut adalah cetak biru (*blueprint*) alur kerja sistem dari hulu ke hilir:
 
 Siklus dimulai dari interaksi langsung siswa di dalam game Minecraft.
 
-1. **Eksekusi Command:** Siswa mengetik perintah `/kelas ujian` (atau alias `/school exam` dalam Bahasa Inggris) di kolom obrolan game.
+1. **Eksekusi Command:** Siswa mengetik perintah `/sekolah ujian` (atau alias `/school exam` dalam Bahasa Inggris) di kolom obrolan game.
 2. **Penanganan Command (`SchoolCommand.java`):**
    * Kelas *Command Listener* menangkap perintah tersebut.
    * Sistem memeriksa apakah pemain adalah seorang siswa terdaftar dan mengambil data profilnya (seperti `uuid`, `nis`, dan `academic_class`).
@@ -1461,5 +1469,5 @@ Seluruh pergerakan alur kompleks di atas didukung oleh fondasi database yang ram
 * **`nschool_exam_questions`**: Bank data yang menyuplai isi teks pertanyaan ke dalam file cache game `exams.json`.
 * **`nschool_core_state`**: Menjadi otak kendali jarak jauh (sakelar) bagi Wali kelas dan Kementerian untuk membuka-tutup tombol ujian di dalam game secara *real-time*.
 * **`nschool_student_exam_attempts`**: Benteng keamanan (*Anti-Retake*) untuk mengunci paket yang sudah dikerjakan siswa.
-* **`nschool_student_rapor`**: Transkrip akhir tempat bermuaranya seluruh akumulasi nilai rata-rata UH, nilai UTS, dan nilai UAS siswa yang siap dipanggil kapan saja lewat perintah `/kelas rapor` (atau alias `/school report` / `/school rapor`) maupun halaman Web Dashboard Orang Tua.
+* **`nschool_student_rapor`**: Transkrip akhir tempat bermuaranya seluruh akumulasi nilai rata-rata UH, nilai UTS, dan nilai UAS siswa yang siap dipanggil kapan saja lewat perintah `/sekolah rapor` (atau alias `/school report` / `/school rapor`) maupun halaman Web Dashboard Orang Tua.
 

@@ -13,6 +13,7 @@ commands:
     aliases: [nschool, ns]
   school:
     description: NaturalSchool student command.
+    aliases: [sekolah]
   kelas:
     description: Perintah manajemen kelas bagi Guru dan Helper.
     aliases: [class, k]
