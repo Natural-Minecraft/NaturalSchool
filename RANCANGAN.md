@@ -1471,3 +1471,22 @@ Seluruh pergerakan alur kompleks di atas didukung oleh fondasi database yang ram
 * **`nschool_student_exam_attempts`**: Benteng keamanan (*Anti-Retake*) untuk mengunci paket yang sudah dikerjakan siswa.
 * **`nschool_student_rapor`**: Transkrip akhir tempat bermuaranya seluruh akumulasi nilai rata-rata UH, nilai UTS, dan nilai UAS siswa yang siap dipanggil kapan saja lewat perintah `/sekolah rapor` (atau alias `/school report` / `/school rapor`) maupun halaman Web Dashboard Orang Tua.
 
+---
+
+### 8.7 Mekanisme Keamanan Engine & Penanganan Error (Robustness & Fallback)
+
+Karena sistem menggunakan satu engine terpadu (`ExamSession.java` dan `ExamGui.java`) untuk memproses seluruh jenis ujian (UH, UTS, UAS), terdapat risiko kegagalan sistem total (*single point of failure*). Untuk mengatasinya, diimplementasikan mekanisme pertahanan berlapis:
+
+1. **Isolasi Logika Validasi (Validation Decoupling):**
+   * Logika pengecekan filter gerbang Fase 2 (Jalur A vs Jalur B & C) diisolasi sepenuhnya ke dalam kelas validator terpisah (`ExamValidator.java`) agar tidak tercampur dengan kode rendering GUI utama.
+   * Modifikasi pada logika filter wali kelas tidak akan mempengaruhi kestabilan kode GUI rendering.
+
+2. **Proteksi Try-Catch & Safe Closure:**
+   * Seluruh proses pemicuan portal (`SchoolCommand.java` memanggil UI) dibungkus dengan blok `try-catch` yang kuat pada level terluar.
+   * Jika terjadi kegagalan pemanggilan database atau pembacaan berkas kuis, GUI akan ditutup secara paksa dan aman untuk mencegah hang. Murid akan menerima pesan kegagalan yang bersih:
+     `§c[!] Terjadi kesalahan internal saat memuat portal ujian. Kode Error: EX-500. Silakan hubungi pengawas ujian.`
+
+3. **Database Transaction Safety:**
+   * Proses perekaman riwayat (`nschool_student_exam_attempts`) dan pembaruan rapor (`nschool_student_rapor`) menggunakan transaksi database asinkron yang terisolasi. Jika kalkulasi rata-rata gagal, query akan di-rollback untuk mencegah kerusakan data transkrip nilai murid.
+
+
