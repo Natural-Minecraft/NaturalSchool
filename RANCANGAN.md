@@ -1361,6 +1361,64 @@ Berikut adalah cetak biru (*blueprint*) alur kerja sistem dari hulu ke hilir:
 
 ---
 
+### 8.0 Keputusan Arsitektur Utama
+
+#### 8.0.1 Satu Engine Terpadu untuk Semua Jenis Ujian
+
+Dibandingkan membuat engine terpisah untuk setiap jenis ujian (UH, UTS, UAS), seluruh alur pengerjaan soal digabung ke dalam **satu engine terpadu** (`ExamSession.java` + `ExamGui.java`). Engine ini bersifat **"buta" terhadap jenis ujian** — ia hanya peduli pada `packet_id` yang diterimanya, bukan pada apakah paket itu milik UH, UTS, atau UAS.
+
+```
+/school exam
+    ↓
+[ExamGui] Tampilkan pilihan jenis ujian
+    ↓
+[ExamValidator] Validasi akses (gatekeeper Fase 2)
+    ↓
+new ExamSession(playerUuid, "5_1_UH1")   ← engine sama
+new ExamSession(playerUuid, "6_1_UTS")   ← engine sama
+new ExamSession(playerUuid, "5_1_UAS")   ← engine sama
+    ↓
+[ExamGui] Render soal, terima jawaban, kalkulasi skor
+    ↓
+[Post-submission] String splitting → upsert tabel rapor yang sesuai
+```
+
+**Keuntungan:**
+- Kode jauh lebih pendek dan mudah dipelihara
+- Desain UI/UX GUI pengerjaan soal cukup dibuat satu kali
+- Perbaikan bug pada engine otomatis memperbaiki semua jenis ujian sekaligus
+
+**Risiko & Mitigasi:**
+- *Single Point of Failure* → diatasi dengan mekanisme robustness berlapis (lihat Bagian 8.8)
+
+#### 8.0.2 Pemisahan Wewenang Operator (Authority Split)
+
+Meskipun engine-nya satu, **operator yang berwenang membuka/menutup akses** setiap jenis ujian berbeda-beda:
+
+| Jenis Ujian | Operator Pengendali | Mekanisme Kontrol |
+| :--- | :--- | :--- |
+| **Ujian Harian (UH)** | Wali Kelas masing-masing | Mengisi `active_uh_packets` di `nschool_core_state` via Web Dashboard |
+| **Ujian Tengah Semester (UTS)** | Guru Mata Pelajaran + Kepala Sekolah | Mengatur `portal_semester_status` dan `current_active_semester_packets` |
+| **Ujian Akhir Semester (UAS)** | Kepala Sekolah + Kementerian | Mengatur `portal_semester_status` di level global |
+| **Tugas Harian (PR)** | Guru Mata Pelajaran | **Jalur terpisah** — tidak melalui exam engine (lihat Bagian 4.2.4) |
+
+> [!IMPORTANT]
+> **Tugas Harian (PR) tidak melalui exam engine.** PR dikerjakan secara mandiri oleh murid di Perpustakaan Agung pada jam bebas dan menggunakan alur penyimpanan nilai yang berbeda. Hanya UH, UTS, dan UAS yang melewati `ExamSession.java`.
+
+#### 8.0.3 Prinsip "Engine Buta" (Blind Engine Principle)
+
+Engine pengerjaan soal dirancang agar **tidak mengetahui dan tidak peduli** jenis ujian yang sedang dikerjakan. Engine hanya:
+1. Menerima `packet_id` sebagai input
+2. Membaca soal dari `exams.json` berdasarkan `packet_id`
+3. Menampilkan GUI pengerjaan soal
+4. Menyerahkan skor mentah ke handler *post-submission*
+
+Seluruh logika percabangan jenis ujian (UH vs UTS vs UAS) **hanya terjadi di dua titik:**
+- **Sebelum engine** → `ExamValidator.java` (gatekeeper Fase 2)
+- **Setelah engine** → String splitting `packet_id` untuk menentukan kolom rapor yang diisi (`score_harian`, `score_uts`, atau `score_uas`)
+
+---
+
 ### 8.1 FASE 1: Inisiasi Perintah & Menu Utama Portal
 
 Siklus dimulai dari interaksi langsung siswa di dalam game Minecraft.
@@ -1473,7 +1531,7 @@ Seluruh pergerakan alur kompleks di atas didukung oleh fondasi database yang ram
 
 ---
 
-### 8.7 Mekanisme Keamanan Engine & Penanganan Error (Robustness & Fallback)
+### 8.8 Mekanisme Keamanan Engine & Penanganan Error (Robustness & Fallback)
 
 Karena sistem menggunakan satu engine terpadu (`ExamSession.java` dan `ExamGui.java`) untuk memproses seluruh jenis ujian (UH, UTS, UAS), terdapat risiko kegagalan sistem total (*single point of failure*). Untuk mengatasinya, diimplementasikan mekanisme pertahanan berlapis:
 
