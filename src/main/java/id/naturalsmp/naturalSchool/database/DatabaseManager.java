@@ -697,6 +697,7 @@ public class DatabaseManager {
             ps.executeUpdate();
         } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to save exam attempt for " + uuid, e);
+            throw new RuntimeException("Database error saving exam attempt", e);
         }
     }
 
@@ -714,6 +715,7 @@ public class DatabaseManager {
             }
         } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to calculate average UH score for " + uuid, e);
+            throw new RuntimeException("Database error calculating average score", e);
         }
         return 0.0;
     }
@@ -741,6 +743,7 @@ public class DatabaseManager {
             }
         } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to query existing student rapor for " + uuid, e);
+            throw new RuntimeException("Database error querying student rapor", e);
         }
 
         if (examType.toUpperCase().contains("UH")) {
@@ -787,6 +790,7 @@ public class DatabaseManager {
                 ps.executeUpdate();
             } catch (SQLException e) {
                 plugin.getLogger().log(Level.SEVERE, "Failed to update student rapor for " + uuid, e);
+                throw new RuntimeException("Database error updating student rapor", e);
             }
         } else {
             query = "INSERT INTO nschool_student_rapor (uuid, nis, academic_class, semester, subject_id, score_harian, score_uts, score_uas, final_score, grade_letter, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
@@ -806,6 +810,7 @@ public class DatabaseManager {
                 ps.executeUpdate();
             } catch (SQLException e) {
                 plugin.getLogger().log(Level.SEVERE, "Failed to insert student rapor for " + uuid, e);
+                throw new RuntimeException("Database error inserting student rapor", e);
             }
         }
     }

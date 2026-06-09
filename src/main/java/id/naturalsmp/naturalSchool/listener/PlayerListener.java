@@ -10,6 +10,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerKickEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.block.BlockBreakEvent;
@@ -62,9 +63,16 @@ public class PlayerListener implements Listener {
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
-        UUID uuid = event.getPlayer().getUniqueId();
-        plugin.getUiManager().unfreezePlayer(event.getPlayer());
+        Player player = event.getPlayer();
+        UUID uuid = player.getUniqueId();
+        plugin.getUiManager().unfreezePlayer(player);
+        plugin.getUiManager().clearExamSession(player);
         handleDisconnect(uuid);
+    }
+
+    @EventHandler
+    public void onPlayerKick(PlayerKickEvent event) {
+        plugin.getUiManager().clearExamSession(event.getPlayer());
     }
 
     // NOTE: No separate onPlayerKick handler — on Paper, PlayerKickEvent also fires

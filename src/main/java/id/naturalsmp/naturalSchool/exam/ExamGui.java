@@ -22,18 +22,126 @@ import org.geysermc.floodgate.api.FloodgateApi;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Stateful Single-engine core GUI for the Exam Subsystem (v1.6.6).
+ * Stateful Single-engine core GUI for the Exam Subsystem (v1.6.7).
  * Features macro/micro security gatekeepers, break-time interceptors, and Bedrock UI sanitizations.
  */
 public class ExamGui {
 
     private final NaturalSchool plugin;
+    private static final Set<UUID> submittingPlayers = ConcurrentHashMap.newKeySet();
 
     public ExamGui(NaturalSchool plugin) {
         this.plugin = plugin;
+    }
+
+    private boolean isBedrock(Player player) {
+        try {
+            return FloodgateApi.getInstance().isFloodgatePlayer(player.getUniqueId());
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    private void showDatabaseErrorJava(Player player) {
+        List<DialogBody> bodies = List.of(
+            DialogBody.item(new ItemStack(Material.REDSTONE_BLOCK)).build(),
+            DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<red><bold>DATABASE TIMEOUT / ERROR</bold></red>")),
+            DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Gagal mengirim jawaban ke server. Jawaban Anda masih aman tersimpan.</yellow>")),
+            DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("Silahkan segera hubungi pengawas / invigilator untuk bantuan teknis!"))
+        );
+
+        ActionButton okBtn = ActionButton.builder(Component.text("Ok"))
+            .action(DialogAction.customClick((view, audience) -> {}, ClickCallback.Options.builder().uses(1).build()))
+            .build();
+
+        Dialog dialog = Dialog.create(builder -> builder.empty()
+            .base(DialogBase.builder(Component.text("Gagal Mengirim Ujian"))
+                .canCloseWithEscape(true)
+                .body(bodies)
+                .build())
+            .type(DialogType.notice(okBtn))
+        );
+
+        player.showDialog(dialog);
+    }
+
+    private void showDatabaseErrorBedrock(Player player) {
+        SimpleForm form = SimpleForm.builder()
+            .title("DATABASE TIMEOUT / ERROR")
+            .content("§cGagal mengirim jawaban ke server. Jawaban Anda masih aman tersimpan.\n\n§eSilahkan segera hubungi pengawas / invigilator untuk bantuan teknis!")
+            .button("Ok")
+            .build();
+
+        FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
+    }
+
+    private void showDatabaseErrorLayout(Player player) {
+        if (isBedrock(player)) {
+            showDatabaseErrorBedrock(player);
+        } else {
+            showDatabaseErrorJava(player);
+        }
+    }
+
+    private void submitExam(Player player, String packetId, ExamSession session, List<ExamQuestions.Question> questions) {
+        UUID uuid = player.getUniqueId();
+
+        // Patch Spec 1: Atomic submission lock
+        if (!submittingPlayers.add(uuid)) {
+            // Already submitting, reject
+            return;
+        }
+
+        int[] score = ExamQuestions.evaluateExam(session, questions);
+        double pctScore = questions != null && !questions.isEmpty()
+            ? ((double) score[0] / questions.size()) * 100.0
+            : 0.0;
+
+        CompletableFuture.runAsync(() -> {
+            StudentProfile profile = plugin.getProfileManager().getProfile(uuid);
+            String nis = (profile != null) ? profile.getNis() : "";
+            String semester = (profile != null) ? profile.getCurrentSemester() : "GANJIL";
+
+            // 1. Save attempt
+            plugin.getDatabaseManager().saveExamAttempt(uuid, nis, packetId, pctScore);
+
+            // 2. Parse packet_id dynamically
+            String[] parts = packetId.split("_");
+            int subjectId = Integer.parseInt(parts[0]);
+            int academicClass = Integer.parseInt(parts[1]);
+            String examType = parts[2];
+
+            // 3. Upsert Rapor
+            plugin.getDatabaseManager().upsertStudentRapor(uuid, nis, academicClass, semester, subjectId, examType, pctScore);
+        }, runnable -> Bukkit.getScheduler().runTaskAsynchronously(plugin, runnable))
+        .whenComplete((unused, throwable) -> {
+            // Return to primary main thread runner for UI manipulation and lock releasing
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                // Selalu lepas lock
+                submittingPlayers.remove(uuid);
+
+                if (!player.isOnline()) {
+                    return;
+                }
+
+                if (throwable != null) {
+                    // Patch Spec 2: Intercept exception & do not clear session (anti-data loss)
+                    showDatabaseErrorLayout(player);
+                    plugin.getLogger().log(java.util.logging.Level.SEVERE, "Failed to submit exam for " + player.getName(), throwable);
+                } else {
+                    // Sukses
+                    player.sendTitle("§a§lUJIAN SELESAI", "§7Benar: §a" + score[0] + " §f| Salah: §c" + score[1], 20, 100, 20);
+                    player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
+                    plugin.getUiManager().clearExamSession(player);
+                }
+            });
+        });
     }
 
     private String cleanBedrockText(String text) {
@@ -449,35 +557,7 @@ public class ExamGui {
         ActionButton confirmBtn = ActionButton.builder(Component.text("Kirim Jawaban"))
             .action(DialogAction.customClick((view, audience) -> {
                 if (audience instanceof Player p) {
-                    int[] score = ExamQuestions.evaluateExam(session, questions);
-                    double pctScore = questions != null && !questions.isEmpty()
-                        ? ((double) score[0] / questions.size()) * 100.0
-                        : 0.0;
-
-                    CompletableFuture.runAsync(() -> {
-                        StudentProfile profile = plugin.getProfileManager().getProfile(p.getUniqueId());
-                        String nis = (profile != null) ? profile.getNis() : "";
-                        String semester = (profile != null) ? profile.getCurrentSemester() : "GANJIL";
-
-                        // 1. Save attempt
-                        plugin.getDatabaseManager().saveExamAttempt(p.getUniqueId(), nis, packetId, pctScore);
-
-                        // 2. Parse packet_id dynamically
-                        String[] parts = packetId.split("_");
-                        int subjectId = Integer.parseInt(parts[0]);
-                        int academicClass = Integer.parseInt(parts[1]);
-                        String examType = parts[2];
-
-                        // 3. Upsert Rapor
-                        plugin.getDatabaseManager().upsertStudentRapor(p.getUniqueId(), nis, academicClass, semester, subjectId, examType, pctScore);
-                    }, runnable -> Bukkit.getScheduler().runTaskAsynchronously(plugin, runnable))
-                    .thenRun(() -> {
-                        Bukkit.getScheduler().runTask(plugin, () -> {
-                            p.sendTitle("§a§lUJIAN SELESAI", "§7Benar: §a" + score[0] + " §f| Salah: §c" + score[1], 20, 100, 20);
-                            p.playSound(p.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
-                            plugin.getUiManager().clearExamSession(p);
-                        });
-                    });
+                    submitExam(p, packetId, session, questions);
                 }
             }, ClickCallback.Options.builder().uses(1).build()))
             .build();
@@ -759,7 +839,10 @@ public class ExamGui {
                     openPortalUjianBedrock(player, parts[2], null);
                 }
             })
-            .closedResultHandler(() -> openExamPreBedrock(player, packetId))
+            .closedResultHandler(() -> {
+                if (!player.isOnline()) return;
+                openExamPreBedrock(player, packetId);
+            })
             .build();
 
         FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
@@ -854,7 +937,10 @@ public class ExamGui {
                 }
             }
         })
-        .closedResultHandler(() -> openExamQuestionBedrock(player, packetId, qNum));
+        .closedResultHandler(() -> {
+            if (!player.isOnline()) return;
+            openExamQuestionBedrock(player, packetId, qNum);
+        });
 
         FloodgateApi.getInstance().sendForm(player.getUniqueId(), formBuilder.build());
     }
@@ -876,42 +962,17 @@ public class ExamGui {
             .validResultHandler(response -> {
                 int selectedIndex = response.asDropdown(1);
                 if (selectedIndex == 0) {
-                    int[] score = ExamQuestions.evaluateExam(session, questions);
-                    double pctScore = questions != null && !questions.isEmpty()
-                        ? ((double) score[0] / questions.size()) * 100.0
-                        : 0.0;
-
-                    CompletableFuture.runAsync(() -> {
-                        StudentProfile profile = plugin.getProfileManager().getProfile(player.getUniqueId());
-                        String nis = (profile != null) ? profile.getNis() : "";
-                        String semester = (profile != null) ? profile.getCurrentSemester() : "GANJIL";
-
-                        // 1. Save attempt
-                        plugin.getDatabaseManager().saveExamAttempt(player.getUniqueId(), nis, packetId, pctScore);
-
-                        // 2. Parse packet_id dynamically
-                        String[] parts = packetId.split("_");
-                        int subjectId = Integer.parseInt(parts[0]);
-                        int academicClass = Integer.parseInt(parts[1]);
-                        String examType = parts[2];
-
-                        // 3. Upsert Rapor
-                        plugin.getDatabaseManager().upsertStudentRapor(player.getUniqueId(), nis, academicClass, semester, subjectId, examType, pctScore);
-                    }, runnable -> Bukkit.getScheduler().runTaskAsynchronously(plugin, runnable))
-                    .thenRun(() -> {
-                        Bukkit.getScheduler().runTask(plugin, () -> {
-                            player.sendTitle("§a§lUJIAN SELESAI", "§7Benar: §a" + score[0] + " §f| Salah: §c" + score[1], 20, 100, 20);
-                            player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
-                            plugin.getUiManager().clearExamSession(player);
-                        });
-                    });
+                    submitExam(player, packetId, session, questions);
                 } else {
                     session.setCurrentQuestion(totalQuestions);
                     session.setShowWarning(false);
                     plugin.getUiManager().openExamQuestion(player, packetId, totalQuestions);
                 }
             })
-            .closedResultHandler(() -> openExamConfirmationBedrock(player, packetId))
+            .closedResultHandler(() -> {
+                if (!player.isOnline()) return;
+                openExamConfirmationBedrock(player, packetId);
+            })
             .build();
 
         FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);

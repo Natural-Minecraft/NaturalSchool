@@ -2,6 +2,16 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.6.7] - 2026-06-10
+### Added
+- **Fallback Notification Layout**: Added fallback error interfaces (`showDatabaseErrorJava`/`showDatabaseErrorBedrock`) to display alerts when database connections fail, preventing player frustration.
+
+### Changed
+- **Atomic Submission Lock (v1.6.7)**: Implemented atomic submission checks in `ExamGui.java` utilizing a server-side `submittingPlayers` lock to block duplicate database transaction dispatches.
+- **Robust Exception Propagation**: Modified `DatabaseManager.java` to rethrow caught `SQLException` instances as `RuntimeException` back to the async task pipeline.
+- **Liveness Guard Validation**: Added offline validations (`!player.isOnline()`) on Bedrock form closed handlers to prevent recursive payload loops.
+- **Stale Session Eviction Hook**: Linked `PlayerQuitEvent` and `PlayerKickEvent` listeners to evict cached student session data on exit, resolving RAM leaks.
+
 ## [1.6.6] - 2026-06-10
 ### Added
 - **Semester Break Time Interceptor**: Implemented chronological checks in both Java and Bedrock subject click listeners to block players from starting UTS/UAS attempts during global break windows (`is_semester_break` flag).
