@@ -348,20 +348,22 @@ Untuk memastikan keseimbangan hidup riil para pemain, siklus jam operasional sek
 
 ### 4.2 Sistem Perintah Guru, Materi Pembelajaran & Soal Ujian
 
+> **Prinsip Auto-Detect Region:** Seluruh command `/kelas` **tidak memerlukan `<id_kelas>` sebagai argumen**. Plugin secara otomatis mendeteksi region WorldGuard tempat Guru berdiri saat ini (misal: region `kelas8`) menggunakan API WorldGuard. Jika Guru tidak berada di dalam region kelas manapun saat menjalankan command, sistem menampilkan pesan error: `§cKamu tidak berada di dalam region kelas manapun!`
+
 Helper memiliki dua perintah utama yang **harus dijalankan secara manual** sebelum sesi kelas dimulai, yaitu memuat materi proyektor dan memuat soal kuis. File sumber kedua perintah ini disiapkan terlebih dahulu oleh Helper melalui **dashboard website** dan disimpan di sistem database pusat.
 
-#### 4.2.1 Perintah Memuat Materi Pembelajaran (`/kelas pembelajaran <id_kelas> <namaFile>`)
+#### 4.2.1 Perintah Memuat Materi Pembelajaran (`/kelas pembelajaran <namaFile>`)
 
 * **Fungsi:** Menampilkan materi pelajaran pada proyektor/papan informasi virtual di dalam ruang kelas (berbasis Armor Stand display atau ItemFrame kustom).
-* **Format Perintah:** `/kelas pembelajaran kelas1 matematika_aljabar_v2`
-* **Mekanisme:** Plugin mengambil file konten dengan nama `matematika_aljabar_v2` dari tabel `natural_lesson_files` di database, lalu me-render teksnya ke dalam display proyektor kelas yang ditentukan.
+* **Format Perintah:** `/kelas pembelajaran matematika_aljabar_v2`
+* **Mekanisme:** Plugin mendeteksi region kelas Guru secara otomatis, lalu mengambil file konten dengan nama `matematika_aljabar_v2` dari tabel `natural_lesson_files` di database, dan me-render teksnya ke display proyektor kelas tersebut.
 * **Catatan:** File materi **harus dibuat terlebih dahulu** oleh Helper melalui panel website sebelum perintah ini bisa dieksekusi. Satu file dapat dipakai ulang di sesi berikutnya.
 
 #### 4.2.2 Perintah Memulai Soal Kuis (`/kelas startsoal <namaFile>`)
 
 * **Fungsi:** Membuka dan mendistribusikan soal kuis kepada seluruh murid yang hadir di kelas secara serentak melalui **Custom UI** bespoke NaturalSchool.
 * **Format Perintah:** `/kelas startsoal matematika_kuis_minggu3`
-* **Mekanisme:** Plugin mengambil paket soal dari database berdasarkan nama file, mengacak urutan soal, lalu mengirimkannya ke antarmuka Custom UI masing-masing murid. Jawaban dikirim balik secara asinkron ke backend untuk dinilai otomatis.
+* **Mekanisme:** Plugin mendeteksi region kelas Guru secara otomatis, mengambil paket soal dari database, mengacak urutan soal, lalu mengirimkannya ke Custom UI masing-masing murid. Jawaban dikirim balik secara asinkron ke backend untuk dinilai otomatis.
 * **Catatan Penting:** Antarmuka soal kuis menggunakan **Custom UI bespoke** (bukan Chest GUI standar). Spesifikasi teknis Custom UI akan didokumentasikan terpisah di dokumen `SPEC_NaturalSchool_UI.md`.
 
 #### 4.2.3 Perintah Pemulangan Dini (`/kelas selesaikan <player>`)
@@ -378,11 +380,10 @@ Guru dapat memberikan tugas Pekerjaan Rumah (PR) tambahan melalui dashboard web.
 
 ### 4.3 Logika Rekapitulasi Nilai Otomatis 1-Klik (`/kelas rekap`)
 
-Untuk mencegah fenomena kelelahan pengurus akibat mencatat data ratusan siswa secara manual, Helper dibekali perintah otomatisasi cerdas:
+Untuk mencegah fenomena kelelahan pengurus akibat mencatat data ratusan siswa secara manual, Helper dibekali perintah otomatisasi cerdas. Kelas-id **tidak perlu ditulis** — sistem mendeteksi region secara otomatis:
 
 ```bash
-/kelas rekap <id_kelas>
-
+/kelas rekap
 ```
 
 **Alur Eksekusi Skrip Backend:**
@@ -1073,11 +1074,12 @@ Skenario: **Helper bernama `KakDevy` bertugas mengajar Kelas 8 SMP hari ini.**
        └── Pastikan file materi sudah disiapkan di dashboard!
        └── File terbaru yang tersedia: ipa_sel_hewan_v3 (dibuat 3 hari lalu)
 
-3. 18.00 WIB — KakDevy menjalankan /kelas start kelas8 ipa:
+3. 18.00 WIB — KakDevy masuk ke region kelas8, lalu menjalankan /kelas start ipa:
+   └── [AUTO] Plugin mendeteksi KakDevy berada di region: kelas8
    └── Channel #kelas8 otomatis menerima:
        └── [SISTEM] 🔔 Kelas 8 - IPA telah dibuka oleh Guru: KakDevy
        └── [SISTEM] 📖 Materi hari ini: Sel Hewan dan Sel Tumbuhan
-       └── [SISTEM] Kamu bisa bertanya di: /ch k8-materi
+       └── [SISTEM] Ada pertanyaan? Ketik /kelas tanya <pertanyaanmu>
 
 4. Selama kelas berlangsung, KakDevy bisa monitor dari channel guru:
    └── KakDevy: /ch guru-smp
@@ -1133,11 +1135,13 @@ Skenario: **Ketua OSIS `MasRevo` ingin merencanakan event pasar malam bersama MP
 
 ---
 
-### 7.10 Command Reference Lengkap (NaturalChat)
+### 7.10 Command Reference Lengkap (NaturalChat + NaturalSchool)
 
-Seluruh command sistem chat dirancang singkat dan mudah diingat:
+> **Catatan Penting:** Seluruh command `/kelas` **tidak memerlukan `<id_kelas>`**. Plugin auto-detect region WorldGuard tempat pemain berdiri.
 
-#### Perintah Umum (Semua Pemain)
+---
+
+#### Perintah Umum Chat (Semua Pemain)
 
 | Command | Fungsi |
 | :--- | :--- |
@@ -1149,13 +1153,50 @@ Seluruh command sistem chat dirancang singkat dan mudah diingat:
 | `/ch mute <id>` | Bisukan notifikasi dari sebuah channel (tetap bisa baca) |
 | `/ch unmute <id>` | Aktifkan kembali notifikasi channel |
 
-#### Perintah Guru/Helper
+---
+
+#### Perintah Murid — Sistem Tanya Jawab
 
 | Command | Fungsi |
 | :--- | :--- |
+| `/kelas tanya <pertanyaan>` | Ajukan pertanyaan ke antrian tanya-jawab kelas (auto-detect region) |
+
+**Cara pakai:**
+```
+/kelas tanya Pak, apa bedanya sel hewan dan sel tumbuhan?
+```
+Sistem otomatis:
+- Menambahkan ke antrian bernomor: `📋 [ANTRIAN #3] PakBudi: "Pak, apa bedanya..."`
+- Menyimpan ke database `natural_chat_archives` (adalah_pertanyaan = true)
+- Broadcast ke channel `#kelas<N>-materi` agar terlihat semua orang
+
+---
+
+#### Perintah Guru/Helper — Sistem Antrian & Jawaban
+
+| Command | Fungsi |
+| :--- | :--- |
+| `/kelas pertanyaan` | Buka **Custom GUI** antrian pertanyaan murid (auto-detect region) |
+| `/kelas jawab <nomor> <jawaban>` | Jawab pertanyaan nomor tertentu dari antrian |
+| `/kelas pertanyaan skip <nomor>` | Lewati pertanyaan tertentu (ditandai DILEWATI) |
+| `/kelas pertanyaan tutup` | Tutup antrian sementara (murid tidak bisa /kelas tanya) |
+| `/kelas pertanyaan buka` | Buka kembali antrian |
+| `/kelas chat-rekap` | Arsip semua Q&A hari ini ke database Perpustakaan Digital |
 | `/ch broadcast <id> <pesan>` | Kirim pengumuman highlight ke channel tertentu |
-| `/kelas pertanyaan` | Lihat daftar pertanyaan bertanda [?] di channel materi |
-| `/kelas chat-rekap` | Rekap tanya-jawab penting dari channel materi hari ini |
+
+**Cara pakai `/kelas jawab`:**
+```
+/kelas jawab 1 Sel hewan tidak punya dinding sel, sedangkan sel tumbuhan punya...
+```
+Output yang terlihat semua murid:
+```
+✅ [JAWAB #1] KakDevy → PakBudi
+   "Sel hewan tidak punya dinding sel, sedangkan sel tumbuhan punya..."
+   ─ Pertanyaan: "Pak, apa bedanya sel hewan dan sel tumbuhan?"
+```
+Pertanyaan nomor 1 otomatis dihapus dari antrian.
+
+---
 
 #### Perintah OSIS/MPK
 
@@ -1165,6 +1206,8 @@ Seluruh command sistem chat dirancang singkat dan mudah diingat:
 | `/osis vote "<pertanyaan>" <p1> <p2> ...` | Buat vote di channel OSIS |
 | `/mpk aspirasi <kelas> "<isi>"` | Catat aspirasi dari kelas ke database MPK |
 | `/mpk laporan` | Lihat semua aspirasi yang sudah dicatat |
+
+---
 
 #### Perintah Admin
 
@@ -1180,22 +1223,81 @@ Seluruh command sistem chat dirancang singkat dan mudah diingat:
 
 ---
 
-### 7.11 Integrasi dengan Sistem Kelas
+### 7.10a Spesifikasi Custom GUI — `/kelas pertanyaan`
 
-Chat Channel berintegrasi erat dengan `ClassManager` di NaturalSchool sehingga komunikasi in-game selalu terhubung dengan aktivitas akademik:
+Ketika Guru menjalankan `/kelas pertanyaan`, sistem membuka **Custom GUI** (bukan teks chat biasa). GUI ini dirancang agar Guru bisa dengan cepat memilih dan menjawab pertanyaan tanpa harus mengingat nomor antrian.
+
+#### Tampilan GUI
 
 ```
-Event Kelas                    → Aksi Channel Otomatis
-─────────────────────────────────────────────────────────
-/kelas start <id> <mapel>      → Notifikasi ke #kelas<N> + #guru-<jenjang>
-/kelas pembelajaran <id> <file>→ Embed preview materi ke #kelas<N>-materi
-/kelas startsoal <file>        → Alert ke #kelas<N>: "Kuis dimulai!"
-/kelas selesaikan <player>     → Notifikasi personal ke player (DM)
-/kelas selesai                 → Laporan sesi ke #guru-<jenjang> + arsip #kelas<N>-materi
-Auto-fallback (18.15 WIB)      → Alert ke #guru + #admin: "⚠ Helper belum siapkan materi!"
-Nilai 88 auto-inject           → Log ke #admin: detail kelas & Helper
-Presensi ALFA                  → Log internal ke #guru-<jenjang>
-E-Rapor terkirim               → Notifikasi ke #kelas<N>: "Rapor minggu ini sudah terkirim!"
+╔═══════════════════════════════════════════════╗
+║  📋 Antrian Pertanyaan Kelas 8 — IPA          ║
+║  Mau jawab soal siapa Pak KakDevy?            ║
+║  Klik soalnya.                                ║
+╠═══════════════════════════════════════════════╣
+║  [1] 🟡 PakBudi   — "apa bedanya sel hewan    ║
+║                      dan sel tumbuhan?"       ║
+║  [2] 🟡 SiAni     — "soal nomor 3 itu A       ║
+║                      atau B ya?"              ║
+║  [3] 🟡 MasBro    — "kapan kuis dimulai?"     ║
+║  [4] ⚪ RikiSaja  — (DILEWATI)                ║
+╠═══════════════════════════════════════════════╣
+║    [ JAWAB ✅ ]          [ KEMBALI ◀ ]        ║
+╚═══════════════════════════════════════════════╝
+```
+
+#### Alur Interaksi GUI
+
+1. **Guru membuka GUI** → `/kelas pertanyaan`
+2. **Guru mengklik salah satu soal** (misal: soal #1 dari PakBudi)
+   - Soal yang dipilih berganti warna menjadi **hijau** (tanda terpilih)
+   - Tombol `JAWAB` menjadi aktif (sebelum dipilih, tombol `JAWAB` dalam keadaan **abu-abu / disabled**)
+3. **Guru mengklik tombol `JAWAB`**
+   - GUI tertutup otomatis
+   - Input chat Guru **otomatis terisi** dengan:
+     ```
+     /kelas jawab 1 "jawab disini"
+     ```
+   - Guru tinggal mengganti teks `jawab disini` dengan jawaban sebenarnya, lalu Enter
+4. **Guru mengklik tombol `KEMBALI`** → GUI tertutup tanpa aksi
+
+#### Keterangan Status Warna Soal
+
+| Warna | Status | Keterangan |
+| :--- | :--- | :--- |
+| 🟡 Kuning | MENUNGGU | Belum dijawab |
+| 🟢 Hijau | DIPILIH | Soal yang sedang diklik Guru |
+| ✅ Hijau Terang | TERJAWAB | Sudah dijawab (tidak muncul di antrian aktif) |
+| ⚪ Abu-abu | DILEWATI | Guru skip via `/kelas pertanyaan skip <nomor>` |
+
+#### Implementasi Teknis GUI
+
+* GUI menggunakan **Paper Dialog API** (native Minecraft untuk Java) atau **Custom NaturalSchool GUI** berbasis `InventoryClickEvent` + `ItemStack` untuk kompatibilitas Bedrock via Geyser (menggunakan `FormWindow` dari Geyser Floodgate).
+* Tombol `JAWAB` disabled direpresentasikan dengan item bertipe **Gray Stained Glass Pane** (tidak bisa diklik). Setelah soal dipilih, item berubah ke **Lime Stained Glass Pane** (aktif).
+* Pengisian otomatis input chat menggunakan packet `ClientboundOpenBookPacket` pada Java Edition, dan `ModalFormRequestPacket` pada Bedrock Edition.
+
+---
+
+### 7.11 Integrasi dengan Sistem Kelas
+
+Chat Channel berintegrasi erat dengan `ClassManager` di NaturalSchool. Semua event kelas otomatis memicu aksi ke channel yang relevan. Semua command **auto-detect region** tanpa perlu argumen kelas-id:
+
+```
+Event Kelas                   → Aksi Channel Otomatis
+──────────────────────────────────────────────────────────────
+/kelas start <mapel>          → Notifikasi ke #kelas<N> + #guru-<jenjang>
+                                "Kelas dibuka! Ketik /kelas tanya untuk bertanya."
+/kelas pembelajaran <file>    → Embed preview materi ke #kelas<N>-materi
+/kelas startsoal <file>       → Alert ke #kelas<N>: "🎯 Kuis dimulai!"
+/kelas tanya <pertanyaan>     → Masuk antrian + broadcast ke #kelas<N>-materi
+/kelas jawab <nomor> <jawab>  → Jawaban highlight ke #kelas<N>-materi, arsip DB
+/kelas selesaikan <player>    → DM personal ke player: "✅ Kamu boleh pulang!"
+/kelas selesai                → Laporan sesi ke #guru-<jenjang>, arsip #kelas<N>-materi
+/kelas chat-rekap             → Arsip Q&A ke Perpustakaan Digital
+Auto-fallback (18.15 WIB)     → Alert ke #guru + #admin: "⚠ Helper belum siapkan materi!"
+Nilai 88 auto-inject          → Log ke #admin: detail kelas & Helper
+Presensi ALFA                 → Log internal ke #guru-<jenjang>
+E-Rapor terkirim              → Notifikasi ke #kelas<N>: "📄 Rapor sudah terkirim!"
 ```
 
 ---
@@ -1225,4 +1327,122 @@ Implementasi sistem chat dibagi tiga fase untuk menjaga stabilitas:
 * Thread diskusi sementara OSIS
 * Sinkronisasi arsip tanya-jawab ke Perpustakaan Digital
 * Ekspor laporan channel ke Discord Webhook admin
+
+---
+
+## BAB 8: CETAK BIRU ALUR KERJA SISTEM UJIAN (EXAM SYSTEM ENGINE)
+
+Berikut adalah cetak biru (*blueprint*) alur kerja sistem dari hulu ke hilir:
+
+---
+
+### 8.1 FASE 1: Inisiasi Perintah & Menu Utama Portal
+
+Siklus dimulai dari interaksi langsung siswa di dalam game Minecraft.
+
+1. **Eksekusi Command:** Siswa mengetik perintah `/school exam` di kolom obrolan game.
+2. **Penanganan Command (`SchoolCommand.java`):**
+   * Kelas *Command Listener* menangkap perintah tersebut.
+   * Sistem memeriksa apakah pemain adalah seorang siswa terdaftar dan mengambil data profilnya (seperti `uuid`, `nis`, dan `academic_class`).
+3. **Pemicu GUI Utama (`ExamGui.java`):**
+   * Perintah langsung memanggil metode untuk membuka menu utama portal sekolah.
+   * Menu ini muncul dalam bentuk `SimpleForm` untuk pemain Bedrock Edition atau UI kustom untuk pemain Java Edition.
+   * **Tampilan Layar Siswa:** Teks berisi *"Selamat datang di Portal Sekolah"* dengan 3 tombol interaktif:
+     * `[ Ujian Harian ]`
+     * `[ Ujian Semester ]`
+     * `[ Ujian Akhir Semester / Kelulusan ]`
+
+---
+
+### 8.2 FASE 2: Percabangan Jalur Akses & Validasi Gerbang (Gatekeeper)
+
+Ketika siswa memilih salah satu dari tiga tombol di atas, *engine* GUI tidak langsung memberikan soal, melainkan membelah logika pengecekan menjadi dua jalur independen:
+
+#### JALUR A: Jika Siswa Mengklik [ Ujian Harian ] (Kontrol Otonom Wali Kelas)
+
+1. **Pengecekan RAM Otomatis:** Plugin membaca data kelas siswa dari memorinya (Misal: Alex, Kelas 1) dan menarik data string array dari baris `active_uh_packets` di tabel `nschool_core_state` (Data saat itu: `["5_1_UH1", "2_2_UH3"]`).
+2. **Penyaringan Menu Mapel:** GUI memunculkan daftar 7 mata pelajaran resmi. Namun, fungsi klik tombol disaring secara *real-time*:
+   * **Tombol Matematika (ID: 5):** Menyala dan **BISA DIKLIK**, karena sistem mencocokkan kode paket `5_1_UH1` (Mapel 5, Kelas 1, UH 1) tersedia di dalam daftar paket aktif yang dirilis Wali Kelas di Web.
+   * **Tombol Lainnya (ID 1-4, 6-7):** Otomatis berubah menjadi **Abu-abu (Disabled)**. Jika diklik, sistem memunculkan peringatan: *"Wali Kelas belum mengaktifkan paket Ujian Harian untuk mata pelajaran ini!"*
+3. **Validasi Anti-Retake Shield:** Jika Alex mengklik tombol Matematika yang aktif, plugin menembak query asinkron cepat ke database MySQL:
+   ```sql
+   SELECT id FROM nschool_student_exam_attempts WHERE uuid = 'uuid-alex' AND packet_id = '5_1_UH1';
+   ```
+   * **Jika Ada Datanya:** Akses langsung dibatalkan! Layar ditutup dan memunculkan **Error GUI (Code: 3)**: *"Kamu sudah menyelesaikan paket ujian ini dan tidak dapat mengulangnya kembali!"*
+   * **Jika Kosong (NULL):** Alex lolos dan lanjut ke Fase 3.
+
+#### JALUR B & C: Jika Siswa Mengklik [ Ujian Semester / UAS ] (Kontrol Terpusat Kementerian)
+
+1. **Cek Sakelar Global:** Plugin membaca status `portal_semester_status` di tabel `nschool_core_state`.
+   * **Jika `CLOSED`:** Menu langsung menutup otomatis dan memunculkan pesan error saklek: *"Maaf, saat ini portal ujian semester/Akhir Semester tidak dibuka, jika menurut anda ini kesalahan mohon hubungi Kepala Sekolah atau Kementerian!"*
+   * **Jika `OPEN`:** Gerbang besar terbuka, menu menampilkan **seluruh 7 mata pelajaran secara utuh (Wajib Tersedia semua)**.
+2. **Penyaringan Klik Berdasarkan Waktu & Jadwal Serentak:** Ketika siswa mengklik salah satu mapel (Misal: klik mapel IPA yang memiliki target kode paket semester `6_1_UTS`), sistem melakukan inspeksi berlapis:
+   * **Cek Masa Jeda:** Sistem membaca nilai `is_semester_break`. Jika bernilai `true`, klik dibatalkan dan muncul pesan: *"Saat ini sedang masa jeda/istirahat antar mata pelajaran. Mohon tunggu mapel berikutnya dibuka."*
+   * **Cek Whitelist Jadwal:** Jika tidak sedang jeda, sistem mencocokkan target paket dengan data `current_active_semester_packets` di database. Jika jam tersebut adalah jadwal ujian IPA, maka paket `6_1_UTS` dinyatakan sah. Jika siswa mencoba curang mengklik Matematika (`5_1_UTS`), akses diblokir dengan pesan: *"Ujian untuk mata pelajaran ini belum dimulai atau sudah berakhir!"*
+3. **Cek Anti-Retake:** Jika jadwal cocok, sistem melakukan query ke tabel `nschool_student_exam_attempts` untuk memastikan siswa belum pernah mengambil paket UTS tersebut sebelumnya. Jika aman, siswa lolos ke Fase 3.
+
+---
+
+### 8.3 FASE 3: Proses Pengerjaan Soal (Exam Session Engine)
+
+Setelah lolos dari semua gerbang validasi di Fase 2, *engine* pengerjaan soal resmi diaktifkan.
+
+1. **Pembuatan Sesi (`ExamSession.java`):** Plugin membuat objek sesi baru di dalam memori RAM server: `new ExamSession(playerUuid, "5_1_UH1")`. Sesi ini mengunci UUID pemain dan ID Paket yang dikerjakan.
+2. **Pemotongan Data Soal (*JSON Slicing*):** Plugin membaca file cache lokal `exams.json` (yang sudah tersinkronisasi di awal dengan tabel `nschool_exam_questions`). Plugin memotong data dan hanya mengambil butir soal yang memiliki properti `packet_id == "5_1_UH1"`, diurutkan rapi berdasarkan `question_number ASC`.
+3. **Rendering UI Soal Berurutan:** `ExamGui.java` menampilkan soal nomor 1 di layar siswa.
+   * Siswa membaca `question_text` dan memilih jawaban lewat tombol pilihan ganda yang sudah dibersihkan dari simbol-simbol aneh agar layout tidak rusak.
+   * Ketika siswa mengklik tombol **"Berikutnya"**, variabel indeks internal bertambah (`currentIndex++`), dan GUI merender soal nomor selanjutnya secara instan tanpa memicu *lag* server.
+
+---
+
+### 8.4 FASE 4: Penyelesaian Ujian & Penguncian Status (Submission)
+
+Detik di mana siswa menjawab pertanyaan terakhir (nomor 10) dan menekan tombol **"Kirim Jawaban Akhir"**:
+
+1. **Kalkulasi Nilai Otomatis:** *Engine* mencocokkan array jawaban yang dipilih siswa dengan kunci jawaban (`correct_answer` / `correct_indices`) di memori. Skor akhir dihitung menggunakan skala matematika standar (0.00 - 100.00). Misal, Alex mendapatkan nilai **85.00**.
+2. **Pencatatan Riwayat (*Anti-Retake Lock*):** Secara asinkron (*Background Thread*), plugin langsung memasukkan data kelulusan paket ke tabel riwayat database:
+   ```sql
+   INSERT INTO nschool_student_exam_attempts (uuid, nis, packet_id, final_score) 
+   VALUES ('uuid-alex', '2026001', '5_1_UH1', 85.00);
+   ```
+   *Detik ini juga, paket `5_1_UH1` resmi terkunci mati untuk Alex. Ia tidak akan bisa masuk ke ujian ini lagi jika mencoba mengkliknya di masa depan.*
+
+---
+
+### 8.5 FASE 5: Distribusi Nilai & Akumulasi Otomatis ke E-Rapor
+
+Ini adalah fase akhir di mana satu paket data hasil ujian dipecah dan dimasukkan ke dalam buku transkrip nilai besar siswa.
+
+1. **Pemecahan String Kode Paket (*String Splitting*):**
+   Kodingan backend mengambil string `packet_id` ("5_1_UH1") dari sesi yang baru ditutup, lalu membelahnya berdasarkan karakter garis bawah (`_`):
+   * `parts[0]` $\rightarrow$ `"5"` (Diterjemahkan sebagai `subject_id` = Matematika).
+   * `parts[1]` $\rightarrow$ `"1"` (Diterjemahkan sebagai `academic_class` = Kelas 1).
+   * `parts[2]` $\rightarrow$ `"UH1"` (Diterjemahkan sebagai Jenis Ujian = Ujian Harian paket 1).
+2. **Eksekusi Operasi UPSERT ke Tabel Rapor:**
+   Sistem menjalankan perintah **Upsert** (*Insert or Update*) ke tabel `nschool_student_rapor` dengan target baris yang dikunci oleh kombinasi unik: `uuid = 'uuid-alex'`, `academic_class = 1`, `semester = 'GANJIL'`, dan `subject_id = 5`.
+   * **KONDISI JALUR UH (Teks mengandung "UH"):**
+     Sistem akan melakukan query kalkulasi rata-rata cepat dari tabel riwayat:
+     ```sql
+     SELECT AVG(final_score) FROM nschool_student_exam_attempts 
+     WHERE uuid = 'uuid-alex' AND packet_id LIKE '5_1_UH%';
+     ```
+     Hasil rata-rata baru tersebut langsung dimasukkan dan memperbarui kolom **`score_harian`** di tabel rapor.
+   * **KONDISI JALUR UTS (Teks sama dengan "UTS"):**
+     Nilai murni 85.00 langsung disuntikkan untuk mengisi kolom **`score_uts`**.
+   * **KONDISI JALUR UAS (Teks sama dengan "UAS"):**
+     Nilai murni 85.00 langsung disuntikkan untuk mengisi kolom **`score_uas`**.
+3. **Kalkulasi Nilai Akhir & Predikat Huruf:**
+   Setelah salah satu kolom nilai di atas diperbarui, sistem web atau fungsi database secara otomatis menghitung ulang nilai raport total (`final_score`) menggunakan rumus pembobotan resmi sekolah, mengubahnya menjadi huruf mutu (`grade_letter`), dan memperbarui status kelulusan mapel tersebut (`LULUS` atau `REMEDI`).
+
+---
+
+### 8.6 Ringkasan Hubungan Arsitektur Database
+
+Seluruh pergerakan alur kompleks di atas didukung oleh fondasi database yang ramping dan saling terikat erat sebagai berikut:
+
+* **`nschool_subjects`**: Kamus pusat agar Web dan Game tahu ID mapel `5` adalah teks `"Matematika"`.
+* **`nschool_exam_questions`**: Bank data yang menyuplai isi teks pertanyaan ke dalam file cache game `exams.json`.
+* **`nschool_core_state`**: Menjadi otak kendali jarak jauh (sakelar) bagi Wali kelas dan Kementerian untuk membuka-tutup tombol ujian di dalam game secara *real-time*.
+* **`nschool_student_exam_attempts`**: Benteng keamanan (*Anti-Retake*) untuk mengunci paket yang sudah dikerjakan siswa.
+* **`nschool_student_rapor`**: Transkrip akhir tempat bermuaranya seluruh akumulasi nilai rata-rata UH, nilai UTS, dan nilai UAS siswa yang siap dipanggil kapan saja lewat perintah `/school rapor` maupun halaman Web Dashboard Orang Tua.
 
