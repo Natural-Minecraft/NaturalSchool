@@ -1,29 +1,42 @@
-# NaturalSchool
+# 🏫 NaturalSchool
 
-NaturalSchool is a high-performance core plugin for Paper servers (targeting Java Edition 1.21.1 and Java 17+) built with a Core-Infrastructure architectural pattern. It manages player academic student profiles smoothly with direct SQLite support and a MySQL connection pool powered by HikariCP.
+NaturalSchool is an enterprise-grade, high-performance core plugin built for **Paper/Spigot (Minecraft 1.21.10 / Java 21)**. Adhering to the **Core-Infrastructure** pattern, it decouples configurations, data managers, dynamic onboarding, and student databases into thread-safe, modular interfaces.
 
-### 📄 [Read the CHANGELOG.md](CHANGELOG.md) for recent updates and security patches.
+NaturalSchool powers player academic student lifecycle management, featuring direct SQLite integration, HikariCP-managed MySQL connection pooling, dynamic NIS generation, and a centralized state-passing exam & digital rapor evaluation engine.
 
-## Key Features
+---
 
-- **Core-Infrastructure Pattern**: Decoupled modules. Configuration and Database act as global core components, while student player data runs under a separate caching manager module.
-- **High-Performance Database Support**:
-  - **SQLite**: Local database storage using `school.db` located inside the plugin's data folder.
-  - **MySQL**: Connection pool initialization utilizing HikariCP to prevent connection leaks, connection timeouts, and optimized prepared statement caching.
-- **Anti-Memory Leak Guardrails**:
-  - **No Bukkit Player Objects Cached**: The cache strictly keys records using `java.util.UUID`.
-  - **Thread-Safe Runtime Cache**: Online players' database records are stored in a managed `ConcurrentHashMap<UUID, StudentProfile>`.
-  - **Asynchronous Join Processing**: Fetches profiles asynchronously from the database during the join lifecycle event.
-  - **Strict Cache Eviction**: Saves profiles asynchronously and strictly clears the cache entry immediately on quit or kick events.
-  - **No Ticking Drops**: All database (I/O) queries run on the asynchronous Bukkit Scheduler thread to maintain 20 TPS.
+## 🚀 Key Architectural Pillars
 
-## Configuration (`config.yml`)
+### 1. Enterprise Database Pool & Caching
+* **HikariCP MySQL Pool**: Features robust connection pool configurations managing connection timeout threshold limits, prepared statement caching limits, and connection leak diagnostics.
+* **Optimized Local SQLite Engine**: Fallback to an optimized local `school.db` connection. Applies SQLite PRAGMAs (`WAL` journaling, `NORMAL` synchronous mode, and `busy_timeout` threshold limits) to resolve database locks (`SQLITE_BUSY`) during intensive writing.
+* **Thread-Safe Memory Caching**: Student profiles are cached in volatile memory using `ConcurrentHashMap<UUID, StudentProfile>`. The system does **not** cache `Org.bukkit.entity.Player` objects to prevent memory leaks.
+* **Asynchronous Database Processing**: All database read/write queries run asynchronously off the main server thread (`BukkitScheduler`) to maintain 20 TPS.
 
-The plugin can be configured with MySQL server settings, pool limits, and default start parameters for new players.
+### 2. Unified Cross-Platform UI Engine
+* **Dynamic Connection Routing**: Automatically routes players to appropriate interfaces. Java Edition clients receive rich interactive components styled with Kyori Adventure `MiniMessage`, while Bedrock Edition clients (via Geyser/Floodgate) interact with Cumulus Forms.
+* **Bedrock Button Form Sanitization**: All Bedrock choice buttons are dynamically cleaned of raw legacy format codes (`§`) and decorative icons (`○`, `●`) to prevent blank-rendering bugs and maintain font uniformity.
+
+### 3. Stateful Data-Driven Exam & E-Rapor Engine
+* **Stateful Dynamic UI Compiler**: Replaces legacy subject routes with a single dynamic portal compiler mapping to `openPortalUjian(player, examType)`.
+* **Multi-Tier whitelisting & Validations**: Evaluates player actions against three distinct safety scenarios:
+  1. *Scenario 1 (TIDAK AKTIF)*: Intercepts clicks and refreshes the subject portal injecting localized warning headers if the subject is not whitelisted.
+  2. *Scenario 2 (TIDAK ADA SOAL)*: Prevents entering exams with missing questions, displaying alert text.
+  3. *Scenario 3 (SUDAH MENGERJAKAN)*: Implements an asynchronous anti-retake database shield. Force-closes client inventories upon detecting existing records.
+* **Weighted Rapor Calculations**: Automates assessment grades calculations on final submission:
+  $$\text{Final Score} = (40\% \times \text{Average UH}) + (30\% \times \text{UTS}) + (30\% \times \text{UAS})$$
+  Computes letter grades (`A` / `B` / `C` / `D`) and updates status variables (`LULUS` / `REMEDI`).
+
+---
+
+## 🛠️ Configuration (`config.yml`)
+
+Customize database connection pools, local storage modes, default initialization nodes, and scheduler offsets.
 
 ```yaml
 database:
-  storage-type: "SQLITE" # SQLITE or MYSQL
+  storage-type: "SQLITE" # Options: SQLITE, MYSQL
   host: "localhost"
   port: 3306
   database: "naturalschool"
@@ -38,55 +51,86 @@ academic-settings:
     enable-debug-logs: false
   default-start-class: 1
   default-start-stage: "SD"
+
+exam-schedule:
+  day-of-week: "SUNDAY"
+  start-hour: 10
+  end-hour: 16
 ```
 
-## School Ranks
+---
 
-The plugin implements an independent internal rank system (`SchoolRank`), stored directly in the database (`rank` column) and managed through profiles.
+## 🎖️ School Ranks Hierarchy (`SchoolRank`)
 
-* **Server Management**: `KETUA_YAYASAN` (Ketua Yayasan), `WAKIL_KETUA_YAYASAN` (Dewan Pembina), `KEMENTERIAN_PENDIDIKAN_IT` (Kemendikbud & IT), `PENGAWAS_SEKOLAH` (Pengawas Sekolah)
-* **Staff Admin**: `KEPALA_SEKOLAH` (Kepala Sekolah), `WAKEPSEK_KURIKULUM` (Wakepsek Kurikulum), `WAKEPSEK_SARPRAS` (Wakepsek Sarpras), `KOMISI_DISIPLIN` (Komisi Disiplin)
-* **Staff Helper**: `KEPALA_TU` (Kepala TU), `GURU_TETAP` (Wali Kelas), `GURU_BK` (Guru BK), `GURU_HONORER` (Guru Honorer)
-* **Student Academic**: `SMA_12` to `SMA_10` (Siswa X-XII SMA), `SMP_9` to `SMP_7` (Siswa VII-IX SMP), `SD_6` to `SD_1` (Siswa I-VI SD)
-* **Default**: `NONE` (Belum Terdaftar)
+The internal ranks system controls command permissions and academic Stage boundaries:
 
-## Administrative Commands
-
-The plugin provides a central command `/naturalschool` (aliases: `/nschool`, `/ns`) to manage student academic profiles.
-
-* **Permission**: Requires `naturalschool.admin` OR a cached rank of `KETUA_YAYASAN` or `WAKIL_KETUA_YAYASAN`.
-* **Text Formatting**: Messages utilize Paper's modern Adventure API (`MiniMessage`) for formatting.
-
-| Command | Description |
+| Rank Category | Internal Enum Ranks |
 | :--- | :--- |
-| `/naturalschool reload` | Reloads `config.yml` from disk and safely refreshes database connections. |
-| `/naturalschool info <player>` | Displays the full academic profile (including Rank) of a player (Online: cached, Offline: queried asynchronously from DB). |
-| `/naturalschool setrank <player> <rank>` | Updates the player's school rank (saves to DB asynchronously). |
-| `/naturalschool setclass <player> <1-12>` | Updates the player's academic class (saves to DB asynchronously). |
-| `/naturalschool setstage <player> <SD\|SMP\|SMA>` | Updates the player's academic stage (saves to DB asynchronously). |
-| `/naturalschool setpractical <player> <true\|false>` | Toggles the player's practical exam completion status. |
+| **School Management** | `KETUA_YAYASAN`, `WAKIL_KETUA_YAYASAN`, `KEMENTERIAN_PENDIDIKAN_IT`, `PENGAWAS_SEKOLAH` |
+| **Administrative Staff** | `KEPALA_SEKOLAH`, `WAKEPSEK_KURIKULUM`, `WAKEPSEK_SARPRAS`, `KOMISI_DISIPLIN` |
+| **Helper Staff** | `KEPALA_TU`, `GURU_TETAP` (Wali Kelas), `GURU_BK`, `GURU_HONORER` |
+| **Student (SMA)** | `SMA_12`, `SMA_11`, `SMA_10` |
+| **Student (SMP)** | `SMP_9`, `SMP_8`, `SMP_7` |
+| **Student (SD)** | `SD_6`, `SD_5`, `SD_4`, `SD_3`, `SD_2`, `SD_1` |
+| **Default** | `NONE` (Unregistered Profile) |
 
-Smart tab completion is fully implemented, suggesting options dynamically based on the argument position.
+---
 
-## PlaceholderAPI Integration
+## 💻 Commands Reference
 
-The plugin integrates with PlaceholderAPI to expose student academic details. 
+All commands support smart tab completion and MiniMessage text formatting.
 
-* **Identifier**: `naturalschool` (Syntax: `%naturalschool_<placeholder>%`)
-* **Anti-Lag Guard**: All placeholder requests are resolved strictly from the memory cache. Direct database queries are never made inside request processes.
+### 👤 Student / Member Commands
+* **Base Command**: `/school`
 
-| Placeholder | Description | Output Example |
+| Command Sub-Node | Description |
+| :--- | :--- |
+| `/school info` | Opens the GUI profile interface showcasing player details. |
+| `/school exam` | Opens the dynamic core Portal Gateway UI. |
+| `/school help` | Displays list of student subcommands. |
+
+### 🛠️ Administrative Commands
+* **Base Command**: `/naturalschool` (Aliases: `/nschool`, `/ns`)
+* **Permission**: `naturalschool.admin` (Bypassed if cached rank is `KETUA_YAYASAN` or `WAKIL_KETUA_YAYASAN`).
+
+| Command Sub-Node | Description |
+| :--- | :--- |
+| `/ns reload` | Safely reloads configurations and database connection pools. |
+| `/ns info <player>` | Displays administrative academic profile details for a player. |
+| `/ns setrank <player> <rank>` | Mutates player school rank and saves to database asynchronously. |
+| `/ns setclass <player> <1-12>` | Updates student academic class level. |
+| `/ns setstage <player> <SD\|SMP\|SMA>` | Updates student academic stage level. |
+| `/ns nis register <player>` | Generates a 10-digit NIS registration number for a player. |
+| `/ns nis unregister <player>` | Completely unregisters a student's NIS (with a 15s confirmation window). |
+| `/ns semester info` | Shows the active global semester and academic year. |
+| `/ns semester end` | Programmatically triggers async semester rotation. |
+| `/ns semester reset` | Resets global semesters to sync with the real-life calendar. |
+| `/ns exam open` | Force opens the exam portal (bypassing time schedules). |
+| `/ns exam close` | Forces the exam portal to close. |
+| `/ns exam message <msg>` | Sets the custom portal closed announcement description. |
+
+---
+
+## 📈 PlaceholderAPI Integration
+
+Expose academic student variables to external scoreboard, chat, and tab plugins:
+
+* **Prefix**: `%naturalschool_<placeholder>%` (Resolved from memory cache to prevent thread block).
+
+| Placeholder | Description | Example Output |
 | :--- | :--- | :--- |
-| `%naturalschool_rank%` | Returns the formatted legacy rank string from the hierarchy | `§c§lKetua Yayasan` |
-| `%naturalschool_class%` | Returns the player's academic class number (1-12) | `10` |
-| `%naturalschool_stage%` | Returns the player's academic stage | `SMA` |
-| `%naturalschool_nis%` | Returns the student's registration number (or `-` if none) | `2026-0004` |
+| `%naturalschool_rank%` | Formatted rank string with prefix configurations | `§c§lKetua Yayasan` |
+| `%naturalschool_class%` | Player's academic class number (1-12) | `10` |
+| `%naturalschool_stage%` | Player's academic stage (SD/SMP/SMA) | `SMA` |
+| `%naturalschool_nis%` | Student registration number | `1002090626` |
 
-## Compilation & Installation
+---
 
-1. **Requirements**: Java 21+ and Apache Maven installed (since Paper 1.21.1 requires Java 21).
-2. **Build package**:
+## 📦 Compilation & Setup
+
+1. Ensure **Java 21** and **Maven** are installed.
+2. Compile and package the shaded bundle:
    ```bash
    mvn clean package
    ```
-3. Copy the compiled JAR `NaturalSchool.jar` from the `target` folder into your Paper server's `plugins` folder.
+3. Locate `NaturalSchool.jar` (or shaded artifact) in the `/target` directory and deploy to your server's `plugins/` directory.
