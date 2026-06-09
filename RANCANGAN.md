@@ -687,3 +687,542 @@ Plugin `NaturalSchool` tidak perlu selesai sepenuhnya sebelum server bisa launch
 * Ujian Akhir Semester dengan pool soal acak massal
 * Custom UI soal kuis versi final (bespoke NaturalSchool)
 
+---
+
+## BAB 7: ARSITEKTUR SISTEM CHAT CHANNEL TERINTEGRASI (NaturalChat)
+
+Bab ini merancang sistem komunikasi internal server NaturalSMP secara menyeluruh dan sangat rinci. Sistem Chat Channel dirancang berfokus pada **User Experience yang mudah dipahami dan mudah dilakukan** — setiap pemain, baik guru maupun murid, harus dapat langsung memahami cara berkomunikasi tanpa panduan eksternal.
+
+Filosofi desain: **"Satu channel, satu tujuan. Satu command, langsung aktif."**
+
+---
+
+### 7.1 Prinsip Dasar dan Hierarki Channel
+
+Sistem chat dibagi menjadi empat lapisan utama, dari yang paling luas (global) hingga yang paling spesifik (dalam kelas). Pemain **hanya perlu mengingat satu command** untuk berpindah antar-channel: `/ch <nama_channel>`.
+
+```
+LAPISAN HIERARKI CHANNEL NATURALSMP
+══════════════════════════════════════════════════════════
+[🌐 GLOBAL]       → Seluruh pemain di semua server
+     │
+     ├── [🏫 JENJANG]    → SD / SMP / SMA
+     │       │
+     │       ├── [📋 KELAS]      → Kelas 1–12 (dalam jenjang)
+     │       │       │
+     │       │       ├── [📢 UMUM KELAS]    → Diskusi harian
+     │       │       ├── [📚 MATERI]        → Pertanyaan pelajaran
+     │       │       └── [🎲 SANTAI]        → Obrolan bebas kelas
+     │       │
+     │       └── [👨‍🏫 GURU JENJANG]  → Staf pengajar jenjang
+     │
+     ├── [🏛️ ORGANISASI]
+     │       ├── [👑 OSIS]       → Pengurus OSIS aktif
+     │       ├── [🗳️ MPK]        → Anggota MPK aktif
+     │       └── [🤝 GABUNGAN]   → OSIS + MPK bersama
+     │
+     └── [🔒 STAF INTERNAL]
+             ├── [🛡️ ADMIN]      → Manajemen & Admin
+             └── [📞 GURU-ALL]   → Seluruh Helper/Guru
+══════════════════════════════════════════════════════════
+```
+
+---
+
+### 7.2 Daftar Channel Lengkap dan Spesifikasi Teknis
+
+Setiap channel memiliki **ID unik**, **permission node**, **prefix chat**, dan **aturan akses** yang dikelola oleh plugin `NaturalChat` (atau modul chat dalam `NaturalCore`).
+
+#### 7.2.1 Tabel Master Channel
+
+| ID Channel | Nama Tampilan | Prefix Chat | Akses Masuk | Akses Bicara | Perintah Bergabung |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `global` | 🌐 Global | `§7[G]§f` | Semua pemain | Semua pemain | `/ch g` |
+| `sd` | 🏫 SD Umum | `§a[SD]§f` | Murid SD + Staf | Murid SD + Staf | `/ch sd` |
+| `smp` | 🏫 SMP Umum | `§b[SMP]§f` | Murid SMP + Staf | Murid SMP + Staf | `/ch smp` |
+| `sma` | 🏫 SMA Umum | `§d[SMA]§f` | Murid SMA + Staf | Murid SMA + Staf | `/ch sma` |
+| `kelas1` | 📋 Kelas 1 | `§2[K1]§f` | Kelas 1 + Guru K1 | Kelas 1 + Guru K1 | `/ch k1` |
+| `kelas2` | 📋 Kelas 2 | `§2[K2]§f` | Kelas 2 + Guru K2 | Kelas 2 + Guru K2 | `/ch k2` |
+| ... | ... | ... | ... | ... | ... |
+| `kelas12` | 📋 Kelas 12 | `§2[K12]§f` | Kelas 12 + Guru K12 | Kelas 12 + Guru K12 | `/ch k12` |
+| `osis` | 👑 OSIS | `§6[OSIS]§f` | Pengurus OSIS | Pengurus OSIS | `/ch osis` |
+| `mpk` | 🗳️ MPK | `§9[MPK]§f` | Anggota MPK | Anggota MPK | `/ch mpk` |
+| `org` | 🤝 Organisasi | `§e[ORG]§f` | OSIS + MPK | OSIS + MPK | `/ch org` |
+| `guru` | 👨‍🏫 Guru-All | `§c[GURU]§f` | Semua Helper | Semua Helper | `/ch guru` |
+| `admin` | 🛡️ Admin | `§4[ADM]§f` | Admin saja | Admin saja | `/ch adm` |
+
+---
+
+### 7.3 Channel Kelas — Arsitektur Detail
+
+Channel kelas adalah jantung komunikasi harian di NaturalSMP. Setiap kelas (Kelas 1 hingga Kelas 12) memiliki **3 sub-channel internal** yang bisa langsung diakses dengan sub-command singkat.
+
+#### 7.3.1 Struktur 3 Sub-Channel Per Kelas
+
+Ketika pemain bergabung ke channel kelas mereka (`/ch k1`), mereka langsung masuk ke **Sub-Channel Umum** secara default. Untuk berpindah ke sub-channel lain, cukup tambahkan suffix:
+
+```
+/ch k1        → Sub-channel: 📢 Umum Kelas (default)
+/ch k1-materi → Sub-channel: 📚 Materi & Tanya Jawab Pelajaran
+/ch k1-santai → Sub-channel: 🎲 Obrolan Santai & Bebas
+```
+
+#### 7.3.2 Detail Setiap Sub-Channel Kelas
+
+##### Sub-Channel 1: Umum Kelas (`k<N>`)
+* **Fungsi:** Komunikasi utama dalam kelas. Pengumuman dari guru, pertanyaan administratif, pemberitahuan dari sistem.
+* **Siapa yang bisa bicara:** Seluruh anggota kelas + Helper/Guru yang ditugaskan + Admin.
+* **Moderasi:** Auto-filter kata kasar aktif. Murid yang melebihi 5 pesan dalam 10 detik mendapat cooldown 30 detik (anti-spam).
+* **Pesan Sistem Otomatis:** Saat `/kelas start` dieksekusi Helper, channel ini otomatis menerima notifikasi:
+  ```
+  [SISTEM] 🔔 Kelas 1 - Matematika telah dibuka oleh Guru: [NamaHelper]
+  [SISTEM] 📖 Silakan masuk ke ruang kelas atau baca materi di /ch k1-materi
+  ```
+* **Prefix Chat:** `§2[K1]§f §7<§a{nama_pemain}§7>§f`
+
+##### Sub-Channel 2: Materi (`k<N>-materi`)
+* **Fungsi:** Ruang tanya jawab eksklusif seputar pelajaran. Murid mengajukan pertanyaan soal materi, guru menjawab.
+* **Siapa yang bisa bicara:** Seluruh anggota kelas + Guru (prioritas jawaban).
+* **Fitur Khusus:**
+  * Murid dapat "me-mark" pertanyaan dengan `[?]` di awal pesan. Pesan tersebut disimpan di database `natural_chat_questions` dan bisa dilihat lewat `/kelas pertanyaan`.
+  * Guru dapat menjawab dengan `[GURU] Jawaban:` yang akan diformat dengan warna berbeda (hijau terang) untuk menonjolkan jawaban resmi.
+  * Setelah kelas selesai, tanya-jawab di channel ini **diarsip otomatis** ke database untuk dijadikan bahan belajar mandiri di Perpustakaan Digital.
+* **Moderasi:** Lebih ketat — hanya boleh topik pelajaran. Percakapan off-topic akan dihapus otomatis oleh NaturalChat dan pengirimnya diarahkan ke `/ch k1-santai`.
+* **Prefix Chat:** `§2[K1-📚]§f §7<§e{nama_pemain}§7>§f`
+
+##### Sub-Channel 3: Santai (`k<N>-santai`)
+* **Fungsi:** Obrolan bebas antar murid dalam satu kelas. Tidak ada moderasi topik — murid bisa bicara apa saja asal tidak melanggar peraturan server.
+* **Siapa yang bisa bicara:** Seluruh anggota kelas. Guru tetap bisa membaca (mode pengawas/monitor) tapi tidak aktif di sini kecuali darurat.
+* **Moderasi:** Filter kata kasar standar, batas rate-limiting ringan (10 pesan / 15 detik).
+* **Fitur Khusus:** Channel ini aktif 24 jam — tidak bergantung pada jadwal kelas. Murid bisa ngobrol bahkan di luar jam sekolah.
+* **Prefix Chat:** `§2[K1-🎲]§f §7<§f{nama_pemain}§7>§f`
+
+#### 7.3.3 Diagram Alur Channel Kelas
+
+```
+Murid Baru Login
+       │
+       ▼
+Auto-join ke Channel: Global (default semua pemain)
+       │
+       ▼
+Sistem deteksi rank akademik murid (misal: Kelas 7)
+       │
+       ▼
+Auto-join pasif Channel: SMP (notifikasi di sidebar: "Kamu bergabung ke #smp")
+       │
+       ▼
+Auto-join pasif Channel: kelas7 (notifikasi: "Kamu bergabung ke #kelas-7-umum")
+       │
+       ▼
+Murid bisa berpindah channel kapan saja dengan /ch <id>:
+       │
+       ├── /ch g         → Bicara ke semua server
+       ├── /ch smp       → Bicara ke sesama SMP
+       ├── /ch k7        → Bicara di Kelas 7 (umum)
+       ├── /ch k7-materi → Bicara di Kelas 7 (pelajaran)
+       └── /ch k7-santai → Bicara di Kelas 7 (santai)
+```
+
+---
+
+### 7.4 Channel Organisasi — Arsitektur Detail
+
+Channel organisasi adalah ruang komunikasi bagi pemain yang memegang jabatan di **OSIS** atau **MPK**. Akses ke channel ini dikontrol secara dinamis oleh database `natural_org_members`.
+
+#### 7.4.1 Struktur Keanggotaan Organisasi
+
+```
+STRUKTUR JABATAN OSIS (Disimpan di natural_org_members)
+────────────────────────────────────────────────────────
+Ketua OSIS        → Akses: #osis, #org, #osis-ketua
+Wakil Ketua OSIS  → Akses: #osis, #org
+Sekretaris        → Akses: #osis, #org, #osis-dokumen (read+write)
+Bendahara         → Akses: #osis, #org, #osis-keuangan (read+write)
+Anggota Seksi     → Akses: #osis (terbatas per divisi)
+
+STRUKTUR JABATAN MPK (Disimpan di natural_org_members)
+────────────────────────────────────────────────────────
+Ketua MPK         → Akses: #mpk, #org, #mpk-ketua
+Wakil Ketua MPK   → Akses: #mpk, #org
+Anggota MPK       → Akses: #mpk (terbatas jenjangnya)
+```
+
+#### 7.4.2 Detail Sub-Channel Organisasi
+
+##### Channel OSIS (`#osis`)
+* **Perintah:** `/ch osis`
+* **Fungsi:** Koordinasi internal pengurus OSIS. Perencanaan event, pembagian tugas, laporan kegiatan mingguan.
+* **Akses:** Hanya pemain dengan jabatan OSIS yang tercatat di database `natural_org_members` dengan `org_type = 'OSIS'`.
+* **Fitur Khusus:**
+  * **Thread Perencanaan:** Ketua OSIS dapat membuat "thread" menggunakan `/osis thread <topik>`. Thread ini membuat sub-topik sementara yang hilang setelah 24 jam jika tidak ada aktivitas.
+  * **Vote Cepat:** Ketua OSIS dapat mengaktifkan vote singkat via `/osis vote "<pertanyaan>" <pilihan1> <pilihan2>`. Hasilnya ditampilkan langsung di channel dengan progress bar ASCII sederhana.
+  * **Notifikasi Event:** Ketika Admin menyetujui proposal event OSIS via dashboard website, channel ini otomatis menerima notifikasi embed dengan detail event.
+* **Moderasi:** Tidak ada filter topik — internal organisasi. Rate limiting standar.
+
+##### Channel MPK (`#mpk`)
+* **Perintah:** `/ch mpk`
+* **Fungsi:** Koordinasi internal MPK. Pengumpulan aspirasi dari kelas-kelas, penyusunan laporan ke Admin.
+* **Akses:** Hanya pemain dengan jabatan MPK yang tercatat di database.
+* **Fitur Khusus:**
+  * **Aspirasi Terstruktur:** Anggota MPK dapat mengajukan aspirasi dari murid ke channel ini dengan format `/mpk aspirasi <kelas> "<isi_aspirasi>"`. Aspirasi otomatis tercatat di `natural_org_aspirations` dan dirangkum dalam laporan mingguan ke Admin.
+  * **Voting Kebijakan:** Sistem voting sederhana untuk mengambil keputusan MPK secara demokratis.
+
+##### Channel Gabungan Organisasi (`#org`)
+* **Perintah:** `/ch org`
+* **Fungsi:** Rapat gabungan OSIS + MPK. Koordinasi kebijakan bersama, sinkronisasi event, laporan bersama ke Admin.
+* **Akses:** Semua anggota OSIS + MPK aktif.
+* **Fitur Khusus:** Admin bisa di-mention di channel ini via `@admin` untuk eskalasi isu penting.
+
+---
+
+### 7.5 Channel Guru / Sekolah per Jenjang — Arsitektur Detail
+
+Channel ini dirancang khusus untuk komunikasi di antara para Helper/Guru, dibagi berdasarkan jenjang sekolah yang mereka ajar.
+
+#### 7.5.1 Struktur Channel Guru
+
+```
+HIERARKI CHANNEL GURU
+══════════════════════════════════════════════════════
+[👨‍🏫 GURU-ALL]     → Semua Helper dari semua jenjang
+       │
+       ├── [📗 GURU-SD]    → Helper yang mengajar SD
+       ├── [📘 GURU-SMP]   → Helper yang mengajar SMP
+       └── [📕 GURU-SMA]   → Helper yang mengajar SMA
+══════════════════════════════════════════════════════
+```
+
+#### 7.5.2 Detail Channel Guru per Jenjang
+
+##### Channel Guru SD (`#guru-sd`)
+* **Perintah:** `/ch guru-sd`
+* **Akses:** Helper dengan permission `naturalschool.helper.sd`.
+* **Fungsi:** Koordinasi pengajaran Kelas 1-6. Berbagi file materi dan soal kuis antar-guru SD. Laporan insiden dalam kelas SD. Diskusi strategi menghadapi murid SD yang bolos.
+* **Fitur Khusus:**
+  * **Laporan Sesi Otomatis:** Setelah `/kelas selesai` di kelas 1-6, ringkasan sesi (jumlah hadir, rata-rata nilai, nama murid ALFA) otomatis dikirim ke channel ini.
+  * **Reminder Otomatis:** 30 menit sebelum jadwal kelas (17.30 WIB), sistem mengirim reminder ke channel: `[REMINDER] Kelas 1 - Matematika dimulai 30 menit lagi. Siapkan file materi via dashboard!`
+* **Prefix Chat:** `§a[GURU-SD]§f §7<§a{nama_helper}§7>§f`
+
+##### Channel Guru SMP (`#guru-smp`)
+* **Perintah:** `/ch guru-smp`
+* **Akses:** Helper dengan permission `naturalschool.helper.smp`.
+* **Fungsi:** Koordinasi Kelas 7-9. Laporan sesi, berbagi materi, diskusi kurikulum SMP.
+* **Fitur Khusus:** Sama dengan Guru SD, otomatis menerima laporan sesi dari kelas 7-9.
+* **Prefix Chat:** `§b[GURU-SMP]§f §7<§b{nama_helper}§7>§f`
+
+##### Channel Guru SMA (`#guru-sma`)
+* **Perintah:** `/ch guru-sma`
+* **Akses:** Helper dengan permission `naturalschool.helper.sma`.
+* **Fungsi:** Koordinasi Kelas 10-12. Diskusi kurikulum SMA tingkat lanjut, persiapan Ujian Akhir, koordinasi soal kelulusan.
+* **Fitur Khusus:** Sama dengan Guru SD. Khusus untuk laporan dari kelas 10-12.
+* **Prefix Chat:** `§d[GURU-SMA]§f §7<§d{nama_helper}§7>§f`
+
+##### Channel Guru All (`#guru`)
+* **Perintah:** `/ch guru`
+* **Akses:** Semua Helper (SD + SMP + SMA).
+* **Fungsi:** Koordinasi lintas jenjang. Pengumuman dari Admin ke semua Helper. Diskusi kebijakan server yang mempengaruhi seluruh kelas. Rapat staf virtual.
+* **Fitur Khusus:**
+  * **Pengumuman Admin:** Admin dapat mengirim pesan `[PENTING]` yang akan di-highlight dengan warna merah terang dan dibunyikan dengan sound `BLOCK_NOTE_BLOCK_PLING` agar terdengar oleh semua Helper online.
+  * **Status Kelas Real-time:** Helper dapat mengetik `/kelas status` di channel ini dan sistem akan menampilkan ringkasan semua kelas yang aktif saat ini.
+
+---
+
+### 7.6 Skema Database Chat Channel
+
+Plugin NaturalChat memerlukan tabel-tabel berikut untuk mengelola membership, riwayat pesan, dan arsip channel:
+
+```sql
+-- 1. TABEL KONFIGURASI CHANNEL
+CREATE TABLE natural_chat_channels (
+    id_channel VARCHAR(32) PRIMARY KEY,        -- Misal: 'kelas7', 'kelas7-materi', 'osis'
+    nama_tampilan VARCHAR(64) NOT NULL,         -- Misal: '📋 Kelas 7 Umum'
+    tipe ENUM('KELAS_UMUM', 'KELAS_MATERI', 'KELAS_SANTAI',
+              'JENJANG', 'OSIS', 'MPK', 'ORG',
+              'GURU_JENJANG', 'GURU_ALL', 'ADMIN', 'GLOBAL') NOT NULL,
+    prefix_chat VARCHAR(64) NOT NULL,           -- Warna + teks prefix
+    permission_masuk VARCHAR(128) NOT NULL,     -- Node LuckPerms untuk masuk
+    permission_bicara VARCHAR(128) NOT NULL,    -- Node LuckPerms untuk bicara
+    auto_join BOOLEAN DEFAULT FALSE,            -- Apakah pemain otomatis masuk?
+    aktif BOOLEAN DEFAULT TRUE,
+    dibuat_pada TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX (tipe)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 2. TABEL KEANGGOTAAN CHANNEL (Manual Join oleh Pemain)
+CREATE TABLE natural_chat_memberships (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    player_uuid VARCHAR(36) NOT NULL,
+    id_channel VARCHAR(32) NOT NULL,
+    channel_aktif VARCHAR(32) DEFAULT 'global', -- Channel yang sedang aktif untuk dikirim
+    bergabung_pada TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_membership (player_uuid, id_channel),
+    INDEX (player_uuid),
+    INDEX (id_channel)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 3. TABEL ANGGOTA ORGANISASI (OSIS/MPK)
+CREATE TABLE natural_org_members (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    player_uuid VARCHAR(36) NOT NULL UNIQUE,
+    player_name VARCHAR(16) NOT NULL,
+    org_type ENUM('OSIS', 'MPK') NOT NULL,
+    jabatan VARCHAR(64) NOT NULL,               -- Misal: 'Ketua OSIS', 'Bendahara'
+    jenjang_asal ENUM('SD', 'SMP', 'SMA') NOT NULL,
+    channel_akses JSON NOT NULL,               -- Array channel yang bisa diakses
+    aktif BOOLEAN DEFAULT TRUE,
+    masa_jabatan_mulai DATE NOT NULL,
+    masa_jabatan_selesai DATE,
+    diangkat_oleh VARCHAR(36),                 -- UUID Admin yang mengangkat
+    dibuat_pada TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX (org_type),
+    INDEX (aktif)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 4. TABEL ARSIP PESAN CHANNEL KELAS (untuk fitur Perpustakaan Digital)
+CREATE TABLE natural_chat_archives (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id_channel VARCHAR(32) NOT NULL,
+    player_uuid VARCHAR(36) NOT NULL,
+    player_name VARCHAR(16) NOT NULL,
+    isi_pesan TEXT NOT NULL,
+    adalah_pertanyaan BOOLEAN DEFAULT FALSE,   -- Apakah diberi tag [?]?
+    adalah_jawaban_guru BOOLEAN DEFAULT FALSE, -- Apakah dari guru [GURU]?
+    waktu_kirim TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    sesi_kelas_id INT DEFAULT NULL,            -- Terhubung ke sesi kelas (opsional)
+    INDEX (id_channel),
+    INDEX (waktu_kirim),
+    INDEX (adalah_pertanyaan)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 5. TABEL ASPIRASI MPK
+CREATE TABLE natural_org_aspirations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    pengaju_uuid VARCHAR(36) NOT NULL,          -- UUID anggota MPK yang mengajukan
+    asal_kelas VARCHAR(10) NOT NULL,            -- Misal: 'kelas7'
+    isi_aspirasi TEXT NOT NULL,
+    status ENUM('PENDING', 'DIPROSES', 'SELESAI', 'DITOLAK') DEFAULT 'PENDING',
+    catatan_admin TEXT DEFAULT NULL,
+    waktu_pengajuan TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    waktu_update TIMESTAMP NULL ON UPDATE CURRENT_TIMESTAMP,
+    INDEX (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+```
+
+---
+
+### 7.7 Alur UX Lengkap — Pengalaman Pertama Pemain (First-Time Experience)
+
+Skenario: **Murid baru bernama `PakBudi` bergabung pertama kali. Dia di Kelas 8 SMP.**
+
+```
+1. PakBudi login ke server
+   └── [SISTEM] Sistem mendeteksi rank akademik: Murid Kelas 8 / SMP
+   └── [SISTEM] Auto-join pasif ke: #global, #smp, #kelas8
+
+2. PakBudi melihat Sidebar Chat di kanan layar (jika resource pack aktif):
+   ┌─────────────────────────┐
+   │  💬 CHANNEL AKTIFMU     │
+   │  ● Global    [/ch g]    │
+   │  ● SMP       [/ch smp]  │
+   │  ● Kelas 8   [/ch k8]   │
+   └─────────────────────────┘
+
+3. PakBudi mengetik pesan biasa di chat:
+   └── Pesan terkirim ke channel aktif saat ini (default: #kelas8)
+   └── Murid Kelas 8 lain melihat: §2[K8]§f §7<§aPakBudi§7>§f Halo semua!
+
+4. PakBudi ingin tanya tentang pelajaran:
+   └── PakBudi: /ch k8-materi
+   └── [SISTEM] Kamu sekarang bicara di 📚 Kelas 8 - Materi
+   └── PakBudi: [?] Pak, soal nomor 5 tentang persamaan linear itu maksudnya gimana?
+   └── Pesan bertanda [?] disimpan otomatis di database (natural_chat_archives, adalah_pertanyaan=true)
+
+5. Guru (Helper) melihat pertanyaan dan menjawab di channel yang sama:
+   └── Helper: /ch k8-materi
+   └── Helper: [GURU] Jawaban: Persamaan linear adalah...
+   └── Pesan guru tampil dengan warna hijau terang agar mudah dibedakan
+
+6. PakBudi selesai belajar, ingin ngobrol santai:
+   └── PakBudi: /ch k8-santai
+   └── [SISTEM] Kamu sekarang bicara di 🎲 Kelas 8 - Santai
+   └── PakBudi: Siapa mau main survival bareng habis kelas?
+
+7. PakBudi ingin tahu channel apa saja yang bisa diakses:
+   └── PakBudi: /ch list
+   └── [SISTEM] Menampilkan daftar channel yang dapat kamu akses:
+       ├── /ch g       → 🌐 Global
+       ├── /ch smp     → 🏫 SMP Umum
+       ├── /ch k8      → 📋 Kelas 8 Umum
+       ├── /ch k8-materi → 📚 Kelas 8 Materi
+       └── /ch k8-santai → 🎲 Kelas 8 Santai
+```
+
+---
+
+### 7.8 Alur UX Guru — Pengalaman Koordinasi Harian
+
+Skenario: **Helper bernama `KakDevy` bertugas mengajar Kelas 8 SMP hari ini.**
+
+```
+1. KakDevy login ke server
+   └── [SISTEM] Auto-join pasif ke: #global, #smp, #guru, #guru-smp, #kelas8
+
+2. 17.30 WIB — Sistem mengirim reminder ke #guru-smp:
+   └── [REMINDER] 🔔 Kelas 8 - IPA dimulai 30 menit lagi (18.00 WIB)
+       └── Pastikan file materi sudah disiapkan di dashboard!
+       └── File terbaru yang tersedia: ipa_sel_hewan_v3 (dibuat 3 hari lalu)
+
+3. 18.00 WIB — KakDevy menjalankan /kelas start kelas8 ipa:
+   └── Channel #kelas8 otomatis menerima:
+       └── [SISTEM] 🔔 Kelas 8 - IPA telah dibuka oleh Guru: KakDevy
+       └── [SISTEM] 📖 Materi hari ini: Sel Hewan dan Sel Tumbuhan
+       └── [SISTEM] Kamu bisa bertanya di: /ch k8-materi
+
+4. Selama kelas berlangsung, KakDevy bisa monitor dari channel guru:
+   └── KakDevy: /ch guru-smp
+   └── KakDevy: Ada yang update soal murid kelas 7? Ini kelas 8 sudah mulai
+
+5. Setelah kelas selesai (/kelas selesai), #guru-smp otomatis menerima laporan:
+   └── [LAPORAN SESI] 📊 Kelas 8 - IPA | Guru: KakDevy
+       ├── Hadir    : 22 murid  ✅
+       ├── Terlambat: 3 murid   ⚠️
+       ├── ALFA     : 1 murid   ❌
+       └── Rata-rata nilai kuis: 78.5 / 100
+
+6. KakDevy bisa koordinasi dengan guru lain di #guru:
+   └── KakDevy: /ch guru
+   └── KakDevy: Kelas 8 selesai. Ada yang mau take-over kelas 9 malam ini?
+```
+
+---
+
+### 7.9 Alur UX OSIS/MPK — Koordinasi Event
+
+Skenario: **Ketua OSIS `MasRevo` ingin merencanakan event pasar malam bersama MPK.**
+
+```
+1. MasRevo mengetik /ch osis untuk masuk ke channel OSIS privat
+
+2. MasRevo: /osis thread "Perencanaan Pasar Malam Akhir Semester"
+   └── [SISTEM] Thread baru dibuat: 💬 Perencanaan Pasar Malam Akhir Semester
+   └── [SISTEM] Thread ini aktif 24 jam. Lanjutkan diskusi!
+
+3. Di dalam thread, anggota OSIS berdiskusi, voting, dll.
+   └── MasRevo: /osis vote "Kapan pasar malam diadakan?" "Sabtu" "Minggu" "Sabtu+Minggu"
+   └── [SISTEM] 🗳️ Vote aktif! Ketik angka untuk memilih:
+       1. Sabtu
+       2. Minggu
+       3. Sabtu+Minggu
+   └── [Hasil 10 menit kemudian] Sabtu: 5 | Minggu: 3 | Sabtu+Minggu: 7 → TERPILIH: Sabtu+Minggu
+
+4. Setelah sepakat, MasRevo koordinasi ke channel gabungan:
+   └── MasRevo: /ch org
+   └── MasRevo: Halo MPK, OSIS sudah sepakat pasar malam Sabtu+Minggu.
+       Mohon bantu sosialisasi ke semua kelas ya via /ch kelas masing-masing!
+
+5. Anggota MPK menyebarkan info ke channel kelas:
+   └── AnggotaMPK_Kelas8: /ch k8
+   └── AnggotaMPK_Kelas8: 📢 Info dari OSIS: Ada Pasar Malam Akhir Semester!
+       Sabtu + Minggu malam. Bawa hasil pertanian/kerajinan untuk dijual!
+
+6. Setelah proposal event disetujui Admin via dashboard, #osis otomatis menerima:
+   └── [SISTEM] ✅ Proposal event "Pasar Malam Akhir Semester" telah DISETUJUI Admin!
+       └── Budget: 50.000 Koin Server | Tanggal: Sabtu + Minggu malam ini
+```
+
+---
+
+### 7.10 Command Reference Lengkap (NaturalChat)
+
+Seluruh command sistem chat dirancang singkat dan mudah diingat:
+
+#### Perintah Umum (Semua Pemain)
+
+| Command | Fungsi |
+| :--- | :--- |
+| `/ch <id>` | Pindah channel aktif untuk mengirim pesan |
+| `/ch list` | Lihat semua channel yang bisa diakses |
+| `/ch info <id>` | Info detail tentang sebuah channel |
+| `/msg <player> <pesan>` | Pesan pribadi (DM) ke pemain lain |
+| `/reply <pesan>` | Balas DM terakhir yang diterima |
+| `/ch mute <id>` | Bisukan notifikasi dari sebuah channel (tetap bisa baca) |
+| `/ch unmute <id>` | Aktifkan kembali notifikasi channel |
+
+#### Perintah Guru/Helper
+
+| Command | Fungsi |
+| :--- | :--- |
+| `/ch broadcast <id> <pesan>` | Kirim pengumuman highlight ke channel tertentu |
+| `/kelas pertanyaan` | Lihat daftar pertanyaan bertanda [?] di channel materi |
+| `/kelas chat-rekap` | Rekap tanya-jawab penting dari channel materi hari ini |
+
+#### Perintah OSIS/MPK
+
+| Command | Fungsi |
+| :--- | :--- |
+| `/osis thread <topik>` | Buat thread diskusi sementara di channel OSIS |
+| `/osis vote "<pertanyaan>" <p1> <p2> ...` | Buat vote di channel OSIS |
+| `/mpk aspirasi <kelas> "<isi>"` | Catat aspirasi dari kelas ke database MPK |
+| `/mpk laporan` | Lihat semua aspirasi yang sudah dicatat |
+
+#### Perintah Admin
+
+| Command | Fungsi |
+| :--- | :--- |
+| `/ch create <id> <tipe> <nama>` | Buat channel baru |
+| `/ch delete <id>` | Hapus channel |
+| `/ch setperm <id> <node_masuk> <node_bicara>` | Atur permission channel |
+| `/ch addmember <id> <player>` | Paksa tambah pemain ke channel tertentu |
+| `/ch kick <id> <player>` | Keluarkan pemain dari channel |
+| `/osis angkat <player> <jabatan>` | Angkat pemain sebagai pengurus OSIS |
+| `/mpk angkat <player> <jabatan>` | Angkat pemain sebagai anggota MPK |
+
+---
+
+### 7.11 Integrasi dengan Sistem Kelas
+
+Chat Channel berintegrasi erat dengan `ClassManager` di NaturalSchool sehingga komunikasi in-game selalu terhubung dengan aktivitas akademik:
+
+```
+Event Kelas                    → Aksi Channel Otomatis
+─────────────────────────────────────────────────────────
+/kelas start <id> <mapel>      → Notifikasi ke #kelas<N> + #guru-<jenjang>
+/kelas pembelajaran <id> <file>→ Embed preview materi ke #kelas<N>-materi
+/kelas startsoal <file>        → Alert ke #kelas<N>: "Kuis dimulai!"
+/kelas selesaikan <player>     → Notifikasi personal ke player (DM)
+/kelas selesai                 → Laporan sesi ke #guru-<jenjang> + arsip #kelas<N>-materi
+Auto-fallback (18.15 WIB)      → Alert ke #guru + #admin: "⚠ Helper belum siapkan materi!"
+Nilai 88 auto-inject           → Log ke #admin: detail kelas & Helper
+Presensi ALFA                  → Log internal ke #guru-<jenjang>
+E-Rapor terkirim               → Notifikasi ke #kelas<N>: "Rapor minggu ini sudah terkirim!"
+```
+
+---
+
+### 7.12 Roadmap Implementasi NaturalChat
+
+Implementasi sistem chat dibagi tiga fase untuk menjaga stabilitas:
+
+#### Fase A — Fondasi Chat (2 Minggu Pertama)
+* `/ch <id>` — Pindah dan bicara di channel
+* `/ch list` — Lihat daftar channel
+* Auto-join ke channel global, jenjang, dan kelas berdasarkan rank
+* Channel: global, sd, smp, sma, kelas1–kelas12 (umum saja)
+* Permission check sederhana menggunakan LuckPerms
+* Database: `natural_chat_channels`, `natural_chat_memberships`
+
+#### Fase B — Sub-Channel dan Organisasi (Minggu 3–4)
+* Sub-channel kelas: `-materi`, `-santai`
+* Channel: `osis`, `mpk`, `org`, `guru`, `guru-sd`, `guru-smp`, `guru-sma`
+* Command OSIS: `/osis vote`, `/mpk aspirasi`
+* Arsip pesan materi ke `natural_chat_archives`
+* Database: `natural_org_members`, `natural_org_aspirations`, `natural_chat_archives`
+
+#### Fase C — Integrasi Penuh dan UX Polish (Bulan 2)
+* Integrasi event kelas → notifikasi otomatis ke channel terkait
+* Sidebar chat visual (via scoreboard/bossbar)
+* Thread diskusi sementara OSIS
+* Sinkronisasi arsip tanya-jawab ke Perpustakaan Digital
+* Ekspor laporan channel ke Discord Webhook admin
+
