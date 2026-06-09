@@ -346,22 +346,43 @@ Untuk memastikan keseimbangan hidup riil para pemain, siklus jam operasional sek
 * **Pukul 20.00 WIB (Batas Toleransi Mengunci):** Pintu absensi ditutup oleh sistem otomatis `NaturalSchool`. Murid baru yang melewati batas pintu kelas atau baru melakukan login ke server di atas jam ini akan otomatis dijatuhi status kehadiran permanent berkode **`TERLAMBAT`** pada database record harian.
 * **Pukul 21.00 WIB (Kelas Selesai & Pembubaran):** Sesi pengajaran resmi ditutup secara global. Pemain yang tercatat online di server game namun tidak berada di dalam wilayah kelas dari rentang waktu 18.00 - 20.00 WIB akan langsung dijatuhi hukuman otomatis berkode **`ALFA`** (Membolos).
 
-### 4.2 Sistem Perintah Guru, Materi Pembelajaran & Soal Ujian
+### 4.2 Arsitektur Sistem Perintah (Command Structure)
+
+Sistem akademik NaturalSchool membagi fungsionalitas perintah menjadi 3 kategori utama yang bersih dan terstruktur untuk menjaga pemisahan wewenang serta kenyamanan pengguna:
+
+#### 1. Perintah Admin (`/naturalschool`)
+* **Base Command:** `/naturalschool` (Alias: `/nschool`, `/ns`)
+* **Fungsi:** Digunakan oleh Administrator untuk manajemen konfigurasi, reload plugin, pemaksaan status sakelar ujian global, dan penanganan visual dialog debug.
+
+#### 2. Perintah Portal Siswa Universal (`/school` / `/sekolah`)
+* **Base Command:** `/school` (Alias: `/sekolah`)
+* **Fungsi:** Digunakan secara universal/global oleh siswa untuk mengakses menu portal akademik umum (tidak terikat region/kelas tertentu).
+* **Format Subcommand:**
+  * **Inggris:** `/school exam` (Ujian), `/school info` (Profil), `/school report` (Rapor).
+  * **Indonesia:** `/sekolah ujian` (Ujian), `/sekolah info` (Profil), `/sekolah rapor` (Rapor).
+
+#### 3. Perintah Kegiatan Kelas Regional (`/class` / `/kelas`)
+* **Base Command:** `/class` (Alias: `/kelas`, `/k`)
+* **Fungsi:** Digunakan oleh Guru/Helper dan Murid khusus untuk interaksi belajar-mengajar di dalam sesi kelas aktif (bersifat spasial/regional, mendeteksi wilayah secara otomatis).
+* **Format Subcommand (Guru):** `start`, `selesai` / `finish`, `pembelajaran` / `lesson`, `startsoal` / `startquiz`, `selesaikan` / `dismiss`, `rekap` / `compile`, `pertanyaan` / `questions`, `jawab` / `answer`, `chat-rekap`.
+* **Format Subcommand (Murid):** `tanya` / `ask`.
+
+> **Prinsip Auto-Detect Region:** Seluruh perintah kegiatan kelas (`/class` / `/kelas`) **tidak memerlukan `<id_kelas>` sebagai argumen**. Plugin secara otomatis mendeteksi region WorldGuard tempat Guru/Siswa berdiri saat ini (misal: region `kelas8`) menggunakan API WorldGuard. Jika Guru/Siswa tidak berada di dalam region kelas manapun saat menjalankan command, sistem menampilkan pesan error: `§cKamu tidak berada di dalam region kelas manapun!`
 
 Helper memiliki dua perintah utama yang **harus dijalankan secara manual** sebelum sesi kelas dimulai, yaitu memuat materi proyektor dan memuat soal kuis. File sumber kedua perintah ini disiapkan terlebih dahulu oleh Helper melalui **dashboard website** dan disimpan di sistem database pusat.
 
-#### 4.2.1 Perintah Memuat Materi Pembelajaran (`/kelas pembelajaran <id_kelas> <namaFile>`)
+#### 4.2.1 Perintah Memuat Materi Pembelajaran (`/kelas pembelajaran <namaFile>`)
 
 * **Fungsi:** Menampilkan materi pelajaran pada proyektor/papan informasi virtual di dalam ruang kelas (berbasis Armor Stand display atau ItemFrame kustom).
-* **Format Perintah:** `/kelas pembelajaran kelas1 matematika_aljabar_v2`
-* **Mekanisme:** Plugin mengambil file konten dengan nama `matematika_aljabar_v2` dari tabel `natural_lesson_files` di database, lalu me-render teksnya ke dalam display proyektor kelas yang ditentukan.
+* **Format Perintah:** `/kelas pembelajaran matematika_aljabar_v2`
+* **Mekanisme:** Plugin mendeteksi region kelas Guru secara otomatis, lalu mengambil file konten dengan nama `matematika_aljabar_v2` dari tabel `natural_lesson_files` di database, dan me-render teksnya ke display proyektor kelas tersebut.
 * **Catatan:** File materi **harus dibuat terlebih dahulu** oleh Helper melalui panel website sebelum perintah ini bisa dieksekusi. Satu file dapat dipakai ulang di sesi berikutnya.
 
 #### 4.2.2 Perintah Memulai Soal Kuis (`/kelas startsoal <namaFile>`)
 
 * **Fungsi:** Membuka dan mendistribusikan soal kuis kepada seluruh murid yang hadir di kelas secara serentak melalui **Custom UI** bespoke NaturalSchool.
 * **Format Perintah:** `/kelas startsoal matematika_kuis_minggu3`
-* **Mekanisme:** Plugin mengambil paket soal dari database berdasarkan nama file, mengacak urutan soal, lalu mengirimkannya ke antarmuka Custom UI masing-masing murid. Jawaban dikirim balik secara asinkron ke backend untuk dinilai otomatis.
+* **Mekanisme:** Plugin mendeteksi region kelas Guru secara otomatis, mengambil paket soal dari database, mengacak urutan soal, lalu mengirimkannya ke Custom UI masing-masing murid. Jawaban dikirim balik secara asinkron ke backend untuk dinilai otomatis.
 * **Catatan Penting:** Antarmuka soal kuis menggunakan **Custom UI bespoke** (bukan Chest GUI standar). Spesifikasi teknis Custom UI akan didokumentasikan terpisah di dokumen `SPEC_NaturalSchool_UI.md`.
 
 #### 4.2.3 Perintah Pemulangan Dini (`/kelas selesaikan <player>`)
@@ -378,11 +399,10 @@ Guru dapat memberikan tugas Pekerjaan Rumah (PR) tambahan melalui dashboard web.
 
 ### 4.3 Logika Rekapitulasi Nilai Otomatis 1-Klik (`/kelas rekap`)
 
-Untuk mencegah fenomena kelelahan pengurus akibat mencatat data ratusan siswa secara manual, Helper dibekali perintah otomatisasi cerdas:
+Untuk mencegah fenomena kelelahan pengurus akibat mencatat data ratusan siswa secara manual, Helper dibekali perintah otomatisasi cerdas. Kelas-id **tidak perlu ditulis** — sistem mendeteksi region secara otomatis:
 
 ```bash
-/kelas rekap <id_kelas>
-
+/kelas rekap
 ```
 
 **Alur Eksekusi Skrip Backend:**
@@ -686,4 +706,845 @@ Plugin `NaturalSchool` tidak perlu selesai sepenuhnya sebelum server bisa launch
 * WhatsApp Notification Alert
 * Ujian Akhir Semester dengan pool soal acak massal
 * Custom UI soal kuis versi final (bespoke NaturalSchool)
+
+---
+
+## BAB 7: ARSITEKTUR SISTEM CHAT CHANNEL TERINTEGRASI (NaturalChat)
+
+Bab ini merancang sistem komunikasi internal server NaturalSMP secara menyeluruh dan sangat rinci. Sistem Chat Channel dirancang berfokus pada **User Experience yang mudah dipahami dan mudah dilakukan** — setiap pemain, baik guru maupun murid, harus dapat langsung memahami cara berkomunikasi tanpa panduan eksternal.
+
+Filosofi desain: **"Satu channel, satu tujuan. Satu command, langsung aktif."**
+
+---
+
+### 7.1 Prinsip Dasar dan Hierarki Channel
+
+Sistem chat dibagi menjadi empat lapisan utama, dari yang paling luas (global) hingga yang paling spesifik (dalam kelas). Pemain **hanya perlu mengingat satu command** untuk berpindah antar-channel: `/ch <nama_channel>`.
+
+```
+LAPISAN HIERARKI CHANNEL NATURALSMP
+══════════════════════════════════════════════════════════
+[🌐 GLOBAL]       → Seluruh pemain di semua server
+     │
+     ├── [🏫 JENJANG]    → SD / SMP / SMA
+     │       │
+     │       ├── [📋 KELAS]      → Kelas 1–12 (dalam jenjang)
+     │       │       │
+     │       │       ├── [📢 UMUM KELAS]    → Diskusi harian
+     │       │       ├── [📚 MATERI]        → Pertanyaan pelajaran
+     │       │       └── [🎲 SANTAI]        → Obrolan bebas kelas
+     │       │
+     │       └── [👨‍🏫 GURU JENJANG]  → Staf pengajar jenjang
+     │
+     ├── [🏛️ ORGANISASI]
+     │       ├── [👑 OSIS]       → Pengurus OSIS aktif
+     │       ├── [🗳️ MPK]        → Anggota MPK aktif
+     │       └── [🤝 GABUNGAN]   → OSIS + MPK bersama
+     │
+     └── [🔒 STAF INTERNAL]
+             ├── [🛡️ ADMIN]      → Manajemen & Admin
+             └── [📞 GURU-ALL]   → Seluruh Helper/Guru
+══════════════════════════════════════════════════════════
+```
+
+---
+
+### 7.2 Daftar Channel Lengkap dan Spesifikasi Teknis
+
+Setiap channel memiliki **ID unik**, **permission node**, **prefix chat**, dan **aturan akses** yang dikelola oleh plugin `NaturalChat` (atau modul chat dalam `NaturalCore`).
+
+#### 7.2.1 Tabel Master Channel
+
+| ID Channel | Nama Tampilan | Prefix Chat | Akses Masuk | Akses Bicara | Perintah Bergabung |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `global` | 🌐 Global | `§7[G]§f` | Semua pemain | Semua pemain | `/ch g` |
+| `sd` | 🏫 SD Umum | `§a[SD]§f` | Murid SD + Staf | Murid SD + Staf | `/ch sd` |
+| `smp` | 🏫 SMP Umum | `§b[SMP]§f` | Murid SMP + Staf | Murid SMP + Staf | `/ch smp` |
+| `sma` | 🏫 SMA Umum | `§d[SMA]§f` | Murid SMA + Staf | Murid SMA + Staf | `/ch sma` |
+| `kelas1` | 📋 Kelas 1 | `§2[K1]§f` | Kelas 1 + Guru K1 | Kelas 1 + Guru K1 | `/ch k1` |
+| `kelas2` | 📋 Kelas 2 | `§2[K2]§f` | Kelas 2 + Guru K2 | Kelas 2 + Guru K2 | `/ch k2` |
+| ... | ... | ... | ... | ... | ... |
+| `kelas12` | 📋 Kelas 12 | `§2[K12]§f` | Kelas 12 + Guru K12 | Kelas 12 + Guru K12 | `/ch k12` |
+| `osis` | 👑 OSIS | `§6[OSIS]§f` | Pengurus OSIS | Pengurus OSIS | `/ch osis` |
+| `mpk` | 🗳️ MPK | `§9[MPK]§f` | Anggota MPK | Anggota MPK | `/ch mpk` |
+| `org` | 🤝 Organisasi | `§e[ORG]§f` | OSIS + MPK | OSIS + MPK | `/ch org` |
+| `guru` | 👨‍🏫 Guru-All | `§c[GURU]§f` | Semua Helper | Semua Helper | `/ch guru` |
+| `admin` | 🛡️ Admin | `§4[ADM]§f` | Admin saja | Admin saja | `/ch adm` |
+
+---
+
+### 7.3 Channel Kelas — Arsitektur Detail
+
+Channel kelas adalah jantung komunikasi harian di NaturalSMP. Setiap kelas (Kelas 1 hingga Kelas 12) memiliki **3 sub-channel internal** yang bisa langsung diakses dengan sub-command singkat.
+
+#### 7.3.1 Struktur 3 Sub-Channel Per Kelas
+
+Ketika pemain bergabung ke channel kelas mereka (`/ch k1`), mereka langsung masuk ke **Sub-Channel Umum** secara default. Untuk berpindah ke sub-channel lain, cukup tambahkan suffix:
+
+```
+/ch k1        → Sub-channel: 📢 Umum Kelas (default)
+/ch k1-materi → Sub-channel: 📚 Materi & Tanya Jawab Pelajaran
+/ch k1-santai → Sub-channel: 🎲 Obrolan Santai & Bebas
+```
+
+#### 7.3.2 Detail Setiap Sub-Channel Kelas
+
+##### Sub-Channel 1: Umum Kelas (`k<N>`)
+* **Fungsi:** Komunikasi utama dalam kelas. Pengumuman dari guru, pertanyaan administratif, pemberitahuan dari sistem.
+* **Siapa yang bisa bicara:** Seluruh anggota kelas + Helper/Guru yang ditugaskan + Admin.
+* **Moderasi:** Auto-filter kata kasar aktif. Murid yang melebihi 5 pesan dalam 10 detik mendapat cooldown 30 detik (anti-spam).
+* **Pesan Sistem Otomatis:** Saat `/kelas start` dieksekusi Helper, channel ini otomatis menerima notifikasi:
+  ```
+  [SISTEM] 🔔 Kelas 1 - Matematika telah dibuka oleh Guru: [NamaHelper]
+  [SISTEM] 📖 Silakan masuk ke ruang kelas atau baca materi di /ch k1-materi
+  ```
+* **Prefix Chat:** `§2[K1]§f §7<§a{nama_pemain}§7>§f`
+
+##### Sub-Channel 2: Materi (`k<N>-materi`)
+* **Fungsi:** Ruang tanya jawab eksklusif seputar pelajaran. Murid mengajukan pertanyaan soal materi, guru menjawab.
+* **Siapa yang bisa bicara:** Seluruh anggota kelas + Guru (prioritas jawaban).
+* **Fitur Khusus:**
+  * Murid dapat "me-mark" pertanyaan dengan `[?]` di awal pesan. Pesan tersebut disimpan di database `natural_chat_questions` dan bisa dilihat lewat `/kelas pertanyaan`.
+  * Guru dapat menjawab dengan `[GURU] Jawaban:` yang akan diformat dengan warna berbeda (hijau terang) untuk menonjolkan jawaban resmi.
+  * Setelah kelas selesai, tanya-jawab di channel ini **diarsip otomatis** ke database untuk dijadikan bahan belajar mandiri di Perpustakaan Digital.
+* **Moderasi:** Lebih ketat — hanya boleh topik pelajaran. Percakapan off-topic akan dihapus otomatis oleh NaturalChat dan pengirimnya diarahkan ke `/ch k1-santai`.
+* **Prefix Chat:** `§2[K1-📚]§f §7<§e{nama_pemain}§7>§f`
+
+##### Sub-Channel 3: Santai (`k<N>-santai`)
+* **Fungsi:** Obrolan bebas antar murid dalam satu kelas. Tidak ada moderasi topik — murid bisa bicara apa saja asal tidak melanggar peraturan server.
+* **Siapa yang bisa bicara:** Seluruh anggota kelas. Guru tetap bisa membaca (mode pengawas/monitor) tapi tidak aktif di sini kecuali darurat.
+* **Moderasi:** Filter kata kasar standar, batas rate-limiting ringan (10 pesan / 15 detik).
+* **Fitur Khusus:** Channel ini aktif 24 jam — tidak bergantung pada jadwal kelas. Murid bisa ngobrol bahkan di luar jam sekolah.
+* **Prefix Chat:** `§2[K1-🎲]§f §7<§f{nama_pemain}§7>§f`
+
+#### 7.3.3 Diagram Alur Channel Kelas
+
+```
+Murid Baru Login
+       │
+       ▼
+Auto-join ke Channel: Global (default semua pemain)
+       │
+       ▼
+Sistem deteksi rank akademik murid (misal: Kelas 7)
+       │
+       ▼
+Auto-join pasif Channel: SMP (notifikasi di sidebar: "Kamu bergabung ke #smp")
+       │
+       ▼
+Auto-join pasif Channel: kelas7 (notifikasi: "Kamu bergabung ke #kelas-7-umum")
+       │
+       ▼
+Murid bisa berpindah channel kapan saja dengan /ch <id>:
+       │
+       ├── /ch g         → Bicara ke semua server
+       ├── /ch smp       → Bicara ke sesama SMP
+       ├── /ch k7        → Bicara di Kelas 7 (umum)
+       ├── /ch k7-materi → Bicara di Kelas 7 (pelajaran)
+       └── /ch k7-santai → Bicara di Kelas 7 (santai)
+```
+
+---
+
+### 7.4 Channel Organisasi — Arsitektur Detail
+
+Channel organisasi adalah ruang komunikasi bagi pemain yang memegang jabatan di **OSIS** atau **MPK**. Akses ke channel ini dikontrol secara dinamis oleh database `natural_org_members`.
+
+#### 7.4.1 Struktur Keanggotaan Organisasi
+
+```
+STRUKTUR JABATAN OSIS (Disimpan di natural_org_members)
+────────────────────────────────────────────────────────
+Ketua OSIS        → Akses: #osis, #org, #osis-ketua
+Wakil Ketua OSIS  → Akses: #osis, #org
+Sekretaris        → Akses: #osis, #org, #osis-dokumen (read+write)
+Bendahara         → Akses: #osis, #org, #osis-keuangan (read+write)
+Anggota Seksi     → Akses: #osis (terbatas per divisi)
+
+STRUKTUR JABATAN MPK (Disimpan di natural_org_members)
+────────────────────────────────────────────────────────
+Ketua MPK         → Akses: #mpk, #org, #mpk-ketua
+Wakil Ketua MPK   → Akses: #mpk, #org
+Anggota MPK       → Akses: #mpk (terbatas jenjangnya)
+```
+
+#### 7.4.2 Detail Sub-Channel Organisasi
+
+##### Channel OSIS (`#osis`)
+* **Perintah:** `/ch osis`
+* **Fungsi:** Koordinasi internal pengurus OSIS. Perencanaan event, pembagian tugas, laporan kegiatan mingguan.
+* **Akses:** Hanya pemain dengan jabatan OSIS yang tercatat di database `natural_org_members` dengan `org_type = 'OSIS'`.
+* **Fitur Khusus:**
+  * **Thread Perencanaan:** Ketua OSIS dapat membuat "thread" menggunakan `/osis thread <topik>`. Thread ini membuat sub-topik sementara yang hilang setelah 24 jam jika tidak ada aktivitas.
+  * **Vote Cepat:** Ketua OSIS dapat mengaktifkan vote singkat via `/osis vote "<pertanyaan>" <pilihan1> <pilihan2>`. Hasilnya ditampilkan langsung di channel dengan progress bar ASCII sederhana.
+  * **Notifikasi Event:** Ketika Admin menyetujui proposal event OSIS via dashboard website, channel ini otomatis menerima notifikasi embed dengan detail event.
+* **Moderasi:** Tidak ada filter topik — internal organisasi. Rate limiting standar.
+
+##### Channel MPK (`#mpk`)
+* **Perintah:** `/ch mpk`
+* **Fungsi:** Koordinasi internal MPK. Pengumpulan aspirasi dari kelas-kelas, penyusunan laporan ke Admin.
+* **Akses:** Hanya pemain dengan jabatan MPK yang tercatat di database.
+* **Fitur Khusus:**
+  * **Aspirasi Terstruktur:** Anggota MPK dapat mengajukan aspirasi dari murid ke channel ini dengan format `/mpk aspirasi <kelas> "<isi_aspirasi>"`. Aspirasi otomatis tercatat di `natural_org_aspirations` dan dirangkum dalam laporan mingguan ke Admin.
+  * **Voting Kebijakan:** Sistem voting sederhana untuk mengambil keputusan MPK secara demokratis.
+
+##### Channel Gabungan Organisasi (`#org`)
+* **Perintah:** `/ch org`
+* **Fungsi:** Rapat gabungan OSIS + MPK. Koordinasi kebijakan bersama, sinkronisasi event, laporan bersama ke Admin.
+* **Akses:** Semua anggota OSIS + MPK aktif.
+* **Fitur Khusus:** Admin bisa di-mention di channel ini via `@admin` untuk eskalasi isu penting.
+
+---
+
+### 7.5 Channel Guru / Sekolah per Jenjang — Arsitektur Detail
+
+Channel ini dirancang khusus untuk komunikasi di antara para Helper/Guru, dibagi berdasarkan jenjang sekolah yang mereka ajar.
+
+#### 7.5.1 Struktur Channel Guru
+
+```
+HIERARKI CHANNEL GURU
+══════════════════════════════════════════════════════
+[👨‍🏫 GURU-ALL]     → Semua Helper dari semua jenjang
+       │
+       ├── [📗 GURU-SD]    → Helper yang mengajar SD
+       ├── [📘 GURU-SMP]   → Helper yang mengajar SMP
+       └── [📕 GURU-SMA]   → Helper yang mengajar SMA
+══════════════════════════════════════════════════════
+```
+
+#### 7.5.2 Detail Channel Guru per Jenjang
+
+##### Channel Guru SD (`#guru-sd`)
+* **Perintah:** `/ch guru-sd`
+* **Akses:** Helper dengan permission `naturalschool.helper.sd`.
+* **Fungsi:** Koordinasi pengajaran Kelas 1-6. Berbagi file materi dan soal kuis antar-guru SD. Laporan insiden dalam kelas SD. Diskusi strategi menghadapi murid SD yang bolos.
+* **Fitur Khusus:**
+  * **Laporan Sesi Otomatis:** Setelah `/kelas selesai` di kelas 1-6, ringkasan sesi (jumlah hadir, rata-rata nilai, nama murid ALFA) otomatis dikirim ke channel ini.
+  * **Reminder Otomatis:** 30 menit sebelum jadwal kelas (17.30 WIB), sistem mengirim reminder ke channel: `[REMINDER] Kelas 1 - Matematika dimulai 30 menit lagi. Siapkan file materi via dashboard!`
+* **Prefix Chat:** `§a[GURU-SD]§f §7<§a{nama_helper}§7>§f`
+
+##### Channel Guru SMP (`#guru-smp`)
+* **Perintah:** `/ch guru-smp`
+* **Akses:** Helper dengan permission `naturalschool.helper.smp`.
+* **Fungsi:** Koordinasi Kelas 7-9. Laporan sesi, berbagi materi, diskusi kurikulum SMP.
+* **Fitur Khusus:** Sama dengan Guru SD, otomatis menerima laporan sesi dari kelas 7-9.
+* **Prefix Chat:** `§b[GURU-SMP]§f §7<§b{nama_helper}§7>§f`
+
+##### Channel Guru SMA (`#guru-sma`)
+* **Perintah:** `/ch guru-sma`
+* **Akses:** Helper dengan permission `naturalschool.helper.sma`.
+* **Fungsi:** Koordinasi Kelas 10-12. Diskusi kurikulum SMA tingkat lanjut, persiapan Ujian Akhir, koordinasi soal kelulusan.
+* **Fitur Khusus:** Sama dengan Guru SD. Khusus untuk laporan dari kelas 10-12.
+* **Prefix Chat:** `§d[GURU-SMA]§f §7<§d{nama_helper}§7>§f`
+
+##### Channel Guru All (`#guru`)
+* **Perintah:** `/ch guru`
+* **Akses:** Semua Helper (SD + SMP + SMA).
+* **Fungsi:** Koordinasi lintas jenjang. Pengumuman dari Admin ke semua Helper. Diskusi kebijakan server yang mempengaruhi seluruh kelas. Rapat staf virtual.
+* **Fitur Khusus:**
+  * **Pengumuman Admin:** Admin dapat mengirim pesan `[PENTING]` yang akan di-highlight dengan warna merah terang dan dibunyikan dengan sound `BLOCK_NOTE_BLOCK_PLING` agar terdengar oleh semua Helper online.
+  * **Status Kelas Real-time:** Helper dapat mengetik `/kelas status` di channel ini dan sistem akan menampilkan ringkasan semua kelas yang aktif saat ini.
+
+---
+
+### 7.6 Skema Database Chat Channel
+
+Plugin NaturalChat memerlukan tabel-tabel berikut untuk mengelola membership, riwayat pesan, dan arsip channel:
+
+```sql
+-- 1. TABEL KONFIGURASI CHANNEL
+CREATE TABLE natural_chat_channels (
+    id_channel VARCHAR(32) PRIMARY KEY,        -- Misal: 'kelas7', 'kelas7-materi', 'osis'
+    nama_tampilan VARCHAR(64) NOT NULL,         -- Misal: '📋 Kelas 7 Umum'
+    tipe ENUM('KELAS_UMUM', 'KELAS_MATERI', 'KELAS_SANTAI',
+              'JENJANG', 'OSIS', 'MPK', 'ORG',
+              'GURU_JENJANG', 'GURU_ALL', 'ADMIN', 'GLOBAL') NOT NULL,
+    prefix_chat VARCHAR(64) NOT NULL,           -- Warna + teks prefix
+    permission_masuk VARCHAR(128) NOT NULL,     -- Node LuckPerms untuk masuk
+    permission_bicara VARCHAR(128) NOT NULL,    -- Node LuckPerms untuk bicara
+    auto_join BOOLEAN DEFAULT FALSE,            -- Apakah pemain otomatis masuk?
+    aktif BOOLEAN DEFAULT TRUE,
+    dibuat_pada TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX (tipe)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 2. TABEL KEANGGOTAAN CHANNEL (Manual Join oleh Pemain)
+CREATE TABLE natural_chat_memberships (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    player_uuid VARCHAR(36) NOT NULL,
+    id_channel VARCHAR(32) NOT NULL,
+    channel_aktif VARCHAR(32) DEFAULT 'global', -- Channel yang sedang aktif untuk dikirim
+    bergabung_pada TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_membership (player_uuid, id_channel),
+    INDEX (player_uuid),
+    INDEX (id_channel)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 3. TABEL ANGGOTA ORGANISASI (OSIS/MPK)
+CREATE TABLE natural_org_members (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    player_uuid VARCHAR(36) NOT NULL UNIQUE,
+    player_name VARCHAR(16) NOT NULL,
+    org_type ENUM('OSIS', 'MPK') NOT NULL,
+    jabatan VARCHAR(64) NOT NULL,               -- Misal: 'Ketua OSIS', 'Bendahara'
+    jenjang_asal ENUM('SD', 'SMP', 'SMA') NOT NULL,
+    channel_akses JSON NOT NULL,               -- Array channel yang bisa diakses
+    aktif BOOLEAN DEFAULT TRUE,
+    masa_jabatan_mulai DATE NOT NULL,
+    masa_jabatan_selesai DATE,
+    diangkat_oleh VARCHAR(36),                 -- UUID Admin yang mengangkat
+    dibuat_pada TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX (org_type),
+    INDEX (aktif)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 4. TABEL ARSIP PESAN CHANNEL KELAS (untuk fitur Perpustakaan Digital)
+CREATE TABLE natural_chat_archives (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id_channel VARCHAR(32) NOT NULL,
+    player_uuid VARCHAR(36) NOT NULL,
+    player_name VARCHAR(16) NOT NULL,
+    isi_pesan TEXT NOT NULL,
+    adalah_pertanyaan BOOLEAN DEFAULT FALSE,   -- Apakah diberi tag [?]?
+    adalah_jawaban_guru BOOLEAN DEFAULT FALSE, -- Apakah dari guru [GURU]?
+    waktu_kirim TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    sesi_kelas_id INT DEFAULT NULL,            -- Terhubung ke sesi kelas (opsional)
+    INDEX (id_channel),
+    INDEX (waktu_kirim),
+    INDEX (adalah_pertanyaan)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 5. TABEL ASPIRASI MPK
+CREATE TABLE natural_org_aspirations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    pengaju_uuid VARCHAR(36) NOT NULL,          -- UUID anggota MPK yang mengajukan
+    asal_kelas VARCHAR(10) NOT NULL,            -- Misal: 'kelas7'
+    isi_aspirasi TEXT NOT NULL,
+    status ENUM('PENDING', 'DIPROSES', 'SELESAI', 'DITOLAK') DEFAULT 'PENDING',
+    catatan_admin TEXT DEFAULT NULL,
+    waktu_pengajuan TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    waktu_update TIMESTAMP NULL ON UPDATE CURRENT_TIMESTAMP,
+    INDEX (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+```
+
+---
+
+### 7.7 Alur UX Lengkap — Pengalaman Pertama Pemain (First-Time Experience)
+
+Skenario: **Murid baru bernama `PakBudi` bergabung pertama kali. Dia di Kelas 8 SMP.**
+
+```
+1. PakBudi login ke server
+   └── [SISTEM] Sistem mendeteksi rank akademik: Murid Kelas 8 / SMP
+   └── [SISTEM] Auto-join pasif ke: #global, #smp, #kelas8
+
+2. PakBudi melihat Sidebar Chat di kanan layar (jika resource pack aktif):
+   ┌─────────────────────────┐
+   │  💬 CHANNEL AKTIFMU     │
+   │  ● Global    [/ch g]    │
+   │  ● SMP       [/ch smp]  │
+   │  ● Kelas 8   [/ch k8]   │
+   └─────────────────────────┘
+
+3. PakBudi mengetik pesan biasa di chat:
+   └── Pesan terkirim ke channel aktif saat ini (default: #kelas8)
+   └── Murid Kelas 8 lain melihat: §2[K8]§f §7<§aPakBudi§7>§f Halo semua!
+
+4. PakBudi ingin tanya tentang pelajaran:
+   └── PakBudi: /ch k8-materi
+   └── [SISTEM] Kamu sekarang bicara di 📚 Kelas 8 - Materi
+   └── PakBudi: [?] Pak, soal nomor 5 tentang persamaan linear itu maksudnya gimana?
+   └── Pesan bertanda [?] disimpan otomatis di database (natural_chat_archives, adalah_pertanyaan=true)
+
+5. Guru (Helper) melihat pertanyaan dan menjawab di channel yang sama:
+   └── Helper: /ch k8-materi
+   └── Helper: [GURU] Jawaban: Persamaan linear adalah...
+   └── Pesan guru tampil dengan warna hijau terang agar mudah dibedakan
+
+6. PakBudi selesai belajar, ingin ngobrol santai:
+   └── PakBudi: /ch k8-santai
+   └── [SISTEM] Kamu sekarang bicara di 🎲 Kelas 8 - Santai
+   └── PakBudi: Siapa mau main survival bareng habis kelas?
+
+7. PakBudi ingin tahu channel apa saja yang bisa diakses:
+   └── PakBudi: /ch list
+   └── [SISTEM] Menampilkan daftar channel yang dapat kamu akses:
+       ├── /ch g       → 🌐 Global
+       ├── /ch smp     → 🏫 SMP Umum
+       ├── /ch k8      → 📋 Kelas 8 Umum
+       ├── /ch k8-materi → 📚 Kelas 8 Materi
+       └── /ch k8-santai → 🎲 Kelas 8 Santai
+```
+
+---
+
+### 7.8 Alur UX Guru — Pengalaman Koordinasi Harian
+
+Skenario: **Helper bernama `KakDevy` bertugas mengajar Kelas 8 SMP hari ini.**
+
+```
+1. KakDevy login ke server
+   └── [SISTEM] Auto-join pasif ke: #global, #smp, #guru, #guru-smp, #kelas8
+
+2. 17.30 WIB — Sistem mengirim reminder ke #guru-smp:
+   └── [REMINDER] 🔔 Kelas 8 - IPA dimulai 30 menit lagi (18.00 WIB)
+       └── Pastikan file materi sudah disiapkan di dashboard!
+       └── File terbaru yang tersedia: ipa_sel_hewan_v3 (dibuat 3 hari lalu)
+
+3. 18.00 WIB — KakDevy masuk ke region kelas8, lalu menjalankan /kelas start ipa:
+   └── [AUTO] Plugin mendeteksi KakDevy berada di region: kelas8
+   └── Channel #kelas8 otomatis menerima:
+       └── [SISTEM] 🔔 Kelas 8 - IPA telah dibuka oleh Guru: KakDevy
+       └── [SISTEM] 📖 Materi hari ini: Sel Hewan dan Sel Tumbuhan
+       └── [SISTEM] Ada pertanyaan? Ketik /kelas tanya <pertanyaanmu>
+
+4. Selama kelas berlangsung, KakDevy bisa monitor dari channel guru:
+   └── KakDevy: /ch guru-smp
+   └── KakDevy: Ada yang update soal murid kelas 7? Ini kelas 8 sudah mulai
+
+5. Setelah kelas selesai (/kelas selesai), #guru-smp otomatis menerima laporan:
+   └── [LAPORAN SESI] 📊 Kelas 8 - IPA | Guru: KakDevy
+       ├── Hadir    : 22 murid  ✅
+       ├── Terlambat: 3 murid   ⚠️
+       ├── ALFA     : 1 murid   ❌
+       └── Rata-rata nilai kuis: 78.5 / 100
+
+6. KakDevy bisa koordinasi dengan guru lain di #guru:
+   └── KakDevy: /ch guru
+   └── KakDevy: Kelas 8 selesai. Ada yang mau take-over kelas 9 malam ini?
+```
+
+---
+
+### 7.9 Alur UX OSIS/MPK — Koordinasi Event
+
+Skenario: **Ketua OSIS `MasRevo` ingin merencanakan event pasar malam bersama MPK.**
+
+```
+1. MasRevo mengetik /ch osis untuk masuk ke channel OSIS privat
+
+2. MasRevo: /osis thread "Perencanaan Pasar Malam Akhir Semester"
+   └── [SISTEM] Thread baru dibuat: 💬 Perencanaan Pasar Malam Akhir Semester
+   └── [SISTEM] Thread ini aktif 24 jam. Lanjutkan diskusi!
+
+3. Di dalam thread, anggota OSIS berdiskusi, voting, dll.
+   └── MasRevo: /osis vote "Kapan pasar malam diadakan?" "Sabtu" "Minggu" "Sabtu+Minggu"
+   └── [SISTEM] 🗳️ Vote aktif! Ketik angka untuk memilih:
+       1. Sabtu
+       2. Minggu
+       3. Sabtu+Minggu
+   └── [Hasil 10 menit kemudian] Sabtu: 5 | Minggu: 3 | Sabtu+Minggu: 7 → TERPILIH: Sabtu+Minggu
+
+4. Setelah sepakat, MasRevo koordinasi ke channel gabungan:
+   └── MasRevo: /ch org
+   └── MasRevo: Halo MPK, OSIS sudah sepakat pasar malam Sabtu+Minggu.
+       Mohon bantu sosialisasi ke semua kelas ya via /ch kelas masing-masing!
+
+5. Anggota MPK menyebarkan info ke channel kelas:
+   └── AnggotaMPK_Kelas8: /ch k8
+   └── AnggotaMPK_Kelas8: 📢 Info dari OSIS: Ada Pasar Malam Akhir Semester!
+       Sabtu + Minggu malam. Bawa hasil pertanian/kerajinan untuk dijual!
+
+6. Setelah proposal event disetujui Admin via dashboard, #osis otomatis menerima:
+   └── [SISTEM] ✅ Proposal event "Pasar Malam Akhir Semester" telah DISETUJUI Admin!
+       └── Budget: 50.000 Koin Server | Tanggal: Sabtu + Minggu malam ini
+```
+
+---
+
+### 7.10 Command Reference Lengkap (NaturalChat + NaturalSchool)
+
+> **Catatan Penting Pemisahan Command:**
+> 1. **`/naturalschool` (Alias: `/nschool`, `/ns`):** Perintah khusus manajemen administrator.
+> 2. **`/school` (Alias: `/sekolah`):** Perintah portal siswa secara universal (global, tidak terikat wilayah kelas).
+> 3. **`/class` (Alias: `/kelas`, `/k`):** Perintah kegiatan kelas regional/spasial (menggunakan deteksi otomatis wilayah kelas WorldGuard tanpa parameter ID kelas).
+
+---
+
+#### Perintah Umum Chat (Semua Pemain)
+
+| Command | Fungsi |
+| :--- | :--- |
+| `/ch <id>` | Pindah channel aktif untuk mengirim pesan |
+| `/ch list` | Lihat semua channel yang bisa diakses |
+| `/ch info <id>` | Info detail tentang sebuah channel |
+| `/msg <player> <pesan>` | Pesan pribadi (DM) ke pemain lain |
+| `/reply <pesan>` | Balas DM terakhir yang diterima |
+| `/ch mute <id>` | Bisukan notifikasi dari sebuah channel (tetap bisa baca) |
+| `/ch unmute <id>` | Aktifkan kembali notifikasi channel |
+
+---
+
+#### Perintah Murid — Sistem Tanya Jawab & Portal Akademik
+
+| Perintah Utama (Indo) | Alias (Inggris) | Fungsi |
+| :--- | :--- | :--- |
+| `/kelas tanya <pertanyaan>` | `/class ask <question>` | Ajukan pertanyaan ke antrian tanya-jawab kelas (auto-detect region) |
+| `/sekolah ujian` | `/school exam` | Buka Portal Ujian sekolah (Ujian Harian/Semester/UAS) |
+| `/sekolah info` | `/school info` | Menampilkan GUI dialog Informasi Pelajar / Profil Anda |
+| `/sekolah rapor` | `/school report` | Membuka E-Rapor digital |
+
+**Cara pakai `/kelas tanya`:**
+```
+/kelas tanya Pak, apa bedanya sel hewan dan sel tumbuhan?
+```
+Sistem otomatis:
+- Menambahkan ke antrian bernomor: `📋 [ANTRIAN #3] PakBudi: "Pak, apa bedanya..."`
+- Menyimpan ke database `natural_chat_archives` (adalah_pertanyaan = true)
+- Broadcast ke channel `#kelas<N>-materi` agar terlihat semua orang
+
+---
+
+#### Perintah Guru/Helper — Sistem Antrian & Jawaban
+
+| Perintah Utama (Indo) | Alias (Inggris) | Fungsi |
+| :--- | :--- | :--- |
+| `/kelas pertanyaan` | `/class questions` | Buka **Custom GUI** antrian pertanyaan murid (auto-detect region) |
+| `/kelas jawab <nomor> <jawaban>` | `/class answer <number> <answer>` | Jawab pertanyaan nomor tertentu dari antrian |
+| `/kelas pertanyaan skip <nomor>` | `/class questions skip <number>` | Lewati pertanyaan tertentu (ditandai DILEWATI) |
+| `/kelas pertanyaan tutup` | `/class questions close` | Tutup antrian sementara (murid tidak bisa /kelas tanya) |
+| `/kelas pertanyaan buka` | `/class questions open` | Buka kembali antrian |
+| `/kelas chat-rekap` | `/class chat-rekap` | Arsip semua Q&A hari ini ke database Perpustakaan Digital |
+| `/ch broadcast <id> <pesan>` | `/ch broadcast <id> <message>` | Kirim pengumuman highlight ke channel tertentu |
+
+**Cara pakai `/kelas jawab`:**
+```
+/kelas jawab 1 Sel hewan tidak punya dinding sel, sedangkan sel tumbuhan punya...
+```
+Output yang terlihat semua murid:
+```
+✅ [JAWAB #1] KakDevy → PakBudi
+   "Sel hewan tidak punya dinding sel, sedangkan sel tumbuhan punya..."
+   ─ Pertanyaan: "Pak, apa bedanya sel hewan dan sel tumbuhan?"
+```
+Pertanyaan nomor 1 otomatis dihapus dari antrian.
+
+---
+
+#### Perintah OSIS/MPK
+
+| Command | Fungsi |
+| :--- | :--- |
+| `/osis thread <topik>` | Buat thread diskusi sementara di channel OSIS |
+| `/osis vote "<pertanyaan>" <p1> <p2> ...` | Buat vote di channel OSIS |
+| `/mpk aspirasi <kelas> "<isi>"` | Catat aspirasi dari kelas ke database MPK |
+| `/mpk laporan` | Lihat semua aspirasi yang sudah dicatat |
+
+---
+
+#### Perintah Admin
+
+| Command | Fungsi |
+| :--- | :--- |
+| `/ch create <id> <tipe> <nama>` | Buat channel baru |
+| `/ch delete <id>` | Hapus channel |
+| `/ch setperm <id> <node_masuk> <node_bicara>` | Atur permission channel |
+| `/ch addmember <id> <player>` | Paksa tambah pemain ke channel tertentu |
+| `/ch kick <id> <player>` | Keluarkan pemain dari channel |
+| `/osis angkat <player> <jabatan>` | Angkat pemain sebagai pengurus OSIS |
+| `/mpk angkat <player> <jabatan>` | Angkat pemain sebagai anggota MPK |
+
+---
+
+### 7.10a Spesifikasi Custom GUI — `/kelas pertanyaan`
+
+Ketika Guru menjalankan `/kelas pertanyaan`, sistem membuka **Custom GUI** (bukan teks chat biasa). GUI ini dirancang agar Guru bisa dengan cepat memilih dan menjawab pertanyaan tanpa harus mengingat nomor antrian.
+
+#### Tampilan GUI
+
+```
+╔═══════════════════════════════════════════════╗
+║  📋 Antrian Pertanyaan Kelas 8 — IPA          ║
+║  Mau jawab soal siapa Pak KakDevy?            ║
+║  Klik soalnya.                                ║
+╠═══════════════════════════════════════════════╣
+║  [1] 🟡 PakBudi   — "apa bedanya sel hewan    ║
+║                      dan sel tumbuhan?"       ║
+║  [2] 🟡 SiAni     — "soal nomor 3 itu A       ║
+║                      atau B ya?"              ║
+║  [3] 🟡 MasBro    — "kapan kuis dimulai?"     ║
+║  [4] ⚪ RikiSaja  — (DILEWATI)                ║
+╠═══════════════════════════════════════════════╣
+║    [ JAWAB ✅ ]          [ KEMBALI ◀ ]        ║
+╚═══════════════════════════════════════════════╝
+```
+
+#### Alur Interaksi GUI
+
+1. **Guru membuka GUI** → `/kelas pertanyaan`
+2. **Guru mengklik salah satu soal** (misal: soal #1 dari PakBudi)
+   - Soal yang dipilih berganti warna menjadi **hijau** (tanda terpilih)
+   - Tombol `JAWAB` menjadi aktif (sebelum dipilih, tombol `JAWAB` dalam keadaan **abu-abu / disabled**)
+3. **Guru mengklik tombol `JAWAB`**
+   - GUI tertutup otomatis
+   - Input chat Guru **otomatis terisi** dengan:
+     ```
+     /kelas jawab 1 "jawab disini"
+     ```
+   - Guru tinggal mengganti teks `jawab disini` dengan jawaban sebenarnya, lalu Enter
+4. **Guru mengklik tombol `KEMBALI`** → GUI tertutup tanpa aksi
+
+#### Keterangan Status Warna Soal
+
+| Warna | Status | Keterangan |
+| :--- | :--- | :--- |
+| 🟡 Kuning | MENUNGGU | Belum dijawab |
+| 🟢 Hijau | DIPILIH | Soal yang sedang diklik Guru |
+| ✅ Hijau Terang | TERJAWAB | Sudah dijawab (tidak muncul di antrian aktif) |
+| ⚪ Abu-abu | DILEWATI | Guru skip via `/kelas pertanyaan skip <nomor>` |
+
+#### Implementasi Teknis GUI
+
+* GUI menggunakan **Paper Dialog API** (native Minecraft untuk Java) atau **Custom NaturalSchool GUI** berbasis `InventoryClickEvent` + `ItemStack` untuk kompatibilitas Bedrock via Geyser (menggunakan `FormWindow` dari Geyser Floodgate).
+* Tombol `JAWAB` disabled direpresentasikan dengan item bertipe **Gray Stained Glass Pane** (tidak bisa diklik). Setelah soal dipilih, item berubah ke **Lime Stained Glass Pane** (aktif).
+* Pengisian otomatis input chat menggunakan packet `ClientboundOpenBookPacket` pada Java Edition, dan `ModalFormRequestPacket` pada Bedrock Edition.
+
+---
+
+### 7.11 Integrasi dengan Sistem Kelas
+
+Chat Channel berintegrasi erat dengan `ClassManager` di NaturalSchool. Semua event kelas otomatis memicu aksi ke channel yang relevan. Semua command **auto-detect region** tanpa perlu argumen kelas-id:
+
+```
+Event Kelas                   → Aksi Channel Otomatis
+──────────────────────────────────────────────────────────────
+/kelas start <mapel>          → Notifikasi ke #kelas<N> + #guru-<jenjang>
+                                "Kelas dibuka! Ketik /kelas tanya untuk bertanya."
+/kelas pembelajaran <file>    → Embed preview materi ke #kelas<N>-materi
+/kelas startsoal <file>       → Alert ke #kelas<N>: "🎯 Kuis dimulai!"
+/kelas tanya <pertanyaan>     → Masuk antrian + broadcast ke #kelas<N>-materi
+/kelas jawab <nomor> <jawab>  → Jawaban highlight ke #kelas<N>-materi, arsip DB
+/kelas selesaikan <player>    → DM personal ke player: "✅ Kamu boleh pulang!"
+/kelas selesai                → Laporan sesi ke #guru-<jenjang>, arsip #kelas<N>-materi
+/kelas chat-rekap             → Arsip Q&A ke Perpustakaan Digital
+Auto-fallback (18.15 WIB)     → Alert ke #guru + #admin: "⚠ Helper belum siapkan materi!"
+Nilai 88 auto-inject          → Log ke #admin: detail kelas & Helper
+Presensi ALFA                 → Log internal ke #guru-<jenjang>
+E-Rapor terkirim              → Notifikasi ke #kelas<N>: "📄 Rapor sudah terkirim!"
+```
+
+---
+
+### 7.12 Roadmap Implementasi NaturalChat
+
+Implementasi sistem chat dibagi tiga fase untuk menjaga stabilitas:
+
+#### Fase A — Fondasi Chat (2 Minggu Pertama)
+* `/ch <id>` — Pindah dan bicara di channel
+* `/ch list` — Lihat daftar channel
+* Auto-join ke channel global, jenjang, dan kelas berdasarkan rank
+* Channel: global, sd, smp, sma, kelas1–kelas12 (umum saja)
+* Permission check sederhana menggunakan LuckPerms
+* Database: `natural_chat_channels`, `natural_chat_memberships`
+
+#### Fase B — Sub-Channel dan Organisasi (Minggu 3–4)
+* Sub-channel kelas: `-materi`, `-santai`
+* Channel: `osis`, `mpk`, `org`, `guru`, `guru-sd`, `guru-smp`, `guru-sma`
+* Command OSIS: `/osis vote`, `/mpk aspirasi`
+* Arsip pesan materi ke `natural_chat_archives`
+* Database: `natural_org_members`, `natural_org_aspirations`, `natural_chat_archives`
+
+#### Fase C — Integrasi Penuh dan UX Polish (Bulan 2)
+* Integrasi event kelas → notifikasi otomatis ke channel terkait
+* Sidebar chat visual (via scoreboard/bossbar)
+* Thread diskusi sementara OSIS
+* Sinkronisasi arsip tanya-jawab ke Perpustakaan Digital
+* Ekspor laporan channel ke Discord Webhook admin
+
+---
+
+## BAB 8: CETAK BIRU ALUR KERJA SISTEM UJIAN (EXAM SYSTEM ENGINE)
+
+Berikut adalah cetak biru (*blueprint*) alur kerja sistem dari hulu ke hilir:
+
+---
+
+### 8.0 Keputusan Arsitektur Utama
+
+#### 8.0.1 Satu Engine Terpadu untuk Semua Jenis Ujian
+
+Dibandingkan membuat engine terpisah untuk setiap jenis ujian (UH, UTS, UAS), seluruh alur pengerjaan soal digabung ke dalam **satu engine terpadu** (`ExamSession.java` + `ExamGui.java`). Engine ini bersifat **"buta" terhadap jenis ujian** — ia hanya peduli pada `packet_id` yang diterimanya, bukan pada apakah paket itu milik UH, UTS, atau UAS.
+
+```
+/school exam
+    ↓
+[ExamGui] Tampilkan pilihan jenis ujian
+    ↓
+[ExamValidator] Validasi akses (gatekeeper Fase 2)
+    ↓
+new ExamSession(playerUuid, "5_1_UH1")   ← engine sama
+new ExamSession(playerUuid, "6_1_UTS")   ← engine sama
+new ExamSession(playerUuid, "5_1_UAS")   ← engine sama
+    ↓
+[ExamGui] Render soal, terima jawaban, kalkulasi skor
+    ↓
+[Post-submission] String splitting → upsert tabel rapor yang sesuai
+```
+
+**Keuntungan:**
+- Kode jauh lebih pendek dan mudah dipelihara
+- Desain UI/UX GUI pengerjaan soal cukup dibuat satu kali
+- Perbaikan bug pada engine otomatis memperbaiki semua jenis ujian sekaligus
+
+**Risiko & Mitigasi:**
+- *Single Point of Failure* → diatasi dengan mekanisme robustness berlapis (lihat Bagian 8.8)
+
+#### 8.0.2 Pemisahan Wewenang Operator (Authority Split)
+
+Meskipun engine-nya satu, **operator yang berwenang membuka/menutup akses** setiap jenis ujian berbeda-beda:
+
+| Jenis Ujian | Operator Pengendali | Mekanisme Kontrol |
+| :--- | :--- | :--- |
+| **Ujian Harian (UH)** | Wali Kelas masing-masing | Mengisi `active_uh_packets` di `nschool_core_state` via Web Dashboard |
+| **Ujian Tengah Semester (UTS)** | Guru Mata Pelajaran + Kepala Sekolah | Mengatur `portal_semester_status` dan `current_active_semester_packets` |
+| **Ujian Akhir Semester (UAS)** | Kepala Sekolah + Kementerian | Mengatur `portal_semester_status` di level global |
+| **Tugas Harian (PR)** | Guru Mata Pelajaran | **Jalur terpisah** — tidak melalui exam engine (lihat Bagian 4.2.4) |
+
+> [!IMPORTANT]
+> **Tugas Harian (PR) tidak melalui exam engine.** PR dikerjakan secara mandiri oleh murid di Perpustakaan Agung pada jam bebas dan menggunakan alur penyimpanan nilai yang berbeda. Hanya UH, UTS, dan UAS yang melewati `ExamSession.java`.
+
+#### 8.0.3 Prinsip "Engine Buta" (Blind Engine Principle)
+
+Engine pengerjaan soal dirancang agar **tidak mengetahui dan tidak peduli** jenis ujian yang sedang dikerjakan. Engine hanya:
+1. Menerima `packet_id` sebagai input
+2. Membaca soal dari `exams.json` berdasarkan `packet_id`
+3. Menampilkan GUI pengerjaan soal
+4. Menyerahkan skor mentah ke handler *post-submission*
+
+Seluruh logika percabangan jenis ujian (UH vs UTS vs UAS) **hanya terjadi di dua titik:**
+- **Sebelum engine** → `ExamValidator.java` (gatekeeper Fase 2)
+- **Setelah engine** → String splitting `packet_id` untuk menentukan kolom rapor yang diisi (`score_harian`, `score_uts`, atau `score_uas`)
+
+---
+
+### 8.1 FASE 1: Inisiasi Perintah & Menu Utama Portal
+
+Siklus dimulai dari interaksi langsung siswa di dalam game Minecraft.
+
+1. **Eksekusi Command:** Siswa mengetik perintah `/sekolah ujian` (atau alias `/school exam` dalam Bahasa Inggris) di kolom obrolan game.
+2. **Penanganan Command (`SchoolCommand.java`):**
+   * Kelas *Command Listener* menangkap perintah tersebut.
+   * Sistem memeriksa apakah pemain adalah seorang siswa terdaftar dan mengambil data profilnya (seperti `uuid`, `nis`, dan `academic_class`).
+3. **Pemicu GUI Utama (`ExamGui.java`):**
+   * Perintah langsung memanggil metode untuk membuka menu utama portal sekolah.
+   * Menu ini muncul dalam bentuk `SimpleForm` untuk pemain Bedrock Edition atau UI kustom untuk pemain Java Edition.
+   * **Tampilan Layar Siswa:** Teks berisi *"Selamat datang di Portal Sekolah"* dengan 3 tombol interaktif:
+     * `[ Ujian Harian ]`
+     * `[ Ujian Semester ]`
+     * `[ Ujian Akhir Semester / Kelulusan ]`
+
+---
+
+### 8.2 FASE 2: Percabangan Jalur Akses & Validasi Gerbang (Gatekeeper)
+
+Ketika siswa memilih salah satu dari tiga tombol di atas, *engine* GUI tidak langsung memberikan soal, melainkan membelah logika pengecekan menjadi dua jalur independen:
+
+#### JALUR A: Jika Siswa Mengklik [ Ujian Harian ] (Kontrol Otonom Wali Kelas)
+
+1. **Pengecekan RAM Otomatis:** Plugin membaca data kelas siswa dari memorinya (Misal: Alex, Kelas 1) dan menarik data string array dari baris `active_uh_packets` di tabel `nschool_core_state` (Data saat itu: `["5_1_UH1", "2_2_UH3"]`).
+2. **Penyaringan Menu Mapel:** GUI memunculkan daftar 7 mata pelajaran resmi. Namun, fungsi klik tombol disaring secara *real-time*:
+   * **Tombol Matematika (ID: 5):** Menyala dan **BISA DIKLIK**, karena sistem mencocokkan kode paket `5_1_UH1` (Mapel 5, Kelas 1, UH 1) tersedia di dalam daftar paket aktif yang dirilis Wali Kelas di Web.
+   * **Tombol Lainnya (ID 1-4, 6-7):** Otomatis berubah menjadi **Abu-abu (Disabled)**. Jika diklik, sistem memunculkan peringatan: *"Wali Kelas belum mengaktifkan paket Ujian Harian untuk mata pelajaran ini!"*
+3. **Validasi Anti-Retake Shield:** Jika Alex mengklik tombol Matematika yang aktif, plugin menembak query asinkron cepat ke database MySQL:
+   ```sql
+   SELECT id FROM nschool_student_exam_attempts WHERE uuid = 'uuid-alex' AND packet_id = '5_1_UH1';
+   ```
+   * **Jika Ada Datanya:** Akses langsung dibatalkan! Layar ditutup dan memunculkan **Error GUI (Code: 3)**: *"Kamu sudah menyelesaikan paket ujian ini dan tidak dapat mengulangnya kembali!"*
+   * **Jika Kosong (NULL):** Alex lolos dan lanjut ke Fase 3.
+
+#### JALUR B & C: Jika Siswa Mengklik [ Ujian Semester / UAS ] (Kontrol Terpusat Kementerian)
+
+1. **Cek Sakelar Global:** Plugin membaca status `portal_semester_status` di tabel `nschool_core_state`.
+   * **Jika `CLOSED`:** Menu langsung menutup otomatis dan memunculkan pesan error saklek: *"Maaf, saat ini portal ujian semester/Akhir Semester tidak dibuka, jika menurut anda ini kesalahan mohon hubungi Kepala Sekolah atau Kementerian!"*
+   * **Jika `OPEN`:** Gerbang besar terbuka, menu menampilkan **seluruh 7 mata pelajaran secara utuh (Wajib Tersedia semua)**.
+2. **Penyaringan Klik Berdasarkan Waktu & Jadwal Serentak:** Ketika siswa mengklik salah satu mapel (Misal: klik mapel IPA yang memiliki target kode paket semester `6_1_UTS`), sistem melakukan inspeksi berlapis:
+   * **Cek Masa Jeda:** Sistem membaca nilai `is_semester_break`. Jika bernilai `true`, klik dibatalkan dan muncul pesan: *"Saat ini sedang masa jeda/istirahat antar mata pelajaran. Mohon tunggu mapel berikutnya dibuka."*
+   * **Cek Whitelist Jadwal:** Jika tidak sedang jeda, sistem mencocokkan target paket dengan data `current_active_semester_packets` di database. Jika jam tersebut adalah jadwal ujian IPA, maka paket `6_1_UTS` dinyatakan sah. Jika siswa mencoba curang mengklik Matematika (`5_1_UTS`), akses diblokir dengan pesan: *"Ujian untuk mata pelajaran ini belum dimulai atau sudah berakhir!"*
+3. **Cek Anti-Retake:** Jika jadwal cocok, sistem melakukan query ke tabel `nschool_student_exam_attempts` untuk memastikan siswa belum pernah mengambil paket UTS tersebut sebelumnya. Jika aman, siswa lolos ke Fase 3.
+
+---
+
+### 8.3 FASE 3: Proses Pengerjaan Soal (Exam Session Engine)
+
+Setelah lolos dari semua gerbang validasi di Fase 2, *engine* pengerjaan soal resmi diaktifkan.
+
+1. **Pembuatan Sesi (`ExamSession.java`):** Plugin membuat objek sesi baru di dalam memori RAM server: `new ExamSession(playerUuid, "5_1_UH1")`. Sesi ini mengunci UUID pemain dan ID Paket yang dikerjakan.
+2. **Pemotongan Data Soal (*JSON Slicing*):** Plugin membaca file cache lokal `exams.json` (yang sudah tersinkronisasi di awal dengan tabel `nschool_exam_questions`). Plugin memotong data dan hanya mengambil butir soal yang memiliki properti `packet_id == "5_1_UH1"`, diurutkan rapi berdasarkan `question_number ASC`.
+3. **Rendering UI Soal Berurutan:** `ExamGui.java` menampilkan soal nomor 1 di layar siswa.
+   * Siswa membaca `question_text` dan memilih jawaban lewat tombol pilihan ganda yang sudah dibersihkan dari simbol-simbol aneh agar layout tidak rusak.
+   * Ketika siswa mengklik tombol **"Berikutnya"**, variabel indeks internal bertambah (`currentIndex++`), dan GUI merender soal nomor selanjutnya secara instan tanpa memicu *lag* server.
+
+---
+
+### 8.4 FASE 4: Penyelesaian Ujian & Penguncian Status (Submission)
+
+Detik di mana siswa menjawab pertanyaan terakhir (nomor 10) dan menekan tombol **"Kirim Jawaban Akhir"**:
+
+1. **Kalkulasi Nilai Otomatis:** *Engine* mencocokkan array jawaban yang dipilih siswa dengan kunci jawaban (`correct_answer` / `correct_indices`) di memori. Skor akhir dihitung menggunakan skala matematika standar (0.00 - 100.00). Misal, Alex mendapatkan nilai **85.00**.
+2. **Pencatatan Riwayat (*Anti-Retake Lock*):** Secara asinkron (*Background Thread*), plugin langsung memasukkan data kelulusan paket ke tabel riwayat database:
+   ```sql
+   INSERT INTO nschool_student_exam_attempts (uuid, nis, packet_id, final_score) 
+   VALUES ('uuid-alex', '2026001', '5_1_UH1', 85.00);
+   ```
+   *Detik ini juga, paket `5_1_UH1` resmi terkunci mati untuk Alex. Ia tidak akan bisa masuk ke ujian ini lagi jika mencoba mengkliknya di masa depan.*
+
+---
+
+### 8.5 FASE 5: Distribusi Nilai & Akumulasi Otomatis ke E-Rapor
+
+Ini adalah fase akhir di mana satu paket data hasil ujian dipecah dan dimasukkan ke dalam buku transkrip nilai besar siswa.
+
+1. **Pemecahan String Kode Paket (*String Splitting*):**
+   Kodingan backend mengambil string `packet_id` ("5_1_UH1") dari sesi yang baru ditutup, lalu membelahnya berdasarkan karakter garis bawah (`_`):
+   * `parts[0]` $\rightarrow$ `"5"` (Diterjemahkan sebagai `subject_id` = Matematika).
+   * `parts[1]` $\rightarrow$ `"1"` (Diterjemahkan sebagai `academic_class` = Kelas 1).
+   * `parts[2]` $\rightarrow$ `"UH1"` (Diterjemahkan sebagai Jenis Ujian = Ujian Harian paket 1).
+2. **Eksekusi Operasi UPSERT ke Tabel Rapor:**
+   Sistem menjalankan perintah **Upsert** (*Insert or Update*) ke tabel `nschool_student_rapor` dengan target baris yang dikunci oleh kombinasi unik: `uuid = 'uuid-alex'`, `academic_class = 1`, `semester = 'GANJIL'`, dan `subject_id = 5`.
+   * **KONDISI JALUR UH (Teks mengandung "UH"):**
+     Sistem akan melakukan query kalkulasi rata-rata cepat dari tabel riwayat:
+     ```sql
+     SELECT AVG(final_score) FROM nschool_student_exam_attempts 
+     WHERE uuid = 'uuid-alex' AND packet_id LIKE '5_1_UH%';
+     ```
+     Hasil rata-rata baru tersebut langsung dimasukkan dan memperbarui kolom **`score_harian`** di tabel rapor.
+   * **KONDISI JALUR UTS (Teks sama dengan "UTS"):**
+     Nilai murni 85.00 langsung disuntikkan untuk mengisi kolom **`score_uts`**.
+   * **KONDISI JALUR UAS (Teks sama dengan "UAS"):**
+     Nilai murni 85.00 langsung disuntikkan untuk mengisi kolom **`score_uas`**.
+3. **Kalkulasi Nilai Akhir & Predikat Huruf:**
+   Setelah salah satu kolom nilai di atas diperbarui, sistem web atau fungsi database secara otomatis menghitung ulang nilai raport total (`final_score`) menggunakan rumus pembobotan resmi sekolah, mengubahnya menjadi huruf mutu (`grade_letter`), dan memperbarui status kelulusan mapel tersebut (`LULUS` atau `REMEDI`).
+
+---
+
+### 8.6 Ringkasan Hubungan Arsitektur Database
+
+Seluruh pergerakan alur kompleks di atas didukung oleh fondasi database yang ramping dan saling terikat erat sebagai berikut:
+
+* **`nschool_subjects`**: Kamus pusat agar Web dan Game tahu ID mapel `5` adalah teks `"Matematika"`.
+* **`nschool_exam_questions`**: Bank data yang menyuplai isi teks pertanyaan ke dalam file cache game `exams.json`.
+* **`nschool_core_state`**: Menjadi otak kendali jarak jauh (sakelar) bagi Wali kelas dan Kementerian untuk membuka-tutup tombol ujian di dalam game secara *real-time*.
+* **`nschool_student_exam_attempts`**: Benteng keamanan (*Anti-Retake*) untuk mengunci paket yang sudah dikerjakan siswa.
+* **`nschool_student_rapor`**: Transkrip akhir tempat bermuaranya seluruh akumulasi nilai rata-rata UH, nilai UTS, dan nilai UAS siswa yang siap dipanggil kapan saja lewat perintah `/sekolah rapor` (atau alias `/school report` / `/school rapor`) maupun halaman Web Dashboard Orang Tua.
+
+---
+
+### 8.8 Mekanisme Keamanan Engine & Penanganan Error (Robustness & Fallback)
+
+Karena sistem menggunakan satu engine terpadu (`ExamSession.java` dan `ExamGui.java`) untuk memproses seluruh jenis ujian (UH, UTS, UAS), terdapat risiko kegagalan sistem total (*single point of failure*). Untuk mengatasinya, diimplementasikan mekanisme pertahanan berlapis:
+
+1. **Isolasi Logika Validasi (Validation Decoupling):**
+   * Logika pengecekan filter gerbang Fase 2 (Jalur A vs Jalur B & C) diisolasi sepenuhnya ke dalam kelas validator terpisah (`ExamValidator.java`) agar tidak tercampur dengan kode rendering GUI utama.
+   * Modifikasi pada logika filter wali kelas tidak akan mempengaruhi kestabilan kode GUI rendering.
+
+2. **Proteksi Try-Catch & Safe Closure:**
+   * Seluruh proses pemicuan portal (`SchoolCommand.java` memanggil UI) dibungkus dengan blok `try-catch` yang kuat pada level terluar.
+   * Jika terjadi kegagalan pemanggilan database atau pembacaan berkas kuis, GUI akan ditutup secara paksa dan aman untuk mencegah hang. Murid akan menerima pesan kegagalan yang bersih:
+     `§c[!] Terjadi kesalahan internal saat memuat portal ujian. Kode Error: EX-500. Silakan hubungi pengawas ujian.`
+
+3. **Database Transaction Safety:**
+   * Proses perekaman riwayat (`nschool_student_exam_attempts`) dan pembaruan rapor (`nschool_student_rapor`) menggunakan transaksi database asinkron yang terisolasi. Jika kalkulasi rata-rata gagal, query akan di-rollback untuk mencegah kerusakan data transkrip nilai murid.
+
 
