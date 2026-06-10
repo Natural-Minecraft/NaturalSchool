@@ -12,9 +12,17 @@ public class ExamSession {
     private boolean showWarning = false;
     private final Map<Integer, String> answers = new ConcurrentHashMap<>();
 
-    public ExamSession(UUID playerUuid, String packetId) {
+    // Snapshot parameters (immutable)
+    private final int academicClass;
+    private final String currentSemester;
+    private final String nis;
+
+    public ExamSession(UUID playerUuid, String packetId, int academicClass, String currentSemester, String nis) {
         this.playerUuid = playerUuid;
         this.packetId = packetId;
+        this.academicClass = academicClass;
+        this.currentSemester = currentSemester != null ? currentSemester : "GANJIL";
+        this.nis = nis != null ? nis : "";
         this.currentQuestion = 0; // Starts at Pre-Exam UI
         this.showWarning = false;
     }
@@ -53,6 +61,18 @@ public class ExamSession {
         } else {
             answers.put(index, answer);
         }
+    }
+
+    public int getAcademicClass() {
+        return academicClass;
+    }
+
+    public String getCurrentSemester() {
+        return currentSemester;
+    }
+
+    public String getNis() {
+        return nis;
     }
 }
 

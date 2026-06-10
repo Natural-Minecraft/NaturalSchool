@@ -44,5 +44,9 @@ exam-schedule:
 
 # Webhook and API settings
 api:
+  port: 8080
+  api-key: "CHANGE_ME_TO_CRYPTOGRAPHICALLY_RANDOM_KEY"
+  whitelist-ips:
+    - "127.0.0.1"
   discord-webhook-url: "none"
 

@@ -23,7 +23,7 @@ import java.util.logging.Level;
 
 public class UIManager {
 
-    public static final String GUI_VERSION = "1.6.7";
+    public static final String GUI_VERSION = "1.6.7.1";
 
     private static final MiniMessage MM = MiniMessage.miniMessage();
 
@@ -217,7 +217,11 @@ public class UIManager {
     public ExamSession getExamSession(UUID uuid) { return activeExamSessions.get(uuid); }
 
     public void startExamSession(Player player, String packetId) {
-        activeExamSessions.put(player.getUniqueId(), new ExamSession(player.getUniqueId(), packetId));
+        StudentProfile profile = plugin.getProfileManager().getProfile(player.getUniqueId());
+        int academicClass = profile != null ? profile.getAcademicClass() : 0;
+        String currentSemester = profile != null ? profile.getCurrentSemester() : "GANJIL";
+        String nis = profile != null ? profile.getNis() : "";
+        activeExamSessions.put(player.getUniqueId(), new ExamSession(player.getUniqueId(), packetId, academicClass, currentSemester, nis));
     }
 
     public void clearExamSession(Player player) {

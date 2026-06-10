@@ -104,9 +104,9 @@ public class ExamGui {
             : 0.0;
 
         CompletableFuture.runAsync(() -> {
-            StudentProfile profile = plugin.getProfileManager().getProfile(uuid);
-            String nis = (profile != null) ? profile.getNis() : "";
-            String semester = (profile != null) ? profile.getCurrentSemester() : "GANJIL";
+            String nis = session.getNis();
+            String semester = session.getCurrentSemester();
+            int academicClass = session.getAcademicClass();
 
             // 1. Save attempt
             plugin.getDatabaseManager().saveExamAttempt(uuid, nis, packetId, pctScore);
@@ -114,7 +114,6 @@ public class ExamGui {
             // 2. Parse packet_id dynamically
             String[] parts = packetId.split("_");
             int subjectId = Integer.parseInt(parts[0]);
-            int academicClass = Integer.parseInt(parts[1]);
             String examType = parts[2];
 
             // 3. Upsert Rapor

@@ -491,8 +491,22 @@ public class DatabaseManager {
                     plugin.getLogger().info("Successfully added 'current_semester' column to 'nschool_students' table.");
                 }
             }
+
+            if (!hasIndexOrConstraint(conn, "nschool_student_exam_attempts", "uq_student_packet")) {
+                plugin.getLogger().info("Migrating database: Adding unique constraint/index uq_student_packet to nschool_student_exam_attempts...");
+                String alterSQL;
+                if ("MYSQL".equals(storageType)) {
+                    alterSQL = "ALTER TABLE nschool_student_exam_attempts ADD CONSTRAINT uq_student_packet UNIQUE (uuid, packet_id);";
+                } else {
+                    alterSQL = "CREATE UNIQUE INDEX uq_student_packet ON nschool_student_exam_attempts (uuid, packet_id);";
+                }
+                try (Statement stmt = conn.createStatement()) {
+                    stmt.execute(alterSQL);
+                    plugin.getLogger().info("Successfully added uq_student_packet unique constraint/index.");
+                }
+            }
         } catch (SQLException e) {
-            plugin.getLogger().log(Level.SEVERE, "Failed to perform database migration for column 'current_semester'!", e);
+            plugin.getLogger().log(Level.SEVERE, "Failed to perform database migration!", e);
         }
     }
 
@@ -524,6 +538,53 @@ public class DatabaseManager {
         } catch (SQLException e) {
             return false;
         }
+    }
+
+    private boolean hasIndexOrConstraint(Connection conn, String tableName, String indexName) {
+        try {
+            java.sql.DatabaseMetaData dbm = conn.getMetaData();
+            try (ResultSet rs = dbm.getIndexInfo(null, null, tableName, false, false)) {
+                while (rs.next()) {
+                    String name = rs.getString("INDEX_NAME");
+                    if (indexName.equalsIgnoreCase(name)) {
+                        return true;
+                    }
+                }
+            }
+            try (ResultSet rs = dbm.getIndexInfo(null, null, tableName.toUpperCase(), false, false)) {
+                while (rs.next()) {
+                    String name = rs.getString("INDEX_NAME");
+                    if (indexName.equalsIgnoreCase(name)) {
+                        return true;
+                    }
+                }
+            }
+            try (ResultSet rs = dbm.getIndexInfo(null, null, tableName.toLowerCase(), false, false)) {
+                while (rs.next()) {
+                    String name = rs.getString("INDEX_NAME");
+                    if (indexName.equalsIgnoreCase(name)) {
+                        return true;
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            // Fallback
+        }
+        
+        if (!"MYSQL".equals(storageType)) {
+            String query = "SELECT name FROM sqlite_master WHERE type='index' AND name=?;";
+            try (PreparedStatement ps = conn.prepareStatement(query)) {
+                ps.setString(1, indexName);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        return true;
+                    }
+                }
+            } catch (SQLException e) {
+                // Ignore
+            }
+        }
+        return false;
     }
 
     public StudentProfile loadProfile(UUID uuid) throws SQLException {
@@ -697,7 +758,7 @@ public class DatabaseManager {
             ps.executeUpdate();
         } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to save exam attempt for " + uuid, e);
-            throw new RuntimeException("Database error saving exam attempt", e);
+            throw new RuntimeException(e);
         }
     }
 
@@ -720,12 +781,11 @@ public class DatabaseManager {
         return 0.0;
     }
 
-    public void upsertStudentRapor(UUID uuid, String nis, int academicClass, String semester, int subjectId, String examType, double score) {
+    public synchronized void upsertStudentRapor(UUID uuid, String nis, int academicClass, String semester, int subjectId, String examType, double score) {
         String selectQuery = "SELECT score_harian, score_uts, score_uas FROM nschool_student_rapor WHERE uuid = ? AND academic_class = ? AND semester = ? AND subject_id = ?;";
         double scoreHarian = 0.0;
         double scoreUts = 0.0;
         double scoreUas = 0.0;
-        boolean exists = false;
 
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(selectQuery)) {
@@ -738,7 +798,6 @@ public class DatabaseManager {
                     scoreHarian = rs.getDouble("score_harian");
                     scoreUts = rs.getDouble("score_uts");
                     scoreUas = rs.getDouble("score_uas");
-                    exists = true;
                 }
             }
         } catch (SQLException e) {
@@ -773,45 +832,31 @@ public class DatabaseManager {
         }
 
         String query;
-        if (exists) {
-            query = "UPDATE nschool_student_rapor SET score_harian = ?, score_uts = ?, score_uas = ?, final_score = ?, grade_letter = ?, status = ? WHERE uuid = ? AND academic_class = ? AND semester = ? AND subject_id = ?;";
-            try (Connection conn = getConnection();
-                 PreparedStatement ps = conn.prepareStatement(query)) {
-                ps.setDouble(1, scoreHarian);
-                ps.setDouble(2, scoreUts);
-                ps.setDouble(3, scoreUas);
-                ps.setDouble(4, finalScore);
-                ps.setString(5, gradeLetter);
-                ps.setString(6, status);
-                ps.setString(7, uuid.toString());
-                ps.setInt(8, academicClass);
-                ps.setString(9, semester);
-                ps.setInt(10, subjectId);
-                ps.executeUpdate();
-            } catch (SQLException e) {
-                plugin.getLogger().log(Level.SEVERE, "Failed to update student rapor for " + uuid, e);
-                throw new RuntimeException("Database error updating student rapor", e);
-            }
+        if ("MYSQL".equals(storageType)) {
+            query = "INSERT INTO nschool_student_rapor (uuid, nis, academic_class, semester, subject_id, score_harian, score_uts, score_uas, final_score, grade_letter, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+                    + "ON DUPLICATE KEY UPDATE score_harian = VALUES(score_harian), score_uts = VALUES(score_uts), score_uas = VALUES(score_uas), final_score = VALUES(final_score), grade_letter = VALUES(grade_letter), status = VALUES(status);";
         } else {
-            query = "INSERT INTO nschool_student_rapor (uuid, nis, academic_class, semester, subject_id, score_harian, score_uts, score_uas, final_score, grade_letter, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
-            try (Connection conn = getConnection();
-                 PreparedStatement ps = conn.prepareStatement(query)) {
-                ps.setString(1, uuid.toString());
-                ps.setString(2, nis != null ? nis : "");
-                ps.setInt(3, academicClass);
-                ps.setString(4, semester);
-                ps.setInt(5, subjectId);
-                ps.setDouble(6, scoreHarian);
-                ps.setDouble(7, scoreUts);
-                ps.setDouble(8, scoreUas);
-                ps.setDouble(9, finalScore);
-                ps.setString(10, gradeLetter);
-                ps.setString(11, status);
-                ps.executeUpdate();
-            } catch (SQLException e) {
-                plugin.getLogger().log(Level.SEVERE, "Failed to insert student rapor for " + uuid, e);
-                throw new RuntimeException("Database error inserting student rapor", e);
-            }
+            query = "INSERT INTO nschool_student_rapor (uuid, nis, academic_class, semester, subject_id, score_harian, score_uts, score_uas, final_score, grade_letter, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+                    + "ON CONFLICT(uuid, academic_class, semester, subject_id) DO UPDATE SET score_harian = excluded.score_harian, score_uts = excluded.score_uts, score_uas = excluded.score_uas, final_score = excluded.final_score, grade_letter = excluded.grade_letter, status = excluded.status;";
+        }
+
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setString(1, uuid.toString());
+            ps.setString(2, nis != null ? nis : "");
+            ps.setInt(3, academicClass);
+            ps.setString(4, semester);
+            ps.setInt(5, subjectId);
+            ps.setDouble(6, scoreHarian);
+            ps.setDouble(7, scoreUts);
+            ps.setDouble(8, scoreUas);
+            ps.setDouble(9, finalScore);
+            ps.setString(10, gradeLetter);
+            ps.setString(11, status);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Failed to upsert student rapor for " + uuid, e);
+            throw new RuntimeException("Database error upserting student rapor", e);
         }
     }
 

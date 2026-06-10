@@ -26,14 +26,15 @@ public class ExamManager {
 
     private final NaturalSchool plugin;
     private final Object cacheLock = new Object();
+    private final Object syncLock = new Object();
 
-    // Cache variables
-    private volatile int examVersion = 1;
+    // Cache variables (non-volatile, consolidated via cacheLock)
+    private int examVersion = 1;
     private final List<String> activeUhPackets = new ArrayList<>();
-    private volatile String portalSemesterStatus = "CLOSED"; // "OPEN"/"CLOSED"
+    private String portalSemesterStatus = "CLOSED"; // "OPEN"/"CLOSED"
     private final List<String> currentActiveSemesterPackets = new ArrayList<>();
-    private volatile boolean semesterBreak = false; // "true"/"false"
-    private volatile String portalMessage = "Portal Ujian Sedang ditutup!";
+    private boolean semesterBreak = false; // "true"/"false"
+    private String portalMessage = "Portal Ujian Sedang ditutup!";
     private final List<ExamQuestions.Question> cachedQuestions = new ArrayList<>();
 
     private HttpServer server;
@@ -42,7 +43,7 @@ public class ExamManager {
         this.plugin = plugin;
     }
 
-    public void initialize() {
+    public synchronized void initialize() {
         // 1. Pull core state from database synchronously on boot
         String dbVersionStr = plugin.getDatabaseManager().getCoreState("exam_version");
         String dbPortalSemesterStatus = plugin.getDatabaseManager().getCoreState("portal_semester_status");
@@ -90,73 +91,75 @@ public class ExamManager {
         if (forceUpdate || localVersion < dbVersion) {
             plugin.getLogger().info("Local exams.json is outdated or missing. Synchronizing from DB asynchronously...");
             CompletableFuture.runAsync(() -> {
-                try {
-                    List<Map<String, Object>> rows = plugin.getDatabaseManager().getAllExamQuestions();
-                    JsonObject root = new JsonObject();
-                    root.addProperty("version", finalDbVersion);
-                    root.addProperty("portal_semester_status", dbPortalSemesterStatusVal);
-                    root.addProperty("portal_message", dbPortalMessageVal);
-                    root.addProperty("is_semester_break", dbIsSemesterBreakVal);
-                    
+                synchronized (syncLock) {
                     try {
-                        root.add("active_uh_packets", JsonParser.parseString(dbActiveUhPacketsVal));
-                    } catch (Exception e) {
-                        root.add("active_uh_packets", new JsonArray());
-                    }
+                        List<Map<String, Object>> rows = plugin.getDatabaseManager().getAllExamQuestions();
+                        JsonObject root = new JsonObject();
+                        root.addProperty("version", finalDbVersion);
+                        root.addProperty("portal_semester_status", dbPortalSemesterStatusVal);
+                        root.addProperty("portal_message", dbPortalMessageVal);
+                        root.addProperty("is_semester_break", dbIsSemesterBreakVal);
+                        
+                        try {
+                            root.add("active_uh_packets", JsonParser.parseString(dbActiveUhPacketsVal));
+                        } catch (Exception e) {
+                            root.add("active_uh_packets", new JsonArray());
+                        }
 
-                    try {
-                        root.add("current_active_semester_packets", JsonParser.parseString(dbCurrentActiveSemesterPacketsVal));
-                    } catch (Exception e) {
-                        root.add("current_active_semester_packets", new JsonArray());
-                    }
+                        try {
+                            root.add("current_active_semester_packets", JsonParser.parseString(dbCurrentActiveSemesterPacketsVal));
+                        } catch (Exception e) {
+                            root.add("current_active_semester_packets", new JsonArray());
+                        }
 
-                    JsonArray questionsArray = new JsonArray();
-                    for (Map<String, Object> row : rows) {
-                        JsonObject qObj = new JsonObject();
-                        qObj.addProperty("packet_id", (String) row.get("packet_id"));
-                        qObj.addProperty("academic_class", (Integer) row.get("academic_class"));
-                        qObj.addProperty("question_number", (Integer) row.get("question_number"));
-                        qObj.addProperty("question_type", (String) row.get("question_type"));
-                        qObj.addProperty("question_text", (String) row.get("question_text"));
+                        JsonArray questionsArray = new JsonArray();
+                        for (Map<String, Object> row : rows) {
+                            JsonObject qObj = new JsonObject();
+                            qObj.addProperty("packet_id", (String) row.get("packet_id"));
+                            qObj.addProperty("academic_class", (Integer) row.get("academic_class"));
+                            qObj.addProperty("question_number", (Integer) row.get("question_number"));
+                            qObj.addProperty("question_type", (String) row.get("question_type"));
+                            qObj.addProperty("question_text", (String) row.get("question_text"));
 
-                        String optionsStr = (String) row.get("options");
-                        if (optionsStr != null && !optionsStr.trim().isEmpty()) {
-                            try {
-                                qObj.add("options", JsonParser.parseString(optionsStr));
-                            } catch (Exception ex) {
+                            String optionsStr = (String) row.get("options");
+                            if (optionsStr != null && !optionsStr.trim().isEmpty()) {
+                                try {
+                                    qObj.add("options", JsonParser.parseString(optionsStr));
+                                } catch (Exception ex) {
+                                    qObj.add("options", com.google.gson.JsonNull.INSTANCE);
+                                }
+                            } else {
                                 qObj.add("options", com.google.gson.JsonNull.INSTANCE);
                             }
-                        } else {
-                            qObj.add("options", com.google.gson.JsonNull.INSTANCE);
-                        }
 
-                        qObj.addProperty("correct_answer", (String) row.get("correct_answer"));
+                            qObj.addProperty("correct_answer", (String) row.get("correct_answer"));
 
-                        String indicesStr = (String) row.get("correct_indices");
-                        if (indicesStr != null && !indicesStr.trim().isEmpty()) {
-                            try {
-                                qObj.add("correct_indices", JsonParser.parseString(indicesStr));
-                            } catch (Exception ex) {
+                            String indicesStr = (String) row.get("correct_indices");
+                            if (indicesStr != null && !indicesStr.trim().isEmpty()) {
+                                try {
+                                    qObj.add("correct_indices", JsonParser.parseString(indicesStr));
+                                } catch (Exception ex) {
+                                    qObj.add("correct_indices", com.google.gson.JsonNull.INSTANCE);
+                                }
+                            } else {
                                 qObj.add("correct_indices", com.google.gson.JsonNull.INSTANCE);
                             }
-                        } else {
-                            qObj.add("correct_indices", com.google.gson.JsonNull.INSTANCE);
+
+                            questionsArray.add(qObj);
+                        }
+                        root.add("questions", questionsArray);
+
+                        // Overwrite file
+                        try (FileWriter writer = new FileWriter(file, StandardCharsets.UTF_8)) {
+                            new GsonBuilder().setPrettyPrinting().create().toJson(root, writer);
                         }
 
-                        questionsArray.add(qObj);
+                        // Parse into memory
+                        parseMemoryFromRoot(root);
+                        plugin.getLogger().info("exams.json successfully populated from database with " + cachedQuestions.size() + " questions.");
+                    } catch (Exception e) {
+                        plugin.getLogger().log(Level.SEVERE, "Failed to synchronize exams from database asynchronously", e);
                     }
-                    root.add("questions", questionsArray);
-
-                    // Overwrite file
-                    try (FileWriter writer = new FileWriter(file, StandardCharsets.UTF_8)) {
-                        new GsonBuilder().setPrettyPrinting().create().toJson(root, writer);
-                    }
-
-                    // Parse into memory
-                    parseMemoryFromRoot(root);
-                    plugin.getLogger().info("exams.json successfully populated from database with " + cachedQuestions.size() + " questions.");
-                } catch (Exception e) {
-                    plugin.getLogger().log(Level.SEVERE, "Failed to synchronize exams from database asynchronously", e);
                 }
             });
         } else {
@@ -268,6 +271,39 @@ public class ExamManager {
         try {
             server = HttpServer.create(new java.net.InetSocketAddress(port), 0);
             server.createContext("/school/exam/update", exchange -> {
+                // IP Whitelist check
+                java.net.InetAddress remoteAddress = exchange.getRemoteAddress().getAddress();
+                String remoteIp = remoteAddress.getHostAddress();
+                List<String> whitelist = plugin.getConfig().getStringList("api.whitelist-ips");
+                if (whitelist != null && !whitelist.isEmpty()) {
+                    boolean ipAllowed = false;
+                    for (String ip : whitelist) {
+                        if (ip.trim().equals(remoteIp)) {
+                            ipAllowed = true;
+                            break;
+                        }
+                    }
+                    if (!ipAllowed) {
+                        plugin.getLogger().warning("Blocked unauthorized webhook access attempt from IP: " + remoteIp);
+                        exchange.sendResponseHeaders(401, -1);
+                        return;
+                    }
+                }
+
+                // API Key Verification
+                String configApiKey = plugin.getConfig().getString("api.api-key");
+                String requestApiKey = exchange.getRequestHeaders().getFirst("X-School-API-Key");
+                if (configApiKey == null || configApiKey.trim().isEmpty() || !configApiKey.equals(requestApiKey)) {
+                    plugin.getLogger().warning("Blocked unauthorized webhook access attempt: Invalid or missing X-School-API-Key from IP: " + remoteIp);
+                    byte[] response = "{\"status\":\"error\",\"message\":\"Unauthorized\"}".getBytes(StandardCharsets.UTF_8);
+                    exchange.getResponseHeaders().set("Content-Type", "application/json");
+                    exchange.sendResponseHeaders(401, response.length);
+                    try (java.io.OutputStream os = exchange.getResponseBody()) {
+                        os.write(response);
+                    }
+                    return;
+                }
+
                 if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
                     exchange.sendResponseHeaders(405, -1);
                     return;
@@ -294,7 +330,7 @@ public class ExamManager {
                     // Update memory
                     parseMemoryFromRoot(root);
 
-                    plugin.getLogger().info("Exam Subsystem updated via webhook. Version: " + examVersion + ", Status: " + portalSemesterStatus);
+                    plugin.getLogger().info("Exam Subsystem updated via webhook. Version: " + getExamVersion() + ", Status: " + getPortalSemesterStatus());
 
                     // Response 200 OK
                     byte[] response = "{\"status\":\"success\",\"message\":\"Exam cache updated successfully\"}".getBytes(StandardCharsets.UTF_8);
@@ -332,19 +368,27 @@ public class ExamManager {
     }
 
     public int getExamVersion() {
-        return examVersion;
+        synchronized (cacheLock) {
+            return examVersion;
+        }
     }
 
     public String getPortalSemesterStatus() {
-        return portalSemesterStatus;
+        synchronized (cacheLock) {
+            return portalSemesterStatus;
+        }
     }
 
     public String getPortalMessage() {
-        return portalMessage;
+        synchronized (cacheLock) {
+            return portalMessage;
+        }
     }
 
     public boolean isSemesterBreak() {
-        return semesterBreak;
+        synchronized (cacheLock) {
+            return semesterBreak;
+        }
     }
 
     public List<String> getActiveUhPackets() {
@@ -361,7 +405,7 @@ public class ExamManager {
 
     @Deprecated
     public String getPortalStatus() {
-        return portalSemesterStatus;
+        return getPortalSemesterStatus();
     }
 
     @Deprecated
