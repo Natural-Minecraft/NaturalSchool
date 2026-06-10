@@ -2,6 +2,14 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.6.8] - 2026-06-11
+### Changed
+- **Exam Portal Dropdown Selector**: Consolidated subject selection into a single dropdown/multiple-choice button in the Exam Portal. Subjects and status legends are now printed as plain text list lines.
+- **Portal Warn Banners**: Positioned configuration and state errors as warning labels at the top of the Exam Portal dialog/form layout.
+- **Student Profile Info Relocation**: Relocated student name, NIS, and class info display out of the main portal view to the pre-exam landing screen.
+- **API Corrections**: Fixed Paper Dialog API compatibility issues by passing the active state flag in OptionEntry creation, utilizing `view.getText()` for values query, and resolving builder compilation bounds.
+- **Version Bump**: Bumped version to `1.6.8` in `pom.xml`, `plugin.yml`, and `UIManager.java`.
+
 ## [1.6.7.1] - 2026-06-10
 ### Changed
 - **Version Bump**: Bumped version to `1.6.7.1` in `pom.xml`, `plugin.yml`, and UIManager's `GUI_VERSION` constant.
