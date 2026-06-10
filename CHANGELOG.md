@@ -2,6 +2,11 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.6.7.1] - 2026-06-10
+### Changed
+- **Version Bump**: Bumped version to `1.6.7.1` in `pom.xml`, `plugin.yml`, and UIManager's `GUI_VERSION` constant.
+- **Security Hardening**: Applied memory visibility thread-safety on `ExamManager`, implemented API Key & IP verification on REST webhook endpoints, added unique structural index migrations on student attempts, and established immutable student parameter snapshots in `ExamSession` to prevent mid-exam property drift.
+
 ## [1.6.7] - 2026-06-10
 ### Added
 - **Fallback Notification Layout**: Added fallback error interfaces (`showDatabaseErrorJava`/`showDatabaseErrorBedrock`) to display alerts when database connections fail, preventing player frustration.
