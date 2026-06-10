@@ -64,7 +64,39 @@ public final class ExamQuestions {
         for (int i = 0; i < questions.size(); i++) {
             String ans = session.getAnswer(i);
             Question q = questions.get(i);
-            if (ans != null && ans.equalsIgnoreCase(q.correctAnswer)) {
+            if (ans == null) {
+                salah++;
+                continue;
+            }
+
+            boolean isCorrect = false;
+            // 1. Check if direct choice code matches correct answer (e.g., "A", "B")
+            if (ans.equalsIgnoreCase(q.correctAnswer)) {
+                isCorrect = true;
+            } else {
+                // 2. Check if choice text matches correct answer (e.g., "BENAR", "SALAH")
+                List<String> options = q.options;
+                if (options == null || options.isEmpty()) {
+                    if ("TRUE_FALSE".equalsIgnoreCase(q.questionType) 
+                        || "TF".equalsIgnoreCase(q.questionType) 
+                        || "BENAR_SALAH".equalsIgnoreCase(q.questionType)
+                        || "BS".equalsIgnoreCase(q.questionType)) {
+                        options = java.util.Arrays.asList("Benar", "Salah");
+                    }
+                }
+                if (options != null && ans.length() == 1) {
+                    char ch = ans.toUpperCase().charAt(0);
+                    int idx = ch - 'A';
+                    if (idx >= 0 && idx < options.size()) {
+                        String optText = options.get(idx);
+                        if (optText != null && optText.equalsIgnoreCase(q.correctAnswer)) {
+                            isCorrect = true;
+                        }
+                    }
+                }
+            }
+
+            if (isCorrect) {
                 benar++;
             } else {
                 salah++;

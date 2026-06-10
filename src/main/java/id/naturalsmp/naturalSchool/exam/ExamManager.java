@@ -1,6 +1,7 @@
 package id.naturalsmp.naturalSchool.exam;
 
 import com.google.gson.Gson;
+import org.bukkit.Bukkit;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -28,13 +29,6 @@ public class ExamManager {
     private final Object cacheLock = new Object();
     private final Object syncLock = new Object();
 
-    // Cache variables (non-volatile, consolidated via cacheLock)
-    private int examVersion = 1;
-    private final List<String> activeUhPackets = new ArrayList<>();
-    private String portalSemesterStatus = "CLOSED"; // "OPEN"/"CLOSED"
-    private final List<String> currentActiveSemesterPackets = new ArrayList<>();
-    private boolean semesterBreak = false; // "true"/"false"
-    private String portalMessage = "Portal Ujian Sedang ditutup!";
     private final List<ExamQuestions.Question> cachedQuestions = new ArrayList<>();
 
     private HttpServer server;
@@ -46,11 +40,6 @@ public class ExamManager {
     public synchronized void initialize() {
         // 1. Pull core state from database synchronously on boot
         String dbVersionStr = plugin.getDatabaseManager().getCoreState("exam_version");
-        String dbPortalSemesterStatus = plugin.getDatabaseManager().getCoreState("portal_semester_status");
-        String dbPortalMessage = plugin.getDatabaseManager().getCoreState("portal_message");
-        String dbActiveUhPacketsStr = plugin.getDatabaseManager().getCoreState("active_uh_packets");
-        String dbCurrentActiveSemesterPacketsStr = plugin.getDatabaseManager().getCoreState("current_active_semester_packets");
-        String dbIsSemesterBreak = plugin.getDatabaseManager().getCoreState("is_semester_break");
 
         int dbVersion = 1;
         if (dbVersionStr != null) {
@@ -60,13 +49,6 @@ public class ExamManager {
                 // Keep default 1
             }
         }
-
-        final int finalDbVersion = dbVersion;
-        final String dbPortalSemesterStatusVal = dbPortalSemesterStatus != null ? dbPortalSemesterStatus : "CLOSED";
-        final String dbPortalMessageVal = dbPortalMessage != null ? dbPortalMessage : "Portal Ujian Sedang ditutup!";
-        final String dbActiveUhPacketsVal = dbActiveUhPacketsStr != null ? dbActiveUhPacketsStr : "[]";
-        final String dbCurrentActiveSemesterPacketsVal = dbCurrentActiveSemesterPacketsStr != null ? dbCurrentActiveSemesterPacketsStr : "[]";
-        final String dbIsSemesterBreakVal = dbIsSemesterBreak != null ? dbIsSemesterBreak : "false";
 
         // 2. Read local exams.json file
         File file = new File(plugin.getDataFolder(), "exams.json");
@@ -90,27 +72,13 @@ public class ExamManager {
         // Check if outdated or file doesn't exist
         if (forceUpdate || localVersion < dbVersion) {
             plugin.getLogger().info("Local exams.json is outdated or missing. Synchronizing from DB asynchronously...");
+            final int finalDbVersion = dbVersion;
             CompletableFuture.runAsync(() -> {
                 synchronized (syncLock) {
                     try {
                         List<Map<String, Object>> rows = plugin.getDatabaseManager().getAllExamQuestions();
                         JsonObject root = new JsonObject();
                         root.addProperty("version", finalDbVersion);
-                        root.addProperty("portal_semester_status", dbPortalSemesterStatusVal);
-                        root.addProperty("portal_message", dbPortalMessageVal);
-                        root.addProperty("is_semester_break", dbIsSemesterBreakVal);
-                        
-                        try {
-                            root.add("active_uh_packets", JsonParser.parseString(dbActiveUhPacketsVal));
-                        } catch (Exception e) {
-                            root.add("active_uh_packets", new JsonArray());
-                        }
-
-                        try {
-                            root.add("current_active_semester_packets", JsonParser.parseString(dbCurrentActiveSemesterPacketsVal));
-                        } catch (Exception e) {
-                            root.add("current_active_semester_packets", new JsonArray());
-                        }
 
                         JsonArray questionsArray = new JsonArray();
                         for (Map<String, Object> row : rows) {
@@ -186,42 +154,6 @@ public class ExamManager {
 
     private void parseMemoryFromRoot(JsonObject root) {
         synchronized (cacheLock) {
-            if (root.has("version")) {
-                this.examVersion = root.get("version").getAsInt();
-            }
-            if (root.has("portal_semester_status")) {
-                this.portalSemesterStatus = root.get("portal_semester_status").getAsString();
-            } else if (root.has("portal_status")) {
-                this.portalSemesterStatus = root.get("portal_status").getAsString();
-            }
-            if (root.has("portal_message")) {
-                this.portalMessage = root.get("portal_message").getAsString();
-            }
-            if (root.has("is_semester_break")) {
-                this.semesterBreak = "true".equalsIgnoreCase(root.get("is_semester_break").getAsString());
-            }
-
-            this.activeUhPackets.clear();
-            if (root.has("active_uh_packets") && !root.get("active_uh_packets").isJsonNull()) {
-                JsonArray arr = root.getAsJsonArray("active_uh_packets");
-                for (JsonElement el : arr) {
-                    this.activeUhPackets.add(el.getAsString());
-                }
-            } else if (root.has("active_packet_ids") && !root.get("active_packet_ids").isJsonNull()) {
-                JsonArray arr = root.getAsJsonArray("active_packet_ids");
-                for (JsonElement el : arr) {
-                    this.activeUhPackets.add(el.getAsString());
-                }
-            }
-
-            this.currentActiveSemesterPackets.clear();
-            if (root.has("current_active_semester_packets") && !root.get("current_active_semester_packets").isJsonNull()) {
-                JsonArray arr = root.getAsJsonArray("current_active_semester_packets");
-                for (JsonElement el : arr) {
-                    this.currentActiveSemesterPackets.add(el.getAsString());
-                }
-            }
-
             this.cachedQuestions.clear();
             this.cachedQuestions.addAll(parseQuestionsFromRoot(root));
         }
@@ -321,14 +253,51 @@ public class ExamManager {
                     // Parse & Validate
                     JsonObject root = JsonParser.parseString(body).getAsJsonObject();
 
-                    // Overwrite local file
+                    // Upsert database configurations
+                    if (root.has("portal_semester_status")) {
+                        plugin.getDatabaseManager().setCoreState("portal_semester_status", root.get("portal_semester_status").getAsString());
+                    } else if (root.has("portal_status")) {
+                        plugin.getDatabaseManager().setCoreState("portal_semester_status", root.get("portal_status").getAsString());
+                    }
+                    if (root.has("portal_message")) {
+                        plugin.getDatabaseManager().setCoreState("portal_message", root.get("portal_message").getAsString());
+                    }
+                    if (root.has("is_semester_break")) {
+                        plugin.getDatabaseManager().setCoreState("is_semester_break", root.get("is_semester_break").getAsString());
+                    }
+                    if (root.has("active_uh_packets")) {
+                        plugin.getDatabaseManager().setCoreState("active_uh_packets", root.get("active_uh_packets").toString());
+                    } else if (root.has("active_packet_ids")) {
+                        plugin.getDatabaseManager().setCoreState("active_uh_packets", root.get("active_packet_ids").toString());
+                    }
+                    if (root.has("current_active_semester_packets")) {
+                        plugin.getDatabaseManager().setCoreState("current_active_semester_packets", root.get("current_active_semester_packets").toString());
+                    }
+                    if (root.has("version")) {
+                        plugin.getDatabaseManager().setCoreState("exam_version", String.valueOf(root.get("version").getAsInt()));
+                    }
+
+                    // Prepare local JSON with ONLY version and questions
+                    JsonObject localRoot = new JsonObject();
+                    if (root.has("version")) {
+                        localRoot.addProperty("version", root.get("version").getAsInt());
+                    } else {
+                        localRoot.addProperty("version", 1);
+                    }
+                    if (root.has("questions")) {
+                        localRoot.add("questions", root.get("questions"));
+                    } else {
+                        localRoot.add("questions", new JsonArray());
+                    }
+
+                    // Overwrite local file with ONLY version and questions
                     File file = new File(plugin.getDataFolder(), "exams.json");
                     try (FileWriter fw = new FileWriter(file, StandardCharsets.UTF_8)) {
-                        fw.write(body);
+                        new GsonBuilder().setPrettyPrinting().create().toJson(localRoot, fw);
                     }
 
                     // Update memory
-                    parseMemoryFromRoot(root);
+                    parseMemoryFromRoot(localRoot);
 
                     plugin.getLogger().info("Exam Subsystem updated via webhook. Version: " + getExamVersion() + ", Status: " + getPortalSemesterStatus());
 
@@ -368,39 +337,62 @@ public class ExamManager {
     }
 
     public int getExamVersion() {
-        synchronized (cacheLock) {
-            return examVersion;
+        String dbVersionStr = plugin.getDatabaseManager().getCoreState("exam_version");
+        if (dbVersionStr != null) {
+            try {
+                return Integer.parseInt(dbVersionStr);
+            } catch (NumberFormatException e) {
+                // Ignore
+            }
         }
+        return 1;
     }
 
     public String getPortalSemesterStatus() {
-        synchronized (cacheLock) {
-            return portalSemesterStatus;
-        }
+        String status = plugin.getDatabaseManager().getCoreState("portal_semester_status");
+        return status != null ? status : "CLOSED";
     }
 
     public String getPortalMessage() {
-        synchronized (cacheLock) {
-            return portalMessage;
-        }
+        String message = plugin.getDatabaseManager().getCoreState("portal_message");
+        return message != null ? message : "Portal Ujian Sedang ditutup!";
     }
 
     public boolean isSemesterBreak() {
-        synchronized (cacheLock) {
-            return semesterBreak;
-        }
+        String breakStr = plugin.getDatabaseManager().getCoreState("is_semester_break");
+        return "true".equalsIgnoreCase(breakStr);
     }
 
     public List<String> getActiveUhPackets() {
-        synchronized (cacheLock) {
-            return new ArrayList<>(activeUhPackets);
+        List<String> list = new ArrayList<>();
+        String raw = plugin.getDatabaseManager().getCoreState("active_uh_packets");
+        if (raw != null && !raw.trim().isEmpty() && !raw.equals("[]")) {
+            try {
+                JsonArray arr = JsonParser.parseString(raw).getAsJsonArray();
+                for (JsonElement el : arr) {
+                    list.add(el.getAsString());
+                }
+            } catch (Exception e) {
+                // Ignore
+            }
         }
+        return list;
     }
 
     public List<String> getCurrentActiveSemesterPackets() {
-        synchronized (cacheLock) {
-            return new ArrayList<>(currentActiveSemesterPackets);
+        List<String> list = new ArrayList<>();
+        String raw = plugin.getDatabaseManager().getCoreState("current_active_semester_packets");
+        if (raw != null && !raw.trim().isEmpty() && !raw.equals("[]")) {
+            try {
+                JsonArray arr = JsonParser.parseString(raw).getAsJsonArray();
+                for (JsonElement el : arr) {
+                    list.add(el.getAsString());
+                }
+            } catch (Exception e) {
+                // Ignore
+            }
         }
+        return list;
     }
 
     @Deprecated
@@ -423,5 +415,82 @@ public class ExamManager {
             }
         }
         return list;
+    }
+
+    public CompletableFuture<Boolean> forceSyncFromDatabase() {
+        return CompletableFuture.supplyAsync(() -> {
+            synchronized (syncLock) {
+                try {
+                    String dbVersionStr = plugin.getDatabaseManager().getCoreState("exam_version");
+
+                    int dbVersion = 1;
+                    if (dbVersionStr != null) {
+                        try {
+                            dbVersion = Integer.parseInt(dbVersionStr);
+                        } catch (NumberFormatException e) {
+                            // Keep default 1
+                        }
+                    }
+
+                    // Increment version to mark it updated
+                    dbVersion++;
+                    plugin.getDatabaseManager().setCoreState("exam_version", String.valueOf(dbVersion));
+
+                    List<Map<String, Object>> rows = plugin.getDatabaseManager().getAllExamQuestions();
+                    JsonObject root = new JsonObject();
+                    root.addProperty("version", dbVersion);
+
+                    JsonArray questionsArray = new JsonArray();
+                    for (Map<String, Object> row : rows) {
+                        JsonObject qObj = new JsonObject();
+                        qObj.addProperty("packet_id", (String) row.get("packet_id"));
+                        qObj.addProperty("academic_class", (Integer) row.get("academic_class"));
+                        qObj.addProperty("question_number", (Integer) row.get("question_number"));
+                        qObj.addProperty("question_type", (String) row.get("question_type"));
+                        qObj.addProperty("question_text", (String) row.get("question_text"));
+
+                        String optionsStr = (String) row.get("options");
+                        if (optionsStr != null && !optionsStr.trim().isEmpty()) {
+                            try {
+                                qObj.add("options", JsonParser.parseString(optionsStr));
+                            } catch (Exception ex) {
+                                qObj.add("options", com.google.gson.JsonNull.INSTANCE);
+                            }
+                        } else {
+                            qObj.add("options", com.google.gson.JsonNull.INSTANCE);
+                        }
+
+                        qObj.addProperty("correct_answer", (String) row.get("correct_answer"));
+
+                        String indicesStr = (String) row.get("correct_indices");
+                        if (indicesStr != null && !indicesStr.trim().isEmpty()) {
+                            try {
+                                qObj.add("correct_indices", JsonParser.parseString(indicesStr));
+                            } catch (Exception ex) {
+                                qObj.add("correct_indices", com.google.gson.JsonNull.INSTANCE);
+                            }
+                        } else {
+                            qObj.add("correct_indices", com.google.gson.JsonNull.INSTANCE);
+                        }
+
+                        questionsArray.add(qObj);
+                    }
+                    root.add("questions", questionsArray);
+
+                    // Overwrite file
+                    File file = new File(plugin.getDataFolder(), "exams.json");
+                    try (FileWriter writer = new FileWriter(file, StandardCharsets.UTF_8)) {
+                        new GsonBuilder().setPrettyPrinting().create().toJson(root, writer);
+                    }
+
+                    // Parse into memory
+                    parseMemoryFromRoot(root);
+                    return true;
+                } catch (Exception e) {
+                    plugin.getLogger().log(Level.SEVERE, "Failed to force sync exams from database", e);
+                    return false;
+                }
+            }
+        }, runnable -> Bukkit.getScheduler().runTaskAsynchronously(plugin, runnable));
     }
 }

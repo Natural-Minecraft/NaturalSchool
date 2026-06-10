@@ -149,6 +149,7 @@ public class DatabaseManager {
         String createGradesSQL;
         String createRaporSQL;
         String createLessonFilesSQL;
+        String createQuestionTypesTableSQL = null;
         
         if ("MYSQL".equals(storageType)) {
             createTableSQL = "CREATE TABLE IF NOT EXISTS nschool_students ("
@@ -270,6 +271,11 @@ public class DatabaseManager {
                     + "INDEX (jenjang, mata_pelajaran), "
                     + "INDEX (tipe)"
                     + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
+            createQuestionTypesTableSQL = "CREATE TABLE IF NOT EXISTS nschool_question_type ("
+                    + "id INT AUTO_INCREMENT PRIMARY KEY, "
+                    + "question_code VARCHAR(10) NOT NULL UNIQUE, "
+                    + "question_name VARCHAR(100) NOT NULL"
+                    + ");";
         } else {
             createTableSQL = "CREATE TABLE IF NOT EXISTS nschool_students ("
                     + "uuid TEXT PRIMARY KEY, "
@@ -380,6 +386,11 @@ public class DatabaseManager {
                     + "dibuat_pada TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
                     + "dipakai_terakhir TIMESTAMP NULL"
                     + ");";
+            createQuestionTypesTableSQL = "CREATE TABLE IF NOT EXISTS nschool_question_type ("
+                    + "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                    + "question_code TEXT NOT NULL UNIQUE, "
+                    + "question_name TEXT NOT NULL"
+                    + ");";
         }
 
         try (Connection conn = getConnection()) {
@@ -402,6 +413,7 @@ public class DatabaseManager {
                 stmt.execute(createGradesSQL);
                 stmt.execute(createRaporSQL);
                 stmt.execute(createLessonFilesSQL);
+                stmt.execute(createQuestionTypesTableSQL);
                 
                 if (!"MYSQL".equals(storageType)) {
                     stmt.execute("CREATE INDEX IF NOT EXISTS idx_questions_packet ON nschool_exam_questions (packet_id);");
@@ -438,6 +450,22 @@ public class DatabaseManager {
                             + "(6, 'ILMU_PENGETAHUAN_ALAM', 'Ilmu Pengetahuan Alam'), "
                             + "(7, 'ILMU_PENGETAHUAN_SOSIAL', 'Ilmu Pengetahuan Sosial');";
                     stmt.execute(seedSubjectsSQLite);
+                }
+
+                // Seed default 3 question types
+                if ("MYSQL".equals(storageType)) {
+                    String seedQuestionTypesMySQL = "INSERT INTO nschool_question_type (id, question_code, question_name) VALUES "
+                            + "(1, 'PG', 'Pilihan Ganda'), "
+                            + "(2, 'BS', 'Benar Salah'), "
+                            + "(3, 'PGK', 'Pilihan Ganda Kompleks') "
+                            + "ON DUPLICATE KEY UPDATE question_code = VALUES(question_code), question_name = VALUES(question_name);";
+                    stmt.execute(seedQuestionTypesMySQL);
+                } else {
+                    String seedQuestionTypesSQLite = "INSERT OR IGNORE INTO nschool_question_type (id, question_code, question_name) VALUES "
+                            + "(1, 'PG', 'Pilihan Ganda'), "
+                            + "(2, 'BS', 'Benar Salah'), "
+                            + "(3, 'PGK', 'Pilihan Ganda Kompleks');";
+                    stmt.execute(seedQuestionTypesSQLite);
                 }
 
                 // Seeding default values for nschool_core_state
