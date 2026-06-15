@@ -9,6 +9,11 @@ import org.bukkit.entity.Player;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.time.ZonedDateTime;
+import java.time.ZoneId;
+import java.time.LocalDate;
+import java.time.DayOfWeek;
+import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -171,19 +176,79 @@ public class SemesterManager {
         return future;
     }
 
+    public static class SemesterState {
+        public final String semester;
+        public final String academicYear;
+
+        public SemesterState(String semester, String academicYear) {
+            this.semester = semester;
+            this.academicYear = academicYear;
+        }
+    }
+
+    public SemesterState getExpectedSemesterState(ZonedDateTime nowWib) {
+        int year = nowWib.getYear();
+        int month = nowWib.getMonthValue();
+
+        LocalDate firstDay = LocalDate.of(year, month, 1);
+        LocalDate firstSunday = firstDay.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
+        LocalDate secondSunday = firstSunday.plusDays(7);
+
+        ZonedDateTime transitionTime = secondSunday.atStartOfDay(ZoneId.of("Asia/Jakarta"));
+
+        String semester;
+        if (nowWib.isBefore(transitionTime)) {
+            semester = "GANJIL";
+        } else {
+            semester = "GENAP";
+        }
+
+        String[] months = {
+            "JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI",
+            "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER"
+        };
+        String academicYear = months[month - 1] + " " + year;
+
+        return new SemesterState(semester, academicYear);
+    }
+
+    public void checkAndAutoRotate() {
+        ZonedDateTime nowWib = ZonedDateTime.now(ZoneId.of("Asia/Jakarta"));
+        SemesterState expected = getExpectedSemesterState(nowWib);
+
+        boolean needsUpdate;
+        synchronized (this) {
+            needsUpdate = !expected.semester.equalsIgnoreCase(this.currentSemester) 
+                       || !expected.academicYear.equalsIgnoreCase(this.currentAcademicYear);
+        }
+
+        if (needsUpdate) {
+            plugin.getLogger().info("[SemesterManager] Mismatch detected. Auto-rotating semester to: " 
+                + expected.semester + " (" + expected.academicYear + ")...");
+            
+            resetSemesterState().thenAccept(affected -> {
+                plugin.getLogger().info("[SemesterManager] Auto-rotation complete. Affected students: " + affected);
+            }).exceptionally(ex -> {
+                plugin.getLogger().log(Level.SEVERE, "[SemesterManager] Auto-rotation failed!", ex);
+                return null;
+            });
+        }
+    }
+
     /**
      * Resets the semester state back to match the real-life system clock calendar.
-     * Week 1 & 2 (days 1-14) map to GANJIL, while days 15+ map to GENAP of the current real month.
+     * Week 1 & 2 (up to the Sunday in the 2nd week of the month at 00:00 WIB) map to GANJIL,
+     * while the period after maps to GENAP of the current real month.
      *
      * @return a CompletableFuture completed with the count of affected students.
      */
     public CompletableFuture<Integer> resetSemesterState() {
         CompletableFuture<Integer> future = new CompletableFuture<>();
 
-        java.time.LocalDate now = java.time.LocalDate.now();
-        int day = now.getDayOfMonth();
-        final String nextSemester = (day <= 14) ? "GANJIL" : "GENAP";
-        final String nextYear = getIndonesianMonthYear();
+        ZonedDateTime nowWib = ZonedDateTime.now(ZoneId.of("Asia/Jakarta"));
+        SemesterState expected = getExpectedSemesterState(nowWib);
+        final String nextSemester = expected.semester;
+        final String nextYear = expected.academicYear;
 
         // Update local variables immediately on the main thread
         synchronized (this) {
@@ -341,7 +406,7 @@ public class SemesterManager {
      * - Minggu ke-2 (tanggal 8-14) atau Minggu ke-4 / Akhir bulan (tanggal 22-31)
      */
     public boolean isAllowedExamTime() {
-        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Asia/Jakarta"));
 
         // 1. Cek Hari
         String configDay = plugin.getConfig().getString("exam-schedule.day-of-week", "SUNDAY").toUpperCase();

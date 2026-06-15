@@ -99,9 +99,16 @@ public final class NaturalSchool extends JavaPlugin {
             getLogger().info("PlaceholderAPI integration registered successfully.");
         }
 
+        // Run initial semester auto-rotation check
+        semesterManager.checkAndAutoRotate();
+
         // Automatic time scheduler task (WIB / GMT+7)
         getServer().getScheduler().runTaskTimer(this, () -> {
             java.time.ZonedDateTime nowWib = java.time.ZonedDateTime.now(java.time.ZoneId.of("Asia/Jakarta"));
+            
+            // Periodically check and auto-rotate semester if needed
+            semesterManager.checkAndAutoRotate();
+
             int hour = nowWib.getHour();
             int minute = nowWib.getMinute();
 
