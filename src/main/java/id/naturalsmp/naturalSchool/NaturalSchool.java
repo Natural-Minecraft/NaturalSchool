@@ -162,8 +162,6 @@ public final class NaturalSchool extends JavaPlugin {
                     "&a===============\n"
                 )
         );
-                )
-        );
     }
 
     @Override
