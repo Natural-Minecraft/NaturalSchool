@@ -152,13 +152,16 @@ public final class NaturalSchool extends JavaPlugin {
 
         org.bukkit.Bukkit.getConsoleSender().sendMessage(
                 org.bukkit.ChatColor.translateAlternateColorCodes('&',
-                    "\n" +
+                    "\n&a===============\n" +
                     "&b _   _       _                  _     &d____       _                 _\n" +
-                    "&b| \\ | | __ _| |_ _   _ _ __ __ _| |   &d/ ___|  ___| |__   ___   ___ | |\n" +
-                    "&b|  \\| |/ _` | __| | | | '__/ _` | |   &d\\___ \\ / __| '_ \\ / _ \\ / _ \\| |\n" +
-                    "&b| |\\  | (_| | |_| |_| | | | (_| | |    &d___) | (__| | | | (_) | (_) | |\n" +
-                    "&b|_| \\_|\\__,_|\\__|\\__,_|_|  \\__,_|_|   &d|____/ \\___|_| |_|\\___/ \\___/|_|\n" +
-                    "&f       >> &bNaturalSchool v" + getDescription().getVersion() + " &fEnabled! <<\n"
+                    "&b| \ | | __ _| |_ _   _ _ __ __ _| |   &d/ ___|  ___| |__   ___   ___ | |\n" +
+                    "&b|  \| |/ _` | __| | | | '__/ _` | |   &d\___ \ / __| '_ \ / _ \ / _ \| |\n" +
+                    "&b| |\  | (_| | |_| |_| | | | (_| | |    &d___) | (__| | | | (_) | (_) | |\n" +
+                    "&b|_| \_|\__,_|\__|\__,_|_|  \__,_|_|   &d|____/ \___|_| |_|\___/ \___/|_|\n" +
+                    "&f       >> &bNaturalSchool v" + getDescription().getVersion() + " Enabled! <<\n" +
+                    "&a===============\n"
+                )
+        );
                 )
         );
     }
