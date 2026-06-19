@@ -118,9 +118,9 @@ public class ClassChatManager {
             if (sender.getUniqueId().equals(classData.getWaliKelasUuid())) {
                 role = "WALI_KELAS";
             } else {
-                String assignedRole = classData.getOfficers().get(sender.getUniqueId());
-                if (assignedRole != null) {
-                    role = assignedRole;
+                ClassroomManager.OfficerInfo assignedOfficer = classData.getOfficers().get(sender.getUniqueId());
+                if (assignedOfficer != null) {
+                    role = assignedOfficer.getRole();
                 }
             }
         }

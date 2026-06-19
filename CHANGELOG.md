@@ -2,8 +2,19 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
-## [1.7.1] - 2026-06-19
+## [1.7.2] - 2026-06-19
 ### Added
+- **Class Fund & Bank Subsystem**: Implemented `/class fund` (and `/class bank`) commands allowing students to pay weekly cash, view class balances, and view transaction history logs.
+- **Unified Database consolidation**: Consolidated separate classroom-related tables (`nschool_classrooms`, `nschool_classroom_officers`, and `nschool_classroom_doors`) into a single table `nschool_class` with `officers` and `doors` serialized as JSON (clean column names without suffix).
+- **Username Reference/Comparison**: Added and pre-saved username mapping inside `officers` JSON and `wali_kelas_name` in the database to prevent slow Bukkit OfflinePlayer resolution lookups.
+- **Vault API Support**: Hooked into Vault API to withdraw/deposit player funds during cash payments, withdrawals, and fines.
+- **Class Hub GUI (Java & Bedrock)**: Implemented cross-platform `/class gui` with tabbed navigation: Info, Fund, Struktur, and Siswa.
+- **In-GUI Red Error Banners**: Re-renders form views with a colored error header when an error occurs instead of closing or printing to chat.
+
+### Changed
+- **Version Bump**: Elevated system version to `1.7.2` in `pom.xml`, `plugin.yml`, and `UIManager.java`.
+
+## [1.7.1] - 2026-06-19
 - **Database-Driven Prefix System**: Migrated ranks, class levels, and roles configuration from `rankprefix.yml` into a single, unified database table `nschool_prefixes` with composite primary keys `(target_type, target_key)`.
 - **Automatic Prefix Seeding**: Automatically seeds database `nschool_prefixes` table with default configurations from `rankprefix.yml` on first run if the table is empty.
 - **Universal Color Code Support**: The prefix parser now supports both legacy codes (`&` / `§`) and Kyori's MiniMessage formatting styles dynamically.

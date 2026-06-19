@@ -331,3 +331,124 @@ NaturalSchool mengekspos variabel data internal siswa menggunakan pengidentifika
 Plugin menembakkan log peristiwa penting dalam format Rich Embed secara asinkron ke URL webhook Discord yang dikonfigurasi di `api.discord-webhook-url`:
 * Memuat judul aktivitas, deskripsi status kelas, nama pengajar/Helper yang memulai, detail materi, serta status Auto-Fallback.
 * Setiap log peristiwa memiliki representasi warna embed yang berbeda (Hijau untuk sesi kelas dimulai, Merah untuk sesi kelas berakhir / peringatan, Kuning untuk tindakan Auto-Fallback).
+
+---
+
+## 💰 8. Sistem Kas / Keuangan & Bank Kelas (Class Fund)
+
+NaturalSchool menyediakan subsistem kas kelas terintegrasi yang memungkinkan pengumpulan kas mingguan secara otomatis, penarikan dana oleh pengurus kelas, pemberian denda akademik, dan riwayat mutasi transaksi keuangan kelas.
+
+### 8.1 Skema Database Konsolidasi
+Seluruh data kelas, pengurus, pintu spasial, dan parameter keuangan disatukan ke dalam satu tabel utama untuk meminimalkan *join query* yang lambat:
+
+1. **`nschool_class`**:
+   ```sql
+   CREATE TABLE IF NOT EXISTS nschool_class (
+       id_kelas INT PRIMARY KEY,
+       wali_kelas_uuid VARCHAR(36) NULL,
+       wali_kelas_name VARCHAR(16) NULL,
+       world VARCHAR(64) NULL,
+       x1 INT NULL, y1 INT NULL, z1 INT NULL,
+       x2 INT NULL, y2 INT NULL, z2 INT NULL,
+       officers TEXT NULL, -- Menyimpan JSON Map pengurus {"UUID": {"role": "KETUA", "username": "nama"}}
+       doors TEXT NULL,    -- Menyimpan JSON List pintu spasial kelas
+       cash_balance DOUBLE DEFAULT 0.0,
+       weekly_fee DOUBLE DEFAULT 1000.0,
+       weekly_fee_enabled TINYINT DEFAULT 1
+   );
+   ```
+
+2. **`nschool_class_fund_payments`**:
+   ```sql
+   CREATE TABLE IF NOT EXISTS nschool_class_fund_payments (
+       player_uuid VARCHAR(36) NOT NULL,
+       id_kelas INT NOT NULL,
+       week_identifier VARCHAR(10) NOT NULL, -- Format: yyyy-Www (cth: 2026-W25)
+       amount_paid DOUBLE NOT NULL,
+       payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+       PRIMARY KEY (player_uuid, id_kelas, week_identifier)
+   );
+   ```
+
+3. **`nschool_class_fund_transactions`**:
+   ```sql
+   CREATE TABLE IF NOT EXISTS nschool_class_fund_transactions (
+       id INT AUTO_INCREMENT PRIMARY KEY,
+       id_kelas INT NOT NULL,
+       player_uuid VARCHAR(36) NULL,
+       tx_type VARCHAR(20) NOT NULL, -- DEPOSIT, WITHDRAW, FINE
+       amount DOUBLE NOT NULL,
+       description VARCHAR(255) NOT NULL,
+       tx_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+   );
+   ```
+
+### 8.2 Logika Identifikasi Minggu WIB
+Untuk pelacakan kas mingguan yang adil, sistem menghitung pengidentifikasi minggu berdasarkan standar **ISO-8601** (minggu dimulai hari Senin) yang diselaraskan dengan zona waktu **WIB (Asia/Jakarta)**. Format ID minggu adalah `yyyy-Www` (contoh: tahun 2026 minggu ke-25 diformat sebagai `2026-W25`).
+
+### 8.3 Kamus Perintah Kas Kelas
+* **Izin**: Semua murid terdaftar dapat menggunakan `/class gui`, `/class fund bayar` dan `/class fund history`. Fitur pengaturan (`toggle`, `setweekly`, `withdraw`, `denda`) dibatasi hanya untuk Wali Kelas, Ketua, Wakil, dan Bendahara kelas terkait.
+* **Alias**: Perintah `/class bank` dapat digunakan sebagai alias penuh dari `/class fund`.
+
+| Perintah | Otoritas | Deskripsi |
+| :--- | :--- | :--- |
+| `/class gui [id_kelas]` | Semua | Membuka Hub GUI Kelas & Kas. |
+| `/class fund bayar` | Anggota Kelas | Membayar kas mingguan kelas menggunakan saldo Vault (NaturalEconomy). |
+| `/class fund status [kelas] [minggu]` | Pengurus / Staf | Melihat daftar siswa yang sudah dan belum membayar kas di minggu terkait. |
+| `/class fund withdraw <jumlah> <alasan>` | Pengurus Kelas | Menarik saldo kas kelas ke dompet pribadi pengurus. |
+| `/class fund toggle [id_kelas]` | Wali / Ketua / Wakil | Mengaktifkan/menonaktifkan tagihan kas mingguan kelas. |
+| `/class fund setweekly <jumlah>` | Pengurus Kelas | Menentukan nominal tagihan kas mingguan kelas. |
+| `/class fund denda <player> <jumlah> <alasan>` | Pengurus Kelas | Mengenakan denda tunai secara paksa kepada murid di kelas yang sama. |
+| `/class fund history [kelas] [limit]` | Semua | Menampilkan catatan mutasi transaksi kas kelas. |
+
+### 8.4 Ilustrasi Alur Hub GUI Kelas (`/class gui`)
+Sistem GUI terintegrasi dengan penanganan error langsung di dalam form (menyertakan label pesan merah di layar yang sama tanpa menutup antarmuka):
+
+```mermaid
+graph TD
+    A[Buka GUI Kelas /class gui] --> B{Pemain Bedrock?}
+    B -- Ya --> C[Bedrock Hub Menu - SimpleForm]
+    B -- Tidak --> D[Java Hub Dialog - Notice Dialog]
+    
+    C --> C1[Info Kelas]
+    C --> C2[Kas & Keuangan]
+    C --> C3[Struktur Kelas]
+    C --> C4[Daftar Murid]
+    
+    C1 --> C1_Back[Kembali ke Menu] --> C
+    C3 --> C3_Back[Kembali ke Menu] --> C
+    C4 --> C4_Back[Kembali ke Menu] --> C
+    
+    C2 --> C2_1[Bayar Kas Mingguan]
+    C2 --> C2_2[Toggle Status Kas]
+    C2 --> C2_3[Tarik Saldo Kas]
+    C2 --> C2_4[Denda Murid]
+    C2 --> C2_5[Riwayat Transaksi]
+    C2 --> C2_Back[Kembali ke Menu] --> C
+    
+    D --> D1[Info Tab]
+    D --> D2[Kas / Fund Tab]
+    D --> D3[Struktur Tab]
+    D --> D4[Siswa Tab]
+    
+    D2 --> D2_1[Bayar Kas Mingguan]
+    D2 --> D2_2[Toggle Status]
+    D2 --> D2_3[Tarik Saldo]
+    D2 --> D2_4[Denda]
+    D2 --> D2_5[Lihat Riwayat Transaksi]
+    
+    D2_3 --> D2_3_Form[Form Input Jumlah & Alasan]
+    D2_4 --> D2_4_Form[Form Input Target, Jumlah & Alasan]
+    
+    subgraph Penanganan Error
+        E[Terjadi Error / Kegagalan Operasi] --> F[Re-render GUI yang sama]
+        F --> G[Tampilkan pesan error berwarna Merah di bagian atas]
+    end
+    
+    C2_1 -. Jika error .-> E
+    C2_3 -. Jika error .-> E
+    C2_4 -. Jika error .-> E
+    D2_1 -. Jika error .-> E
+    D2_3_Form -. Jika error .-> E
+    D2_4_Form -. Jika error .-> E
+```

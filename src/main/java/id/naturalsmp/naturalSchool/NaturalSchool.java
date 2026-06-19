@@ -7,6 +7,7 @@ import id.naturalsmp.naturalSchool.classes.ClassManager;
 import id.naturalsmp.naturalSchool.classes.ClassSession;
 import id.naturalsmp.naturalSchool.classes.ClassroomManager;
 import id.naturalsmp.naturalSchool.classes.ClassChatManager;
+import id.naturalsmp.naturalSchool.classes.ClassCashManager;
 import id.naturalsmp.naturalSchool.database.DatabaseManager;
 import id.naturalsmp.naturalSchool.database.RankPrefixConfig;
 import id.naturalsmp.naturalSchool.listener.PlayerListener;
@@ -35,6 +36,7 @@ public final class NaturalSchool extends JavaPlugin {
     private ClassManager classManager;
     private ClassroomManager classroomManager;
     private ClassChatManager classChatManager;
+    private ClassCashManager classCashManager;
 
     @Override
     public void onEnable() {
@@ -47,6 +49,8 @@ public final class NaturalSchool extends JavaPlugin {
         // Initialize Class and Chat managers
         classChatManager = new ClassChatManager(this);
         classroomManager = new ClassroomManager(this);
+        classCashManager = new ClassCashManager(this);
+        classCashManager.setupEconomy();
         classManager = new ClassManager(this);
 
         // Initialize & Register Developer API
@@ -236,6 +240,10 @@ public final class NaturalSchool extends JavaPlugin {
 
     public ClassChatManager getClassChatManager() {
         return classChatManager;
+    }
+
+    public ClassCashManager getClassCashManager() {
+        return classCashManager;
     }
 
     public boolean isExamOpen() {

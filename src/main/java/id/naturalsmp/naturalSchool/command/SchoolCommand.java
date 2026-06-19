@@ -132,15 +132,15 @@ public class SchoolCommand implements CommandExecutor, TabCompleter {
             }
         }
 
-        Map<java.util.UUID, String> officers = data.getOfficers();
+        Map<java.util.UUID, id.naturalsmp.naturalSchool.classes.ClassroomManager.OfficerInfo> officers = data.getOfficers();
         String ketua = "Tidak Ada";
         String wakil = "Tidak Ada";
         String sekretaris = "Tidak Ada";
         String bendahara = "Tidak Ada";
 
-        for (Map.Entry<java.util.UUID, String> entry : officers.entrySet()) {
-            String role = entry.getValue();
-            String name = org.bukkit.Bukkit.getOfflinePlayer(entry.getKey()).getName();
+        for (Map.Entry<java.util.UUID, id.naturalsmp.naturalSchool.classes.ClassroomManager.OfficerInfo> entry : officers.entrySet()) {
+            String role = entry.getValue().getRole();
+            String name = entry.getValue().getUsername();
             if (name == null) name = "Unknown";
             
             if ("KETUA".equalsIgnoreCase(role)) ketua = name;

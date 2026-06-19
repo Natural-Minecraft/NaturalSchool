@@ -20,6 +20,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -72,6 +73,9 @@ public class ClassCommand implements CommandExecutor, TabCompleter {
                 return true;
             } else if (sub.equals("info")) {
                 handleInfo(sender, args);
+                return true;
+            } else if (sub.equals("fund") || sub.equals("bank") || sub.equals("gui")) {
+                handleFund(sender, args);
                 return true;
             } else if (sub.equals("help")) {
                 sendHelpMessage(sender);
@@ -126,7 +130,10 @@ public class ClassCommand implements CommandExecutor, TabCompleter {
             "<yellow>/class chat <pesan></yellow> - <gray>Mengirim pesan ke obrolan kelas</gray>\n" +
             "<yellow>/class chat</yellow> - <gray>Masuk/keluar saluran chat kelas (Toggle)</gray>\n" +
             "<yellow>/class chat norank</yellow> - <gray>Sembunyikan rank LuckPerms di chat kelas</gray>\n" +
-            "<yellow>/class info</yellow> - <gray>Menampilkan kepengurusan kelas Anda saat ini</gray>"
+            "<yellow>/class info</yellow> - <gray>Menampilkan kepengurusan kelas Anda saat ini</gray>\n" +
+            "<yellow>/class gui</yellow> - <gray>Membuka GUI Hub Kelas & Kas</gray>\n" +
+            "<yellow>/class fund bayar</yellow> - <gray>Membayar kas mingguan kelas</gray>\n" +
+            "<yellow>/class fund history</yellow> - <gray>Melihat riwayat transaksi kas kelas</gray>"
         ));
 
         if (checkStaffPermission(sender)) {
@@ -206,15 +213,15 @@ public class ClassCommand implements CommandExecutor, TabCompleter {
             }
         }
 
-        Map<UUID, String> officers = data.getOfficers();
+        Map<UUID, ClassroomManager.OfficerInfo> officers = data.getOfficers();
         String ketua = "Tidak Ada";
         String wakil = "Tidak Ada";
         String sekretaris = "Tidak Ada";
         String bendahara = "Tidak Ada";
 
-        for (Map.Entry<UUID, String> entry : officers.entrySet()) {
-            String role = entry.getValue();
-            String name = Bukkit.getOfflinePlayer(entry.getKey()).getName();
+        for (Map.Entry<UUID, ClassroomManager.OfficerInfo> entry : officers.entrySet()) {
+            String role = entry.getValue().getRole();
+            String name = entry.getValue().getUsername();
             if (name == null) name = "Unknown";
             
             if ("KETUA".equalsIgnoreCase(role)) ketua = name;
@@ -488,7 +495,8 @@ public class ClassCommand implements CommandExecutor, TabCompleter {
                 return;
             }
 
-            plugin.getClassroomManager().assignOfficer(classNum, uuid, roleStr);
+            String finalTargetName = op.getName() != null ? op.getName() : targetName;
+            plugin.getClassroomManager().assignOfficer(classNum, uuid, finalTargetName, roleStr);
             sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>Berhasil mengangkat " + (op.getName() != null ? op.getName() : targetName) + " sebagai " + roleStr + " di kelas " + classNum + ".</green>"));
         } else if (action.equals("remove")) {
             if (args.length < 3) {
@@ -502,6 +510,301 @@ public class ClassCommand implements CommandExecutor, TabCompleter {
         } else {
             sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Tindakan officer tidak dikenal.</red>"));
         }
+    }
+
+    private void handleFund(CommandSender sender, String[] args) {
+        String action = "gui";
+        if (args.length >= 2 && (args[0].equalsIgnoreCase("fund") || args[0].equalsIgnoreCase("bank"))) {
+            action = args[1].toLowerCase();
+        } else if (args[0].equalsIgnoreCase("gui")) {
+            action = "gui";
+        }
+
+        int classNum = 0;
+        Player player = null;
+        if (sender instanceof Player) {
+            player = (Player) sender;
+            StudentProfile profile = plugin.getProfileManager().getProfile(player.getUniqueId());
+            if (profile != null) {
+                classNum = profile.getAcademicClass();
+            }
+            if (classNum == 0) {
+                for (ClassroomManager.ClassroomData data : plugin.getClassroomManager().getAllClassroomData()) {
+                    if (player.getUniqueId().equals(data.getWaliKelasUuid())) {
+                        classNum = data.getIdKelas();
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (action.equals("gui")) {
+            if (!(sender instanceof Player)) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Hanya player yang dapat membuka GUI!</red>"));
+                return;
+            }
+            int targetClass = classNum;
+            int optClassIdx = (args[0].equalsIgnoreCase("gui")) ? 1 : 2;
+            if (args.length > optClassIdx) {
+                try {
+                    targetClass = Integer.parseInt(args[optClassIdx].replaceAll("\\D+", ""));
+                } catch (NumberFormatException ignored) {}
+            }
+            if (targetClass < 1 || targetClass > 12) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Target kelas tidak valid! Gunakan angka 1-12.</red>"));
+                return;
+            }
+            if (targetClass != classNum && !checkStaffPermission(player)) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Anda tidak memiliki izin untuk melihat kas kelas lain!</red>"));
+                return;
+            }
+            plugin.getUiManager().getClassCashGui().openClassGui(player, targetClass);
+        } else if (action.equals("bayar")) {
+            if (!(sender instanceof Player)) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Hanya player yang dapat membayar kas!</red>"));
+                return;
+            }
+            id.naturalsmp.naturalSchool.classes.ClassCashManager.CashOperationResult res = plugin.getClassCashManager().payWeeklyFee(player);
+            if (res.isSuccess()) {
+                player.sendMessage(MiniMessage.miniMessage().deserialize("<green>" + res.getMessage() + "</green>"));
+            } else {
+                player.sendMessage(MiniMessage.miniMessage().deserialize("<red>" + res.getMessage() + "</red>"));
+            }
+        } else if (action.equals("status")) {
+            int targetClass = classNum;
+            if (args.length > 2) {
+                try {
+                    targetClass = Integer.parseInt(args[2].replaceAll("\\D+", ""));
+                } catch (NumberFormatException ignored) {}
+            }
+            if (targetClass < 1 || targetClass > 12) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Target kelas tidak valid! Gunakan angka 1-12.</red>"));
+                return;
+            }
+            if (player != null && targetClass != classNum && !checkStaffPermission(player)) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Anda tidak memiliki izin untuk melihat status kas kelas lain!</red>"));
+                return;
+            }
+
+            String week = plugin.getClassCashManager().getCurrentWeekIdentifier();
+            if (args.length > 3) {
+                week = args[3];
+            }
+
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<gold>=== Status Pembayaran Kas Kelas " + targetClass + " (Minggu: " + week + ") ===</gold>"));
+            List<Map<String, String>> students = plugin.getDatabaseManager().getStudentsInClass(targetClass);
+            List<Map<String, Object>> payments = plugin.getDatabaseManager().getClassCashPayments(targetClass, week);
+            Set<String> paidUuids = payments.stream()
+                .map(m -> (String) m.get("player_uuid"))
+                .collect(Collectors.toSet());
+
+            List<String> paidNames = new ArrayList<>();
+            List<String> unpaidNames = new ArrayList<>();
+
+            for (Map<String, String> student : students) {
+                String uuid = student.get("uuid");
+                String name = student.get("username");
+                if (paidUuids.contains(uuid)) {
+                    paidNames.add(name);
+                } else {
+                    unpaidNames.add(name);
+                }
+            }
+
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>» Sudah Bayar (" + paidNames.size() + "):</green> <white>" + (paidNames.isEmpty() ? "-" : String.join(", ", paidNames)) + "</white>"));
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>» Belum Bayar (" + unpaidNames.size() + "):</red> <white>" + (unpaidNames.isEmpty() ? "-" : String.join(", ", unpaidNames)) + "</white>"));
+
+        } else if (action.equals("withdraw")) {
+            if (!(sender instanceof Player)) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Hanya player yang dapat menarik saldo kas!</red>"));
+                return;
+            }
+            if (classNum < 1 || classNum > 12) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Anda tidak terdaftar di kelas mana pun.</red>"));
+                return;
+            }
+            ClassroomManager.ClassroomData classData = plugin.getClassroomManager().getClassroom(classNum);
+            if (!hasOfficerAccessFund(player, classData)) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Hanya Wali Kelas, Ketua, Wakil, atau Bendahara yang dapat menarik saldo kas kelas!</red>"));
+                return;
+            }
+            if (args.length < 3) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Format: /class fund withdraw <jumlah> <alasan></red>"));
+                return;
+            }
+            double amount;
+            try {
+                amount = Double.parseDouble(args[2].replaceAll("[^0-9.]", ""));
+            } catch (NumberFormatException e) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Jumlah penarikan harus berupa angka!</red>"));
+                return;
+            }
+            if (amount <= 0) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Jumlah penarikan harus lebih besar dari 0!</red>"));
+                return;
+            }
+            String reason = "Penarikan manual via perintah";
+            if (args.length > 3) {
+                reason = String.join(" ", Arrays.copyOfRange(args, 3, args.length));
+            }
+            id.naturalsmp.naturalSchool.classes.ClassCashManager.CashOperationResult res = plugin.getClassCashManager().withdrawCash(player, classNum, amount, reason);
+            if (res.isSuccess()) {
+                player.sendMessage(MiniMessage.miniMessage().deserialize("<green>" + res.getMessage() + "</green>"));
+            } else {
+                player.sendMessage(MiniMessage.miniMessage().deserialize("<red>" + res.getMessage() + "</red>"));
+            }
+        } else if (action.equals("toggle")) {
+            int targetClass = classNum;
+            if (args.length > 2) {
+                try {
+                    targetClass = Integer.parseInt(args[2].replaceAll("\\D+", ""));
+                } catch (NumberFormatException ignored) {}
+            }
+            if (targetClass < 1 || targetClass > 12) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Target kelas tidak valid! Gunakan angka 1-12.</red>"));
+                return;
+            }
+            ClassroomManager.ClassroomData classData = plugin.getClassroomManager().getClassroom(targetClass);
+            if (player != null && !hasOfficerAccessFund(player, classData)) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Hanya Wali Kelas, Ketua, atau Wakil yang dapat mengubah status kas kelas!</red>"));
+                return;
+            }
+            boolean current = classData.isWeeklyFeeEnabled();
+            plugin.getClassroomManager().updateClassCash(targetClass, classData.getCashBalance(), classData.getWeeklyFee(), !current);
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>Berhasil mengubah status kas kelas " + targetClass + " menjadi: " + (!current ? "<bold>AKTIF</bold>" : "<bold>NONAKTIF</bold>") + ".</green>"));
+        } else if (action.equals("setweekly")) {
+            if (classNum < 1 || classNum > 12) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Anda tidak terdaftar di kelas mana pun.</red>"));
+                return;
+            }
+            ClassroomManager.ClassroomData classData = plugin.getClassroomManager().getClassroom(classNum);
+            if (player != null && !hasOfficerAccessFund(player, classData)) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Hanya Wali Kelas, Ketua, Wakil, atau Bendahara yang dapat mengatur biaya kas kelas!</red>"));
+                return;
+            }
+            if (args.length < 3) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Format: /class fund setweekly <jumlah></red>"));
+                return;
+            }
+            double amount;
+            try {
+                amount = Double.parseDouble(args[2].replaceAll("[^0-9.]", ""));
+            } catch (NumberFormatException e) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Biaya kas harus berupa angka!</red>"));
+                return;
+            }
+            if (amount < 0) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Biaya kas tidak boleh negatif!</red>"));
+                return;
+            }
+            plugin.getClassroomManager().updateClassCash(classNum, classData.getCashBalance(), amount, classData.isWeeklyFeeEnabled());
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>Berhasil mengubah biaya kas mingguan kelas menjadi Rp" + String.format("%,.0f", amount) + ".</green>"));
+        } else if (action.equals("denda")) {
+            if (classNum < 1 || classNum > 12) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Anda tidak terdaftar di kelas mana pun.</red>"));
+                return;
+            }
+            ClassroomManager.ClassroomData classData = plugin.getClassroomManager().getClassroom(classNum);
+            if (player != null && !hasOfficerAccessFund(player, classData)) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Hanya Wali Kelas, Ketua, Wakil, atau Bendahara yang dapat memberikan denda kelas!</red>"));
+                return;
+            }
+            if (args.length < 4) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Format: /class fund denda <player> <jumlah> <alasan></red>"));
+                return;
+            }
+            String targetName = args[2];
+            double amount;
+            try {
+                amount = Double.parseDouble(args[3].replaceAll("[^0-9.]", ""));
+            } catch (NumberFormatException e) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Jumlah denda harus berupa angka!</red>"));
+                return;
+            }
+            if (amount <= 0) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Jumlah denda harus lebih besar dari 0!</red>"));
+                return;
+            }
+            String reason = "Denda manual via perintah";
+            if (args.length > 4) {
+                reason = String.join(" ", Arrays.copyOfRange(args, 4, args.length));
+            }
+            OfflinePlayer targetPlayer = Bukkit.getOfflinePlayer(targetName);
+            StudentProfile targetProfile = null;
+            if (targetPlayer.isOnline()) {
+                targetProfile = plugin.getProfileManager().getProfile(targetPlayer.getUniqueId());
+            } else {
+                try {
+                    targetProfile = plugin.getDatabaseManager().loadProfile(targetPlayer.getUniqueId());
+                } catch (Exception ignored) {}
+            }
+            if (targetProfile == null || targetProfile.getAcademicClass() != classNum) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Pemain " + targetName + " tidak terdaftar di kelas Anda (" + classNum + ").</red>"));
+                return;
+            }
+            id.naturalsmp.naturalSchool.classes.ClassCashManager.CashOperationResult res = plugin.getClassCashManager().applyFine(targetPlayer, player, classNum, amount, reason);
+            if (res.isSuccess()) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>" + res.getMessage() + "</green>"));
+            } else {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>" + res.getMessage() + "</red>"));
+            }
+        } else if (action.equals("history")) {
+            int targetClass = classNum;
+            int limit = 10;
+            if (args.length > 2) {
+                try {
+                    targetClass = Integer.parseInt(args[2].replaceAll("\\D+", ""));
+                } catch (NumberFormatException ignored) {}
+            }
+            if (args.length > 3) {
+                try {
+                    limit = Integer.parseInt(args[3]);
+                } catch (NumberFormatException ignored) {}
+            }
+            if (targetClass < 1 || targetClass > 12) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Target kelas tidak valid! Gunakan angka 1-12.</red>"));
+                return;
+            }
+            if (player != null && targetClass != classNum && !checkStaffPermission(player)) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Anda tidak memiliki izin untuk melihat riwayat kas kelas lain!</red>"));
+                return;
+            }
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<gold>=== Riwayat Transaksi Kas Kelas " + targetClass + " (Limit: " + limit + ") ===</gold>"));
+            List<Map<String, Object>> txs = plugin.getDatabaseManager().getClassCashTransactions(targetClass, limit);
+            if (txs.isEmpty()) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<gray>Belum ada riwayat transaksi.</gray>"));
+            } else {
+                SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm");
+                for (Map<String, Object> tx : txs) {
+                    String type = (String) tx.get("tx_type");
+                    double amt = (double) tx.get("amount");
+                    String desc = (String) tx.get("description");
+                    Date date = (Date) tx.get("tx_date");
+                    String dateStr = date != null ? sdf.format(date) : "-";
+                    String color = type.equalsIgnoreCase("DEPOSIT") || type.equalsIgnoreCase("FINE") ? "<green>+" : "<red>-";
+                    sender.sendMessage(MiniMessage.miniMessage().deserialize(
+                        "<gray>[" + dateStr + "]</gray> " + color + "Rp" + String.format("%,.0f", amt) + "</green> <gray>- " + desc + "</gray>"
+                    ));
+                }
+            }
+        } else {
+            sendHelpMessage(sender);
+        }
+    }
+
+    private boolean hasOfficerAccessFund(Player player, ClassroomManager.ClassroomData data) {
+        if (player.getUniqueId().equals(data.getWaliKelasUuid())) {
+            return true;
+        }
+        if (player.hasPermission("naturalschool.admin")) {
+            return true;
+        }
+        ClassroomManager.OfficerInfo officer = data.getOfficers().get(player.getUniqueId());
+        if (officer != null) {
+            String role = officer.getRole().toUpperCase();
+            return role.equals("KETUA") || role.equals("WAKIL") || role.equals("BENDAHARA");
+        }
+        return false;
     }
 
     private void handleJawab(Player player, String[] args) {
@@ -580,6 +883,9 @@ public class ClassCommand implements CommandExecutor, TabCompleter {
             list.add("info");
             list.add("help");
             list.add("jawab");
+            list.add("fund");
+            list.add("bank");
+            list.add("gui");
             if (checkStaffPermission(sender)) {
                 list.add("start");
                 list.add("selesai");
@@ -597,6 +903,10 @@ public class ClassCommand implements CommandExecutor, TabCompleter {
             String sub = args[0].toLowerCase();
             if (sub.equals("chat")) {
                 return Collections.singletonList("norank").stream().filter(s -> s.startsWith(args[1].toLowerCase())).collect(Collectors.toList());
+            } else if (sub.equals("fund") || sub.equals("bank")) {
+                return Arrays.asList("gui", "bayar", "status", "withdraw", "toggle", "setweekly", "denda", "history").stream()
+                        .filter(s -> s.startsWith(args[1].toLowerCase()))
+                        .collect(Collectors.toList());
             } else if (checkStaffPermission(sender)) {
                 if (Arrays.asList("start", "pembelajaran", "rekap", "selesai", "stop").contains(sub)) {
                     List<String> classes = new ArrayList<>();
@@ -622,6 +932,20 @@ public class ClassCommand implements CommandExecutor, TabCompleter {
 
         if (args.length == 3) {
             String sub = args[0].toLowerCase();
+            if (sub.equals("fund") || sub.equals("bank")) {
+                String action = args[1].toLowerCase();
+                if (Arrays.asList("status", "toggle", "gui", "history").contains(action)) {
+                    List<String> classes = new ArrayList<>();
+                    for (int i = 1; i <= 12; i++) {
+                        classes.add(String.valueOf(i));
+                    }
+                    return classes.stream().filter(s -> s.startsWith(args[2].toLowerCase())).collect(Collectors.toList());
+                } else if (action.equals("denda")) {
+                    return Bukkit.getOnlinePlayers().stream().map(Player::getName)
+                            .filter(s -> s.toLowerCase().startsWith(args[2].toLowerCase()))
+                            .collect(Collectors.toList());
+                }
+            }
             if (checkStaffPermission(sender)) {
                 if (sub.equals("pembelajaran")) {
                     return getLessonFilesNames("MATERI_PROYEKTOR").stream()

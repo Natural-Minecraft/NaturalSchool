@@ -1,11 +1,11 @@
 name: NaturalSchool
-version: '1.7.1'
+version: '1.7.2'
 main: id.naturalsmp.naturalSchool.NaturalSchool
 api-version: '1.21'
 load: STARTUP
 authors: [ NaturalTechnologies ]
 website: https://naturalsmp.net
-softdepend: [PlaceholderAPI, ItemsAdder, floodgate, Geyser-Spigot]
+softdepend: [PlaceholderAPI, ItemsAdder, floodgate, Geyser-Spigot, Vault]
 
 commands:
   naturalschool:
