@@ -150,6 +150,9 @@ public class DatabaseManager {
         String createRaporSQL;
         String createLessonFilesSQL;
         String createQuestionTypesTableSQL = null;
+        String createClassroomsSQL;
+        String createClassroomOfficersSQL;
+        String createClassroomDoorsSQL;
         
         if ("MYSQL".equals(storageType)) {
             createTableSQL = "CREATE TABLE IF NOT EXISTS nschool_students ("
@@ -276,6 +279,27 @@ public class DatabaseManager {
                     + "question_code VARCHAR(10) NOT NULL UNIQUE, "
                     + "question_name VARCHAR(100) NOT NULL"
                     + ");";
+            createClassroomsSQL = "CREATE TABLE IF NOT EXISTS nschool_classrooms ("
+                    + "id_kelas INT PRIMARY KEY, "
+                    + "wali_kelas_uuid VARCHAR(36) NULL, "
+                    + "world VARCHAR(64) NULL, "
+                    + "x1 INT NULL, y1 INT NULL, z1 INT NULL, "
+                    + "x2 INT NULL, y2 INT NULL, z2 INT NULL"
+                    + ");";
+            createClassroomOfficersSQL = "CREATE TABLE IF NOT EXISTS nschool_classroom_officers ("
+                    + "player_uuid VARCHAR(36) PRIMARY KEY, "
+                    + "id_kelas INT NOT NULL, "
+                    + "role VARCHAR(20) NOT NULL, "
+                    + "INDEX idx_officer_class (id_kelas)"
+                    + ");";
+            createClassroomDoorsSQL = "CREATE TABLE IF NOT EXISTS nschool_classroom_doors ("
+                    + "id_kelas INT NOT NULL, "
+                    + "door_number INT NOT NULL, "
+                    + "world VARCHAR(64) NOT NULL, "
+                    + "x1 INT NOT NULL, y1 INT NOT NULL, z1 INT NOT NULL, "
+                    + "x2 INT NOT NULL, y2 INT NOT NULL, z2 INT NOT NULL, "
+                    + "PRIMARY KEY (id_kelas, door_number)"
+                    + ");";
         } else {
             createTableSQL = "CREATE TABLE IF NOT EXISTS nschool_students ("
                     + "uuid TEXT PRIMARY KEY, "
@@ -391,6 +415,26 @@ public class DatabaseManager {
                     + "question_code TEXT NOT NULL UNIQUE, "
                     + "question_name TEXT NOT NULL"
                     + ");";
+            createClassroomsSQL = "CREATE TABLE IF NOT EXISTS nschool_classrooms ("
+                    + "id_kelas INTEGER PRIMARY KEY, "
+                    + "wali_kelas_uuid TEXT NULL, "
+                    + "world TEXT NULL, "
+                    + "x1 INTEGER NULL, y1 INTEGER NULL, z1 INTEGER NULL, "
+                    + "x2 INTEGER NULL, y2 INTEGER NULL, z2 INTEGER NULL"
+                    + ");";
+            createClassroomOfficersSQL = "CREATE TABLE IF NOT EXISTS nschool_classroom_officers ("
+                    + "player_uuid TEXT PRIMARY KEY, "
+                    + "id_kelas INTEGER NOT NULL, "
+                    + "role TEXT NOT NULL"
+                    + ");";
+            createClassroomDoorsSQL = "CREATE TABLE IF NOT EXISTS nschool_classroom_doors ("
+                    + "id_kelas INTEGER NOT NULL, "
+                    + "door_number INTEGER NOT NULL, "
+                    + "world TEXT NOT NULL, "
+                    + "x1 INTEGER NOT NULL, y1 INTEGER NOT NULL, z1 INTEGER NOT NULL, "
+                    + "x2 INTEGER NOT NULL, y2 INTEGER NOT NULL, z2 INTEGER NOT NULL, "
+                    + "PRIMARY KEY (id_kelas, door_number)"
+                    + ");";
         }
 
         try (Connection conn = getConnection()) {
@@ -414,6 +458,9 @@ public class DatabaseManager {
                 stmt.execute(createRaporSQL);
                 stmt.execute(createLessonFilesSQL);
                 stmt.execute(createQuestionTypesTableSQL);
+                stmt.execute(createClassroomsSQL);
+                stmt.execute(createClassroomOfficersSQL);
+                stmt.execute(createClassroomDoorsSQL);
                 
                 if (!"MYSQL".equals(storageType)) {
                     stmt.execute("CREATE INDEX IF NOT EXISTS idx_questions_packet ON nschool_exam_questions (packet_id);");
@@ -426,6 +473,7 @@ public class DatabaseManager {
                     stmt.execute("CREATE INDEX IF NOT EXISTS idx_rapor_player ON natural_e_rapor_digital (player_uuid);");
                     stmt.execute("CREATE INDEX IF NOT EXISTS idx_lesson_files_jenjang ON natural_lesson_files (jenjang, mata_pelajaran);");
                     stmt.execute("CREATE INDEX IF NOT EXISTS idx_lesson_files_tipe ON natural_lesson_files (tipe);");
+                    stmt.execute("CREATE INDEX IF NOT EXISTS idx_officer_class ON nschool_classroom_officers (id_kelas);");
                 }
 
                 // Seed default 7 subjects
@@ -1052,6 +1100,257 @@ public class DatabaseManager {
             }
         } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "Error loading students in class " + classNumber, e);
+        }
+        return list;
+    }
+
+    // Classroom Database Operations
+    public void saveClassroom(int idKelas, String waliKelasUuid, String world, Integer x1, Integer y1, Integer z1, Integer x2, Integer y2, Integer z2) {
+        String query;
+        if ("MYSQL".equals(storageType)) {
+            query = "INSERT INTO nschool_classrooms (id_kelas, wali_kelas_uuid, world, x1, y1, z1, x2, y2, z2) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
+                    + "ON DUPLICATE KEY UPDATE wali_kelas_uuid = VALUES(wali_kelas_uuid), world = VALUES(world), "
+                    + "x1 = VALUES(x1), y1 = VALUES(y1), z1 = VALUES(z1), x2 = VALUES(x2), y2 = VALUES(y2), z2 = VALUES(z2);";
+        } else {
+            query = "INSERT OR REPLACE INTO nschool_classrooms (id_kelas, wali_kelas_uuid, world, x1, y1, z1, x2, y2, z2) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);";
+        }
+
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setInt(1, idKelas);
+            if (waliKelasUuid == null) ps.setNull(2, java.sql.Types.VARCHAR); else ps.setString(2, waliKelasUuid);
+            if (world == null) ps.setNull(3, java.sql.Types.VARCHAR); else ps.setString(3, world);
+            if (x1 == null) ps.setNull(4, java.sql.Types.INTEGER); else ps.setInt(4, x1);
+            if (y1 == null) ps.setNull(5, java.sql.Types.INTEGER); else ps.setInt(5, y1);
+            if (z1 == null) ps.setNull(6, java.sql.Types.INTEGER); else ps.setInt(6, z1);
+            if (x2 == null) ps.setNull(7, java.sql.Types.INTEGER); else ps.setInt(7, x2);
+            if (y2 == null) ps.setNull(8, java.sql.Types.INTEGER); else ps.setInt(8, y2);
+            if (z2 == null) ps.setNull(9, java.sql.Types.INTEGER); else ps.setInt(9, z2);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error saving classroom " + idKelas, e);
+        }
+    }
+
+    public void updateClassroomWaliKelas(int idKelas, String waliKelasUuid) {
+        String query = "UPDATE nschool_classrooms SET wali_kelas_uuid = ? WHERE id_kelas = ?;";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            if (waliKelasUuid == null) ps.setNull(1, java.sql.Types.VARCHAR); else ps.setString(1, waliKelasUuid);
+            ps.setInt(2, idKelas);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error updating classroom wali kelas for class " + idKelas, e);
+        }
+    }
+
+    public Map<String, Object> getClassroom(int idKelas) {
+        String query = "SELECT * FROM nschool_classrooms WHERE id_kelas = ?;";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setInt(1, idKelas);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("id_kelas", rs.getInt("id_kelas"));
+                    map.put("wali_kelas_uuid", rs.getString("wali_kelas_uuid"));
+                    map.put("world", rs.getString("world"));
+                    map.put("x1", rs.getObject("x1") != null ? rs.getInt("x1") : null);
+                    map.put("y1", rs.getObject("y1") != null ? rs.getInt("y1") : null);
+                    map.put("z1", rs.getObject("z1") != null ? rs.getInt("z1") : null);
+                    map.put("x2", rs.getObject("x2") != null ? rs.getInt("x2") : null);
+                    map.put("y2", rs.getObject("y2") != null ? rs.getInt("y2") : null);
+                    map.put("z2", rs.getObject("z2") != null ? rs.getInt("z2") : null);
+                    return map;
+                }
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error loading classroom " + idKelas, e);
+        }
+        return null;
+    }
+
+    public List<Map<String, Object>> getAllClassrooms() {
+        List<Map<String, Object>> list = new ArrayList<>();
+        String query = "SELECT * FROM nschool_classrooms;";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                Map<String, Object> map = new HashMap<>();
+                map.put("id_kelas", rs.getInt("id_kelas"));
+                map.put("wali_kelas_uuid", rs.getString("wali_kelas_uuid"));
+                map.put("world", rs.getString("world"));
+                map.put("x1", rs.getObject("x1") != null ? rs.getInt("x1") : null);
+                map.put("y1", rs.getObject("y1") != null ? rs.getInt("y1") : null);
+                map.put("z1", rs.getObject("z1") != null ? rs.getInt("z1") : null);
+                map.put("x2", rs.getObject("x2") != null ? rs.getInt("x2") : null);
+                map.put("y2", rs.getObject("y2") != null ? rs.getInt("y2") : null);
+                map.put("z2", rs.getObject("z2") != null ? rs.getInt("z2") : null);
+                list.add(map);
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error loading all classrooms", e);
+        }
+        return list;
+    }
+
+    // Classroom Officers Database Operations
+    public void saveClassroomOfficer(String playerUuid, int idKelas, String role) {
+        String query;
+        if ("MYSQL".equals(storageType)) {
+            query = "INSERT INTO nschool_classroom_officers (player_uuid, id_kelas, role) VALUES (?, ?, ?) "
+                    + "ON DUPLICATE KEY UPDATE id_kelas = VALUES(id_kelas), role = VALUES(role);";
+        } else {
+            query = "INSERT OR REPLACE INTO nschool_classroom_officers (player_uuid, id_kelas, role) VALUES (?, ?, ?);";
+        }
+
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setString(1, playerUuid);
+            ps.setInt(2, idKelas);
+            ps.setString(3, role);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error saving classroom officer for player " + playerUuid, e);
+        }
+    }
+
+    public void removeClassroomOfficer(String playerUuid) {
+        String query = "DELETE FROM nschool_classroom_officers WHERE player_uuid = ?;";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setString(1, playerUuid);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error removing classroom officer " + playerUuid, e);
+        }
+    }
+
+    public void clearClassroomOfficers(int idKelas) {
+        String query = "DELETE FROM nschool_classroom_officers WHERE id_kelas = ?;";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setInt(1, idKelas);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error clearing classroom officers for class " + idKelas, e);
+        }
+    }
+
+    public List<Map<String, String>> getClassroomOfficers(int idKelas) {
+        List<Map<String, String>> list = new ArrayList<>();
+        String query = "SELECT player_uuid, role FROM nschool_classroom_officers WHERE id_kelas = ?;";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setInt(1, idKelas);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, String> map = new HashMap<>();
+                    map.put("player_uuid", rs.getString("player_uuid"));
+                    map.put("role", rs.getString("role"));
+                    list.add(map);
+                }
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error loading classroom officers for class " + idKelas, e);
+        }
+        return list;
+    }
+
+    public Map<String, String> getOfficerRoleAndClass(String playerUuid) {
+        String query = "SELECT id_kelas, role FROM nschool_classroom_officers WHERE player_uuid = ?;";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setString(1, playerUuid);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    Map<String, String> map = new HashMap<>();
+                    map.put("id_kelas", String.valueOf(rs.getInt("id_kelas")));
+                    map.put("role", rs.getString("role"));
+                    return map;
+                }
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error loading officer role and class for player " + playerUuid, e);
+        }
+        return null;
+    }
+
+    // Classroom Doors Database Operations
+    public void saveClassroomDoor(int idKelas, int doorNumber, String world, int x1, int y1, int z1, int x2, int y2, int z2) {
+        String query;
+        if ("MYSQL".equals(storageType)) {
+            query = "INSERT INTO nschool_classroom_doors (id_kelas, door_number, world, x1, y1, z1, x2, y2, z2) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
+                    + "ON DUPLICATE KEY UPDATE world = VALUES(world), x1 = VALUES(x1), y1 = VALUES(y1), z1 = VALUES(z1), "
+                    + "x2 = VALUES(x2), y2 = VALUES(y2), z2 = VALUES(z2);";
+        } else {
+            query = "INSERT OR REPLACE INTO nschool_classroom_doors (id_kelas, door_number, world, x1, y1, z1, x2, y2, z2) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);";
+        }
+
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setInt(1, idKelas);
+            ps.setInt(2, doorNumber);
+            ps.setString(3, world);
+            ps.setInt(4, x1);
+            ps.setInt(5, y1);
+            ps.setInt(6, z1);
+            ps.setInt(7, x2);
+            ps.setInt(8, y2);
+            ps.setInt(9, z2);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error saving classroom door for class " + idKelas + " number " + doorNumber, e);
+        }
+    }
+
+    public void deleteClassroomDoor(int idKelas, int doorNumber) {
+        String query = "DELETE FROM nschool_classroom_doors WHERE id_kelas = ? AND door_number = ?;";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setInt(1, idKelas);
+            ps.setInt(2, doorNumber);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error deleting classroom door for class " + idKelas + " number " + doorNumber, e);
+        }
+    }
+
+    public void clearClassroomDoors(int idKelas) {
+        String query = "DELETE FROM nschool_classroom_doors WHERE id_kelas = ?;";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setInt(1, idKelas);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error clearing classroom doors for class " + idKelas, e);
+        }
+    }
+
+    public List<Map<String, Object>> getClassroomDoors(int idKelas) {
+        List<Map<String, Object>> list = new ArrayList<>();
+        String query = "SELECT * FROM nschool_classroom_doors WHERE id_kelas = ?;";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setInt(1, idKelas);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("id_kelas", rs.getInt("id_kelas"));
+                    map.put("door_number", rs.getInt("door_number"));
+                    map.put("world", rs.getString("world"));
+                    map.put("x1", rs.getInt("x1"));
+                    map.put("y1", rs.getInt("y1"));
+                    map.put("z1", rs.getInt("z1"));
+                    map.put("x2", rs.getInt("x2"));
+                    map.put("y2", rs.getInt("y2"));
+                    map.put("z2", rs.getInt("z2"));
+                    list.add(map);
+                }
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error loading classroom doors for class " + idKelas, e);
         }
         return list;
     }

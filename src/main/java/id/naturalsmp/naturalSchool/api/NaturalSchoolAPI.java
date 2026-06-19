@@ -89,5 +89,5 @@ public interface NaturalSchoolAPI {
      *
      * @return ClassManager instance
      */
-    id.naturalsmp.naturalSchool.classsession.ClassManager getClassManager();
+    id.naturalsmp.naturalSchool.classes.ClassManager getClassManager();
 }

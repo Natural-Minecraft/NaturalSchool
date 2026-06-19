@@ -1,4 +1,4 @@
-package id.naturalsmp.naturalSchool.classsession;
+package id.naturalsmp.naturalSchool.classes;
 
 import java.util.Map;
 import java.util.Set;

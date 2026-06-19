@@ -3,9 +3,10 @@ package id.naturalsmp.naturalSchool;
 import id.naturalsmp.naturalSchool.api.NaturalSchoolAPI;
 import id.naturalsmp.naturalSchool.api.NaturalSchoolAPIImpl;
 import id.naturalsmp.naturalSchool.api.NaturalSchoolProvider;
-import id.naturalsmp.naturalSchool.classsession.ClassManager;
-import id.naturalsmp.naturalSchool.classsession.ClassSession;
-import id.naturalsmp.naturalSchool.command.KelasCommand;
+import id.naturalsmp.naturalSchool.classes.ClassManager;
+import id.naturalsmp.naturalSchool.classes.ClassSession;
+import id.naturalsmp.naturalSchool.classes.ClassroomManager;
+import id.naturalsmp.naturalSchool.classes.ClassChatManager;
 import id.naturalsmp.naturalSchool.database.DatabaseManager;
 import id.naturalsmp.naturalSchool.database.RankPrefixConfig;
 import id.naturalsmp.naturalSchool.listener.PlayerListener;
@@ -32,6 +33,8 @@ public final class NaturalSchool extends JavaPlugin {
     private SemesterManager semesterManager;
     private ExamManager examManager;
     private ClassManager classManager;
+    private ClassroomManager classroomManager;
+    private ClassChatManager classChatManager;
 
     @Override
     public void onEnable() {
@@ -41,7 +44,9 @@ public final class NaturalSchool extends JavaPlugin {
         // Initialize Semester Manager
         semesterManager = new SemesterManager(this);
 
-        // Initialize Class Manager
+        // Initialize Class and Chat managers
+        classChatManager = new ClassChatManager(this);
+        classroomManager = new ClassroomManager(this);
         classManager = new ClassManager(this);
 
         // Initialize & Register Developer API
@@ -57,6 +62,9 @@ public final class NaturalSchool extends JavaPlugin {
         // Initialize Database Infrastructure
         databaseManager = new DatabaseManager(this);
         databaseManager.initialize();
+
+        // Load classroom configurations from Database
+        classroomManager.loadAllClassrooms();
 
         // Initialize Exam Cache Manager & Webhook Server
         examManager = new ExamManager(this);
@@ -86,11 +94,11 @@ public final class NaturalSchool extends JavaPlugin {
             schoolCmd.setTabCompleter(schoolCommand);
         }
 
-        KelasCommand kelasCommand = new KelasCommand(this);
-        org.bukkit.command.PluginCommand kelasCmd = getCommand("kelas");
-        if (kelasCmd != null) {
-            kelasCmd.setExecutor(kelasCommand);
-            kelasCmd.setTabCompleter(kelasCommand);
+        id.naturalsmp.naturalSchool.command.ClassCommand classCommand = new id.naturalsmp.naturalSchool.command.ClassCommand(this);
+        org.bukkit.command.PluginCommand classCmd = getCommand("class");
+        if (classCmd != null) {
+            classCmd.setExecutor(classCommand);
+            classCmd.setTabCompleter(classCommand);
         }
 
         // Register PlaceholderAPI Expansion if PAPI is present on the server
@@ -220,6 +228,14 @@ public final class NaturalSchool extends JavaPlugin {
 
     public ClassManager getClassManager() {
         return classManager;
+    }
+
+    public ClassroomManager getClassroomManager() {
+        return classroomManager;
+    }
+
+    public ClassChatManager getClassChatManager() {
+        return classChatManager;
     }
 
     public boolean isExamOpen() {

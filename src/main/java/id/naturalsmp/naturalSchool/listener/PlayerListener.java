@@ -19,11 +19,14 @@ import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.entity.EntityPickupItemEvent;
 
 import java.util.UUID;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class PlayerListener implements Listener {
 
     private final NaturalSchool plugin;
     private final ProfileManager profileManager;
+    private final Map<UUID, Integer> insideClassrooms = new ConcurrentHashMap<>();
 
     public PlayerListener(NaturalSchool plugin, ProfileManager profileManager) {
         this.plugin = plugin;
@@ -67,12 +70,15 @@ public class PlayerListener implements Listener {
         UUID uuid = player.getUniqueId();
         plugin.getUiManager().unfreezePlayer(player);
         plugin.getUiManager().clearExamSession(player);
+        insideClassrooms.remove(uuid);
         handleDisconnect(uuid);
     }
 
     @EventHandler
     public void onPlayerKick(PlayerKickEvent event) {
-        plugin.getUiManager().clearExamSession(event.getPlayer());
+        Player player = event.getPlayer();
+        plugin.getUiManager().clearExamSession(player);
+        insideClassrooms.remove(player.getUniqueId());
     }
 
     // NOTE: No separate onPlayerKick handler — on Paper, PlayerKickEvent also fires
@@ -80,13 +86,65 @@ public class PlayerListener implements Listener {
 
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
-        if (plugin.getUiManager().isFrozen(event.getPlayer().getUniqueId())) {
+        Player player = event.getPlayer();
+        if (plugin.getUiManager().isFrozen(player.getUniqueId())) {
             // Check if player changed blocks (allows looking around, cancels walking/teleporting)
             if (event.getFrom().getX() != event.getTo().getX()
                 || event.getFrom().getY() != event.getTo().getY()
                 || event.getFrom().getZ() != event.getTo().getZ()) {
                 event.setTo(event.getFrom());
             }
+            return;
+        }
+
+        // Optimize block coordinate checks
+        if (event.getFrom().getBlockX() == event.getTo().getBlockX()
+            && event.getFrom().getBlockY() == event.getTo().getBlockY()
+            && event.getFrom().getBlockZ() == event.getTo().getBlockZ()
+            && event.getFrom().getWorld().equals(event.getTo().getWorld())) {
+            return;
+        }
+
+        int newClassNum = 0;
+        for (id.naturalsmp.naturalSchool.classes.ClassroomManager.ClassroomData data : plugin.getClassroomManager().getAllClassroomData()) {
+            if (data.isInside(event.getTo())) {
+                newClassNum = data.getIdKelas();
+                break;
+            }
+        }
+
+        int oldClassNum = insideClassrooms.getOrDefault(player.getUniqueId(), 0);
+        if (newClassNum != oldClassNum) {
+            if (oldClassNum != 0) {
+                String oldClassName = plugin.getRankPrefixConfig().getClassPrefix(oldClassNum);
+                if (oldClassName == null || oldClassName.isEmpty()) {
+                    oldClassName = "Kelas " + oldClassNum;
+                }
+                String leaveMsg = "§c§l" + oldClassName.trim() + " §cMeninggalkan ruang kelas §e" + oldClassName.trim();
+                player.sendMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection().deserialize(leaveMsg));
+            }
+            if (newClassNum != 0) {
+                String newClassName = plugin.getRankPrefixConfig().getClassPrefix(newClassNum);
+                if (newClassName == null || newClassName.isEmpty()) {
+                    newClassName = "Kelas " + newClassNum;
+                }
+                String enterMsg = "§a§l" + newClassName.trim() + " §aMemasuki ruang kelas §e" + newClassName.trim();
+                player.sendMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection().deserialize(enterMsg));
+                insideClassrooms.put(player.getUniqueId(), newClassNum);
+            } else {
+                insideClassrooms.remove(player.getUniqueId());
+            }
+        }
+    }
+
+    @EventHandler
+    public void onPlayerChat(org.bukkit.event.player.AsyncPlayerChatEvent event) {
+        Player player = event.getPlayer();
+        if (plugin.getClassChatManager().isInClassChatChannel(player.getUniqueId())) {
+            event.setCancelled(true);
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                plugin.getClassChatManager().sendClassChat(player, event.getMessage());
+            });
         }
     }
 

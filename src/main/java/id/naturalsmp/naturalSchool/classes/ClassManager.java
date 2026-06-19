@@ -1,4 +1,4 @@
-package id.naturalsmp.naturalSchool.classsession;
+package id.naturalsmp.naturalSchool.classes;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -60,6 +60,9 @@ public class ClassManager {
         // Attempt to lock class region via WorldGuard
         setWorldGuardRegionEntry(idKelas, false);
 
+        // Toggle tinted glass doors to AIR
+        plugin.getClassroomManager().toggleDoors(getClassNumber(idKelas), true);
+
         String teacherName = "System";
         if (teacherUuid != null) {
             Player p = Bukkit.getPlayer(teacherUuid);
@@ -104,6 +107,9 @@ public class ClassManager {
 
         session.setClosed(true);
         setWorldGuardRegionEntry(idKelas, true);
+
+        // Toggle tinted glass doors to TINTED_GLASS
+        plugin.getClassroomManager().toggleDoors(getClassNumber(idKelas), false);
 
         // Run rekapitulasi / save to DB
         rekapSessionInternal(session);
@@ -366,6 +372,18 @@ public class ClassManager {
     }
 
     private void setWorldGuardRegionEntry(String regionId, boolean allow) {
+        // Query custom region name from DB if available, fallback to default regionId (e.g. "kelas10")
+        String customRegionName = regionId;
+        try {
+            int classNum = getClassNumber(regionId);
+            if (classNum > 0) {
+                String dbRegion = plugin.getClassroomManager().getClassroomRegion(classNum);
+                if (dbRegion != null && !dbRegion.isEmpty()) {
+                    customRegionName = dbRegion;
+                }
+            }
+        } catch (Exception ignored) {}
+
         try {
             if (Bukkit.getPluginManager().getPlugin("WorldGuard") == null) return;
             Class<?> wgClass = Class.forName("com.sk89q.worldguard.WorldGuard");
@@ -385,7 +403,7 @@ public class ClassManager {
                 Object editWorld = bukkitWorldClass.getConstructor(org.bukkit.World.class).newInstance(w);
                 Object manager = container.getClass().getMethod("get", Class.forName("com.sk89q.worldedit.world.World")).invoke(container, editWorld);
                 if (manager != null) {
-                    Object region = manager.getClass().getMethod("getRegion", String.class).invoke(manager, regionId);
+                    Object region = manager.getClass().getMethod("getRegion", String.class).invoke(manager, customRegionName);
                     if (region != null) {
                         region.getClass().getMethod("setFlag", Class.forName("com.sk89q.worldguard.protection.flags.Flag"), Object.class)
                               .invoke(region, entryFlag, allow ? null : denyState);

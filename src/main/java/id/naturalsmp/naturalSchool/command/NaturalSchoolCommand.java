@@ -91,6 +91,9 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
             case "exam":
                 handleExamCommand(sender, args);
                 break;
+            case "class":
+                handleClassCommand(sender, args);
+                break;
             default:
                 sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Unknown subcommand. Use /naturalschool for help.</red>"));
                 break;
@@ -110,8 +113,195 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
             "<yellow>/naturalschool nis help</yellow> - <gray>View NIS Management System help.</gray>\n" +
             "<yellow>/naturalschool gui <welcome|exam1|exam2|exam3|exam4|exam5|version> [player]</yellow> - <gray>Manually trigger school GUI dialogs or view GUI version.</gray>\n" +
             "<yellow>/naturalschool semester <info|end></yellow> - <gray>Manage and rotate active school semesters.</gray>\n" +
-            "<yellow>/naturalschool exam <open|close|message|sync> [msg]</yellow> - <gray>Manage exam portal status, messages, and synchronization.</gray>"
+            "<yellow>/naturalschool exam <open|close|message|sync> [msg]</yellow> - <gray>Manage exam portal status, messages, and synchronization.</gray>\n" +
+            "<yellow>/naturalschool class ...</yellow> - <gray>Manage classrooms, homerooms, areas, and doors. Type /ns class for sub-help.</gray>"
         ));
+    }
+
+    private void handleClassCommand(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            sender.sendMessage(MiniMessage.miniMessage().deserialize(
+                "<gold>=== NaturalSchool Admin Class Commands ===</gold>\n" +
+                "<yellow>/ns class list</yellow> - <gray>List all classrooms 1-12 and details.</gray>\n" +
+                "<yellow>/ns class spy [player]</yellow> - <gray>Toggle class chat spy for player.</gray>\n" +
+                "<yellow>/ns class setwali <1-12> <player></yellow> - <gray>Assign Wali Kelas.</gray>\n" +
+                "<yellow>/ns class area <1-12> set</yellow> - <gray>Set classroom bounds from WorldEdit selection.</gray>\n" +
+                "<yellow>/ns class area <1-12> remove</yellow> - <gray>Remove classroom bounds.</gray>\n" +
+                "<yellow>/ns class door <1-12> <door_num> set</yellow> - <gray>Set door coordinates from WorldEdit selection.</gray>\n" +
+                "<yellow>/ns class door <1-12> <door_num> remove</yellow> - <gray>Remove class door.</gray>\n" +
+                "<yellow>/ns class panel [player]</yellow> - <gray>Open classroom manager GUI.</gray>"
+            ));
+            return;
+        }
+
+        String sub = args[1].toLowerCase();
+        if (sub.equals("list")) {
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<gold>=== List Kelas NaturalSchool ===</gold>"));
+            for (int i = 1; i <= 12; i++) {
+                id.naturalsmp.naturalSchool.classes.ClassroomManager.ClassroomData data = plugin.getClassroomManager().getClassroom(i);
+                String prefix = plugin.getRankPrefixConfig().getClassPrefix(i);
+                String bounds = data.hasBounds() ? data.getWorldName() + " (" + data.getX1() + "," + data.getY1() + "," + data.getZ1() + " to " + data.getX2() + "," + data.getY2() + "," + data.getZ2() + ")" : "Not Set";
+                String wali = "None";
+                if (data.getWaliKelasUuid() != null) {
+                    wali = Bukkit.getOfflinePlayer(data.getWaliKelasUuid()).getName();
+                    if (wali == null) wali = data.getWaliKelasUuid().toString();
+                }
+                sender.sendMessage(MiniMessage.miniMessage().deserialize(
+                    "<yellow>Kelas " + i + " (" + prefix.trim() + "):</yellow>\n" +
+                    "  » Wali Kelas: <white>" + wali + "</white>\n" +
+                    "  » Bounds Area: <white>" + bounds + "</white>\n" +
+                    "  » Officers: <white>" + data.getOfficers().size() + "</white>\n" +
+                    "  » Doors: <white>" + plugin.getClassroomManager().getDoors(i).size() + "</white>"
+                ));
+            }
+        } else if (sub.equals("spy")) {
+            Player target = (sender instanceof Player) ? (Player) sender : null;
+            if (args.length >= 3) {
+                target = Bukkit.getPlayer(args[2]);
+            }
+            if (target == null) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Player tidak ditemukan!</red>"));
+                return;
+            }
+            boolean active = plugin.getClassChatManager().toggleChatSpy(target.getUniqueId());
+            if (active) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>Chat Spy diaktifkan untuk " + target.getName() + ".</green>"));
+            } else {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<yellow>Chat Spy dinonaktifkan untuk " + target.getName() + ".</yellow>"));
+            }
+        } else if (sub.equals("setwali")) {
+            if (args.length < 4) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Format: /ns class setwali <1-12> <player></red>"));
+                return;
+            }
+            int classNum;
+            try {
+                classNum = Integer.parseInt(args[2].replaceAll("\\D+", ""));
+            } catch (Exception e) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Kelas harus berupa angka 1-12!</red>"));
+                return;
+            }
+            if (classNum < 1 || classNum > 12) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Kelas harus bernilai 1-12!</red>"));
+                return;
+            }
+            String targetName = args[3];
+            OfflinePlayer op = Bukkit.getOfflinePlayer(targetName);
+            plugin.getClassroomManager().updateWaliKelas(classNum, op.getUniqueId());
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>Berhasil mengubah Wali Kelas " + classNum + " menjadi " + op.getName() + ".</green>"));
+        } else if (sub.equals("panel")) {
+            Player target = (sender instanceof Player) ? (Player) sender : null;
+            if (args.length >= 3) {
+                target = Bukkit.getPlayer(args[2]);
+            }
+            if (target == null) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Player tidak ditemukan untuk membuka panel!</red>"));
+                return;
+            }
+            boolean isBedrock = false;
+            try {
+                if (Bukkit.getPluginManager().isPluginEnabled("floodgate")) {
+                    isBedrock = org.geysermc.floodgate.api.FloodgateApi.getInstance().isFloodgatePlayer(target.getUniqueId());
+                }
+            } catch (Throwable ignored) {}
+            
+            id.naturalsmp.naturalSchool.ui.gui.ClassroomManagerGui gui = new id.naturalsmp.naturalSchool.ui.gui.ClassroomManagerGui(plugin);
+            if (isBedrock) {
+                gui.openClassroomManagerBedrock(target);
+            } else {
+                gui.openClassroomManagerJava(target);
+            }
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>Membuka panel manajemen kelas untuk " + target.getName() + ".</green>"));
+        } else if (sub.equals("area")) {
+            if (args.length < 4) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Format: /ns class area <1-12> <set/remove></red>"));
+                return;
+            }
+            int classNum;
+            try {
+                classNum = Integer.parseInt(args[2].replaceAll("\\D+", ""));
+            } catch (Exception e) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Kelas harus berupa angka 1-12!</red>"));
+                return;
+            }
+            if (classNum < 1 || classNum > 12) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Kelas harus bernilai 1-12!</red>"));
+                return;
+            }
+            String action = args[3].toLowerCase();
+            if (action.equals("set")) {
+                if (!(sender instanceof Player)) {
+                    sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Hanya player yang dapat menggunakan seleksi WorldEdit!</red>"));
+                    return;
+                }
+                Player p = (Player) sender;
+                try {
+                    Integer[] sel = getWorldEditSelection(p);
+                    if (sel != null) {
+                        plugin.getClassroomManager().saveClassroomBounds(
+                            classNum,
+                            p.getWorld().getName(),
+                            sel[0], sel[1], sel[2],
+                            sel[3], sel[4], sel[5]
+                        );
+                        p.sendMessage(MiniMessage.miniMessage().deserialize("<green>Berhasil menyimpan batas koordinat area kelas " + classNum + " sesuai seleksi WorldEdit Anda!</green>"));
+                    } else {
+                        p.sendMessage(MiniMessage.miniMessage().deserialize("<red>Gagal! Anda belum membuat seleksi WorldEdit.</red>"));
+                    }
+                } catch (Throwable t) {
+                    p.sendMessage(MiniMessage.miniMessage().deserialize("<red>Gagal mengambil seleksi: " + t.getMessage() + "</red>"));
+                }
+            } else if (action.equals("remove")) {
+                plugin.getClassroomManager().saveClassroomBounds(classNum, null, null, null, null, null, null, null);
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>Berhasil menghapus batas koordinat area kelas " + classNum + ".</green>"));
+            }
+        } else if (sub.equals("door")) {
+            if (args.length < 5) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Format: /ns class door <1-12> <door_num> <set/remove></red>"));
+                return;
+            }
+            int classNum;
+            int doorNum;
+            try {
+                classNum = Integer.parseInt(args[2].replaceAll("\\D+", ""));
+                doorNum = Integer.parseInt(args[3].replaceAll("\\D+", ""));
+            } catch (Exception e) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Kelas dan nomor pintu harus berupa angka!</red>"));
+                return;
+            }
+            if (classNum < 1 || classNum > 12) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Kelas harus bernilai 1-12!</red>"));
+                return;
+            }
+            String action = args[4].toLowerCase();
+            if (action.equals("set")) {
+                if (!(sender instanceof Player)) {
+                    sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Hanya player yang dapat menggunakan seleksi WorldEdit!</red>"));
+                    return;
+                }
+                Player p = (Player) sender;
+                try {
+                    Integer[] sel = getWorldEditSelection(p);
+                    if (sel != null) {
+                        plugin.getClassroomManager().addDoor(
+                            classNum,
+                            doorNum,
+                            p.getWorld().getName(),
+                            sel[0], sel[1], sel[2],
+                            sel[3], sel[4], sel[5]
+                        );
+                        p.sendMessage(MiniMessage.miniMessage().deserialize("<green>Berhasil menambahkan/mengatur koordinat Pintu " + doorNum + " untuk kelas " + classNum + " sesuai seleksi WorldEdit Anda!</green>"));
+                    } else {
+                        p.sendMessage(MiniMessage.miniMessage().deserialize("<red>Gagal! Anda belum membuat seleksi WorldEdit.</red>"));
+                    }
+                } catch (Throwable t) {
+                    p.sendMessage(MiniMessage.miniMessage().deserialize("<red>Gagal mengambil seleksi: " + t.getMessage() + "</red>"));
+                }
+            } else if (action.equals("remove")) {
+                plugin.getClassroomManager().removeDoor(classNum, doorNum);
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>Berhasil menghapus Pintu " + doorNum + " untuk kelas " + classNum + ".</green>"));
+            }
+        }
     }
 
     private void handleReload(CommandSender sender) {
@@ -811,7 +1001,7 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 1) {
-            List<String> subCommands = Arrays.asList("reload", "info", "setrank", "setclass", "setstage", "nis", "gui", "semester", "exam");
+            List<String> subCommands = Arrays.asList("reload", "info", "setrank", "setclass", "setstage", "nis", "gui", "semester", "exam", "class");
             return filterList(subCommands, args[0]);
         }
 
@@ -825,6 +1015,8 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
                 return filterList(Arrays.asList("open", "close", "message", "sync"), args[1]);
             } else if ("gui".equals(subCommand)) {
                 return filterList(Arrays.asList("welcome", "exam1", "exam2", "exam3", "exam4", "exam5", "version"), args[1]);
+            } else if ("class".equals(subCommand)) {
+                return filterList(Arrays.asList("list", "spy", "setwali", "panel", "area", "door"), args[1]);
             } else if (Arrays.asList("info", "setrank", "setclass", "setstage").contains(subCommand)) {
                 List<String> players = Bukkit.getOnlinePlayers().stream()
                         .map(Player::getName)
@@ -851,6 +1043,20 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
                             .collect(Collectors.toList());
                     return filterList(players, args[2]);
                 }
+            } else if ("class".equals(subCommand)) {
+                String subCls = args[1].toLowerCase();
+                if (subCls.equals("spy") || subCls.equals("panel")) {
+                    List<String> players = Bukkit.getOnlinePlayers().stream()
+                            .map(Player::getName)
+                            .collect(Collectors.toList());
+                    return filterList(players, args[2]);
+                } else if (Arrays.asList("setwali", "area", "door").contains(subCls)) {
+                    List<String> classes = new ArrayList<>();
+                    for (int i = 1; i <= 12; i++) {
+                        classes.add("kelas" + i);
+                    }
+                    return filterList(classes, args[2]);
+                }
             } else if ("setrank".equals(subCommand)) {
                 List<String> ranks = Arrays.stream(SchoolRank.values())
                         .map(SchoolRank::name)
@@ -871,6 +1077,26 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
             String subCommand = args[0].toLowerCase();
             if ("nis".equals(subCommand) && "set".equalsIgnoreCase(args[1])) {
                 return filterList(Collections.singletonList("<10-digit-nis>"), args[3]);
+            } else if ("class".equals(subCommand)) {
+                String subCls = args[1].toLowerCase();
+                if (subCls.equals("setwali")) {
+                    List<String> players = Bukkit.getOnlinePlayers().stream()
+                            .map(Player::getName)
+                            .collect(Collectors.toList());
+                    return filterList(players, args[3]);
+                } else if (subCls.equals("area")) {
+                    return filterList(Arrays.asList("set", "remove"), args[3]);
+                } else if (subCls.equals("door")) {
+                    List<String> doorNums = Arrays.asList("1", "2", "3", "4");
+                    return filterList(doorNums, args[3]);
+                }
+            }
+        }
+
+        if (args.length == 5) {
+            String subCommand = args[0].toLowerCase();
+            if ("class".equals(subCommand) && "door".equalsIgnoreCase(args[1])) {
+                return filterList(Arrays.asList("set", "remove"), args[4]);
             }
         }
 
@@ -882,5 +1108,48 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
         return list.stream()
                 .filter(s -> s.toLowerCase().startsWith(lowerInput))
                 .collect(Collectors.toList());
+    }
+
+    private Integer[] getWorldEditSelection(Player player) {
+        try {
+            if (Bukkit.getPluginManager().getPlugin("WorldEdit") == null) {
+                return null;
+            }
+            Class<?> bukkitAdapterClass = Class.forName("com.sk89q.worldedit.bukkit.BukkitAdapter");
+            Object actor = bukkitAdapterClass.getMethod("adapt", Player.class).invoke(null, player);
+            Class<?> worldEditClass = Class.forName("com.sk89q.worldedit.WorldEdit");
+            Object worldEditInstance = worldEditClass.getMethod("getInstance").invoke(null);
+            Object sessionManager = worldEditClass.getMethod("getSessionManager").invoke(worldEditInstance);
+            Class<?> sessionOwnerClass = Class.forName("com.sk89q.worldedit.session.SessionOwner");
+            Object localSession = sessionManager.getClass().getMethod("get", sessionOwnerClass).invoke(sessionManager, actor);
+            Object world = actor.getClass().getMethod("getWorld").invoke(actor);
+            Class<?> worldClass = Class.forName("com.sk89q.worldedit.world.World");
+            Object region = localSession.getClass().getMethod("getSelection", worldClass).invoke(localSession, world);
+            if (region == null) {
+                return null;
+            }
+            Object minPoint = region.getClass().getMethod("getMinimumPoint").invoke(region);
+            Object maxPoint = region.getClass().getMethod("getMaximumPoint").invoke(region);
+            int minX, minY, minZ, maxX, maxY, maxZ;
+            try {
+                minX = (int) minPoint.getClass().getMethod("getBlockX").invoke(minPoint);
+                minY = (int) minPoint.getClass().getMethod("getBlockY").invoke(minPoint);
+                minZ = (int) minPoint.getClass().getMethod("getBlockZ").invoke(minPoint);
+                maxX = (int) maxPoint.getClass().getMethod("getBlockX").invoke(maxPoint);
+                maxY = (int) maxPoint.getClass().getMethod("getBlockY").invoke(maxPoint);
+                maxZ = (int) maxPoint.getClass().getMethod("getBlockZ").invoke(maxPoint);
+            } catch (NoSuchMethodException e) {
+                minX = ((Double) minPoint.getClass().getMethod("getX").invoke(minPoint)).intValue();
+                minY = ((Double) minPoint.getClass().getMethod("getY").invoke(minPoint)).intValue();
+                minZ = ((Double) minPoint.getClass().getMethod("getZ").invoke(minPoint)).intValue();
+                maxX = ((Double) maxPoint.getClass().getMethod("getX").invoke(maxPoint)).intValue();
+                maxY = ((Double) maxPoint.getClass().getMethod("getY").invoke(maxPoint)).intValue();
+                maxZ = ((Double) maxPoint.getClass().getMethod("getZ").invoke(maxPoint)).intValue();
+            }
+            return new Integer[]{minX, minY, minZ, maxX, maxY, maxZ};
+        } catch (Throwable t) {
+            plugin.getLogger().warning("Error getting WorldEdit selection: " + t.getMessage());
+            return null;
+        }
     }
 }

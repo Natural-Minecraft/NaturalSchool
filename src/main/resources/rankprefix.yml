@@ -82,3 +82,27 @@ ranks:
   NONE:
     prefix: "<gray>[Belum Terdaftar]</gray> "
     name-color: "<gray>"
+
+# Tag penanda peran kepengurusan kelas
+class-roles:
+  WALI_KELAS: "<gold>[Wali Kelas]</gold> "
+  KETUA: "<red>[Ketua Kelas]</red> "
+  WAKIL: "<green>[Wakil Ketua]</green> "
+  SEKRETARIS: "<yellow>[Sekretaris]</yellow> "
+  BENDAHARA: "<light_purple>[Bendahara]</light_purple> "
+  ANGGOTA: "<gray>[Siswa]</gray> "
+
+# Prefix tingkatan kelas berdasarkan academic_class (1-12)
+class-prefixes:
+  1: "<green>[SD I]</green> "
+  2: "<green>[SD II]</green> "
+  3: "<green>[SD III]</green> "
+  4: "<green>[SD IV]</green> "
+  5: "<green>[SD V]</green> "
+  6: "<green>[SD VI]</green> "
+  7: "<blue>[SMP VII]</blue> "
+  8: "<blue>[SMP VIII]</blue> "
+  9: "<blue>[SMP IX]</blue> "
+  10: "<dark_purple>[SMA X]</dark_purple> "
+  11: "<dark_purple>[SMA XI]</dark_purple> "
+  12: "<dark_purple>[SMA XII]</dark_purple> "

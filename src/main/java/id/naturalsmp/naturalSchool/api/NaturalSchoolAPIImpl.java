@@ -214,7 +214,7 @@ public class NaturalSchoolAPIImpl implements NaturalSchoolAPI {
     }
 
     @Override
-    public id.naturalsmp.naturalSchool.classsession.ClassManager getClassManager() {
+    public id.naturalsmp.naturalSchool.classes.ClassManager getClassManager() {
         return plugin.getClassManager();
     }
 }

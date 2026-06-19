@@ -17,6 +17,8 @@ public class RankPrefixConfig {
     private final File configFile;
     private FileConfiguration config;
     private final Map<SchoolRank, String> formattedPrefixCache = new EnumMap<>(SchoolRank.class);
+    private final Map<Integer, String> classPrefixCache = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<String, String> classRoleCache = new java.util.concurrent.ConcurrentHashMap<>();
     private boolean itemsAdderEnabled;
     private Object itemsAdderWrapper;
 
@@ -95,7 +97,29 @@ public class RankPrefixConfig {
 
             formattedPrefixCache.put(rank, legacyFormatted);
         }
-        plugin.getLogger().info("Successfully loaded and cached " + formattedPrefixCache.size() + " rank prefixes.");
+
+        // Rebuild classPrefixCache and classRoleCache
+        classPrefixCache.clear();
+        if (config.isConfigurationSection("class-prefixes")) {
+            for (String key : config.getConfigurationSection("class-prefixes").getKeys(false)) {
+                try {
+                    int classNum = Integer.parseInt(key);
+                    String val = config.getString("class-prefixes." + key, "");
+                    classPrefixCache.put(classNum, val);
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+
+        classRoleCache.clear();
+        if (config.isConfigurationSection("class-roles")) {
+            for (String key : config.getConfigurationSection("class-roles").getKeys(false)) {
+                String val = config.getString("class-roles." + key, "");
+                classRoleCache.put(key.toUpperCase(), val);
+            }
+        }
+
+        plugin.getLogger().info("Successfully loaded and cached " + formattedPrefixCache.size() + " rank prefixes, " 
+            + classPrefixCache.size() + " class prefixes, and " + classRoleCache.size() + " class roles.");
     }
 
     /**
@@ -109,5 +133,14 @@ public class RankPrefixConfig {
             return "";
         }
         return formattedPrefixCache.getOrDefault(rank, "");
+    }
+
+    public String getClassPrefix(int classNum) {
+        return classPrefixCache.getOrDefault(classNum, "");
+    }
+
+    public String getClassRolePrefix(String role) {
+        if (role == null) return "";
+        return classRoleCache.getOrDefault(role.toUpperCase(), "");
     }
 }

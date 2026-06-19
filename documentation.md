@@ -84,16 +84,51 @@ Tingkatan jabatan dalam sekolah diatur dalam sistem enum `SchoolRank` yang menam
 
 ---
 
-## 🏫 3. Sistem Manajemen Sesi Kelas (`/kelas`)
+## 🏫 3. Sistem Manajemen & Organisasi Kelas (`/class` / `/kelas`)
 
-### 3.1 Integrasi WorldGuard Region & Presensi
-Perintah `/kelas` menggunakan prinsip **Auto-Detect Region**. Staf pengajar tidak perlu menulis `<id_kelas>` sebagai argumen jika mereka sedang berada di dalam kelas. Plugin mendeteksi koordinat lokasi pengirim menggunakan API WorldGuard untuk mencocokkan region berawalan `"kelas"` (misal: `kelas8`). 
+Modul Organisasi Kelas menyediakan infrastruktur terintegrasi untuk mengelola struktur kepengurusan kelas, batas wilayah spasial kelas, log transisi visual saat melintasi kelas, obrolan kelas terformat, pintu blok otomatis berbasis tinted glass, serta panel visual manajemen kelas.
+
+### 3.1 Skema Database Baru (Clean DB)
+Sistem menyimpan struktur organisasi dan batasan area kelas dalam 3 tabel baru di database SQLite (`school.db`) dan MySQL:
+1. **`nschool_classrooms`**: Menyimpan data dasar ruang kelas (1 s.d 12), guru Wali Kelas, dan koordinat area kubus kelas.
+   ```sql
+   CREATE TABLE IF NOT EXISTS nschool_classrooms (
+       id_kelas INT PRIMARY KEY,
+       wali_kelas_uuid VARCHAR(36) NULL,
+       world VARCHAR(64) NULL,
+       x1 INT NULL, y1 INT NULL, z1 INT NULL,
+       x2 INT NULL, y2 INT NULL, z2 INT NULL
+   );
+   ```
+2. **`nschool_classroom_officers`**: Menyimpan kepengurusan kelas yang ditunjuk Wali Kelas (Ketua, Wakil, Sekretaris, Bendahara, Anggota).
+   ```sql
+   CREATE TABLE IF NOT EXISTS nschool_classroom_officers (
+       player_uuid VARCHAR(36) PRIMARY KEY,
+       id_kelas INT NOT NULL,
+       role VARCHAR(20) NOT NULL,
+       INDEX idx_officer_class (id_kelas)
+   );
+   ```
+3. **`nschool_classroom_doors`**: Menyimpan batas koordinat pintu kelas yang akan berubah menjadi Tinted Glass (ketika kelas tutup) dan Air (ketika kelas buka).
+   ```sql
+   CREATE TABLE IF NOT EXISTS nschool_classroom_doors (
+       id_kelas INT NOT NULL,
+       door_number INT NOT NULL,
+       world VARCHAR(64) NOT NULL,
+       x1 INT NOT NULL, y1 INT NOT NULL, z1 INT NOT NULL,
+       x2 INT NOT NULL, y2 INT NOT NULL, z2 INT NOT NULL,
+       PRIMARY KEY (id_kelas, door_number)
+   );
+   ```
+
+### 3.2 Integrasi WorldGuard Region & Presensi
+Perintah `/kelas start` (atau `/class start`) menggunakan prinsip **Auto-Detect Region**. Staf pengajar tidak perlu menulis `<id_kelas>` sebagai argumen jika mereka sedang berada di dalam kelas. Plugin mendeteksi koordinat lokasi pengirim menggunakan API WorldGuard untuk mencocokkan region berawalan `"kelas"` (misal: `kelas8`). 
 
 * **Presensi Awal**: Murid yang berada di dalam region saat sesi dimulai otomatis mendapatkan status `HADIR` (atau `TERLAMBAT` jika dimulai di atas pukul 20:00 WIB).
 * **Pemulangan Dini**: Murid yang telah menyelesaikan semua aktivitas belajar dapat dipulangkan oleh guru menggunakan `/kelas selesaikan <player>`. Ini mengunci status kehadiran mereka sebagai `HADIR` dan membuka pintu keluar region bagi pemain terkait untuk dapat meninggalkan area sekolah tanpa penalti.
 * **Rekap Sesi**: Saat sesi ditutup, sistem akan mendata seluruh murid terdaftar. Siswa online yang tidak hadir di dalam kelas akan langsung mendapat status `ALFA`. Rekapitulasi nilai kuis dan presensi kemudian disimpan langsung ke database secara asinkron.
 
-### 3.2 Kebijakan Auto-Fallback & Guardian Policy
+### 3.3 Kebijakan Auto-Fallback & Guardian Policy
 Auto-Fallback bertindak sebagai pengaman otomatis untuk mengantisipasi kelalaian staf pengajar yang tidak hadir saat kelas dimulai pada jam 18:00 WIB. Mekanisme ini dieksekusi secara otomatis oleh scheduler pada pukul **18:15 WIB**:
 
 ```
@@ -114,6 +149,26 @@ Auto-Fallback bertindak sebagai pengaman otomatis untuk mengantisipasi kelalaian
 * **Kondisi 1 (Ada Berkas di DB)**: Sistem memindai tabel `natural_lesson_files` untuk mengambil materi proyektor (`MATERI_PROYEKTOR`) dan kuis pilihan ganda (`SOAL_KUIS`) terakhir berdasarkan kecocokan jenjang (`SD`/`SMP`/`SMA`). Sesi kelas dilanjutkan secara mandiri.
 * **Kondisi 2 (Tidak Ada Berkas)**: Jika database kosong, sistem akan menginjeksi nilai default **`88`** ke tabel `natural_academic_grades` untuk seluruh murid terdaftar kelas tersebut dengan catatan `alasan_nilai = 'NILAI_88_GURU_ABSEN'`. Presensi harian juga dikunci sebagai `HADIR` untuk melindungi murid dari penalti `ALFA`.
 * **Notifikasi**: Seluruh riwayat Auto-Fallback dikirimkan ke webhook Discord admin secara otomatis.
+
+### 3.4 Obrolan Kelas Kustom & Struktur Peran
+Sistem memuat tag peran kepengurusan dari `rankprefix.yml` di bawah node `class-roles` (`WALI_KELAS`, `KETUA`, `WAKIL`, `SEKRETARIS`, `BENDAHARA`, `ANGGOTA`) dan prefix tingkatan kelas dari `class-prefixes` berdasarkan `academic_class` (1 s.d 12).
+Pemain dapat menggunakan perintah `/class chat <text>` atau `/class chat` (untuk toggle mode chat kelas) serta `/class chat norank` (untuk menyembunyikan prefix pangkat LuckPerms).
+Format obrolan kelas didefinisikan secara dinamis di `config.yml` melalui node `class-settings.chat-format` and `class-settings.chat-format-norank`, mendukung placeholders:
+- `<class_num>`: Angka kelas (1-12)
+- `<class_prefix>`: Prefix tingkatan kelas dari `rankprefix.yml`
+- `<role_tag>`: Tag peran kepengurusan dari `rankprefix.yml`
+- `<prefix_luckperms>`: Pangkat/prefix LuckPerms (diperoleh secara dinamis via Reflection API)
+- `<displayname>`: Nama tampilan pemain
+- `<message>`: Isi pesan (aman dari exploit MiniMessage)
+
+### 3.5 Transisi Area Kelas & Manajemen Pintu
+* **Deteksi Pergerakan**: Menggunakan listener `PlayerMoveEvent` untuk melacak posisi pemain terhadap batas kubus area kelas. Saat melintasi batas:
+  * **Masuk Kelas**: Mengirim pesan chat `§a§l[Nama_Kelas] §aMemasuki ruang kelas §e[Nama_Kelas]`
+  * **Keluar Kelas**: Mengirim pesan chat `§c§l[Nama_Kelas] §cMeninggalkan ruang kelas §e[Nama_Kelas]`
+* **Pintu Blok (Tinted Glass / Air)**: Ketika sesi kelas dimulai (`/kelas start`), pintu kelas yang terdaftar akan berubah menjadi `Material.AIR` secara otomatis. Ketika sesi selesai (`/kelas selesai`), pintu akan ditutup kembali dengan `Material.TINTED_GLASS`.
+
+### 3.6 Visual Management Panel (UI)
+Admins dan Wali Kelas dapat mengakses GUI visual Classroom Manager via `/class panel` (Java Edition menggunakan Paper Dialog API; Bedrock Edition menggunakan Geyser Cumulus CustomForm). Panel ini mempermudah konfigurasi nomor kelas, penunjukan Wali Kelas, dan penetapan batas area kelas langsung dari seleksi WorldEdit aktif pemain yang diambil secara asinkron via Reflection API.
 
 ---
 
@@ -185,27 +240,34 @@ Pemain baru yang baru pertama kali bergabung dengan server akan secara otomatis 
 
 ## 💻 6. Kamus Perintah Lengkap (Commands Reference)
 
-### 6.1 Perintah Siswa (`/school`)
-* **Izin**: Khusus untuk pemain yang memiliki profil valid dan terdaftar dengan NIS di database.
+### 6.1 Perintah Siswa (`/school` & `/class` / `/kelas`)
+* **Izin**: `/school` khusus murid terdaftar dengan NIS. `/class` khusus murid terdaftar di kelas (atau pengajar).
 
 | Perintah | Deskripsi |
 | :--- | :--- |
 | `/school info` | Membuka antarmuka dialog profil berisi data username, NIS, jenjang kelas, dan detail semester. |
 | `/school exam` | Membuka antarmuka menu Portal Ujian utama jika portal dalam status dibuka. |
-| `/school help` | Menampilkan seluruh bantuan sub-perintah untuk siswa. |
+| `/school class [class/player]` | Menampilkan struktur pengurus kelas (diri sendiri, kelas 1-12, atau kelas tempat player lain berada). |
+| `/school help` | Menampilkan seluruh bantuan sub-perintah `/school` untuk siswa. |
+| `/class` atau `/kelas` | Menampilkan bantuan lengkap perintah kelas bagi siswa (dan pengajar jika mereka staf). |
+| `/class chat <pesan>` | Mengirim pesan ke obrolan kelas yang terdaftar. |
+| `/class chat` | Toggle masuk/keluar saluran chat kelas secara permanen. |
+| `/class chat norank` | Toggle menyembunyikan prefix pangkat LuckPerms di chat kelas. |
+| `/class info` | Menampilkan kepengurusan kelas Anda saat ini. |
 
 ### 6.2 Perintah Guru & Helper (`/kelas` / `/class`)
-* **Izin**: `naturalschool.admin` atau pemain yang memiliki peringkat prioritas $\ge$ `GURU_HONORER`.
+* **Izin**: `naturalschool.admin` atau pengajar dengan peringkat prioritas $\ge$ `GURU_HONORER` (serta Wali Kelas untuk kelas terkait).
 
 | Perintah | Deskripsi |
 | :--- | :--- |
-| `/kelas start <id_kelas> <id_matapelajaran>` | Memulai sesi kelas baru. Mengunci region kelas di WorldGuard dan mendata siswa online yang terdaftar. Jika id_kelas tidak diisi, sistem mendeteksi region tempat pengirim berdiri. |
-| `/kelas selesai [id_kelas]` | Mengakhiri sesi kelas. Membuka kembali region WorldGuard, memproses rekapitulasi data ke database secara otomatis. |
-| `/kelas selesaikan <player>` | Mengizinkan murid tertentu pulang dini dari kelas yang aktif. Presensi murid dikunci sebagai HADIR. |
-| `/kelas pembelajaran <id_kelas> <namaFile>` | Memuat materi papan proyektor kelas dari basis data berdasarkan berkas nama file, lalu membacakan materi ke siswa yang hadir di region terkait. |
-| `/kelas startsoal <namaFile>` | Mengambil berkas kuis pilihan ganda dari database, mengacak pertanyaan, dan mendistribusikannya ke Custom UI seluruh siswa di region terkait. |
+| `/class panel [player]` | Membuka GUI visual Classroom Manager bagi staf pengajar untuk menunjuk pengurus/wali kelas. |
+| `/kelas start <id_kelas> <id_matapelajaran>` | Memulai sesi kelas baru. Membuka blok pintu (Air) dan mendata kehadiran siswa yang terdaftar. |
+| `/kelas selesai [id_kelas]` | Mengakhiri sesi kelas. Menutup kembali blok pintu (Tinted Glass) dan memproses rekapitulasi data. |
+| `/kelas selesaikan <player>` | Mengizinkan murid tertentu pulang dini dari kelas yang aktif. Kehadirannya dikunci sebagai HADIR. |
+| `/kelas pembelajaran <id_kelas> <namaFile>` | Memuat materi papan proyektor kelas dari database. |
+| `/kelas startsoal <namaFile>` | Mengambil kuis dari database dan mendistribusikannya ke murid yang berada di region kelas. |
 | `/kelas rekap <id_kelas>` | Mengompilasi presensi dan nilai kuis sesi aktif saat ini ke database secara instan (1-klik manual). |
-| `/kelas jawab <index> <jawaban>` | (Internal Siswa) Mengirimkan opsi jawaban kuis harian ke database memori kuis kelas yang aktif. |
+| `/kelas jawab <index> <jawaban>` | (Internal Siswa) Mengirimkan opsi jawaban kuis harian ke memori kuis kelas yang aktif. |
 
 ### 6.3 Perintah Administrator (`/naturalschool` / `/ns`)
 * **Izin**: `naturalschool.admin` atau peringkat internal `KETUA_YAYASAN` / `WAKIL_KETUA_YAYASAN`.
@@ -217,6 +279,14 @@ Pemain baru yang baru pertama kali bergabung dengan server akan secara otomatis 
 | `/ns setrank <player> <rank>` | Mengubah peringkat internal sekolah pemain secara dinamis. |
 | `/ns setclass <player> <1-12>` | Mengubah nomor tingkatan kelas murid (1-12). |
 | `/ns setstage <player> <SD\|SMP\|SMA>` | Mengubah jenjang akademik murid. |
+| `/ns class list` | Menampilkan daftar seluruh kelas 1-12 beserta detail Wali Kelas, batas area, pengurus, dan pintu. |
+| `/ns class spy [player]` | Mengaktifkan/menonaktifkan mode penyadapan (spy) obrolan kelas lain. |
+| `/ns class setwali <1-12> <player>` | Menunjuk Wali Kelas secara instan. |
+| `/ns class area <1-12> set` | Menyimpan batas area kelas menggunakan seleksi WorldEdit aktif (diambil via Reflection). |
+| `/ns class area <1-12> remove` | Menghapus batas area kelas. |
+| `/ns class door <1-12> <door_num> set` | Menyimpan koordinat pintu kelas dari seleksi WorldEdit aktif (diambil via Reflection). |
+| `/ns class door <1-12> <door_num> remove` | Menghapus koordinat pintu kelas. |
+| `/ns class panel [player]` | Membuka GUI visual Classroom Manager untuk player terkait. |
 | `/ns nis register <player>` | Mendaftarkan NIS otomatis untuk siswa tertentu secara paksa. |
 | `/ns nis unregister <player>` | Menghapus NIS pemain dan mereset progresi akademik ke NONE (Memerlukan konfirmasi ulang dalam 15 detik). |
 | `/ns nis set <player> <10-digit>` | Menentukan NIS numerik kustom 10-digit secara manual untuk siswa. |

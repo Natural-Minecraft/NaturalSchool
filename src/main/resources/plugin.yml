@@ -1,5 +1,5 @@
 name: NaturalSchool
-version: '1.6.8'
+version: '1.7.0'
 main: id.naturalsmp.naturalSchool.NaturalSchool
 api-version: '1.21'
 load: STARTUP
@@ -14,9 +14,9 @@ commands:
   school:
     description: NaturalSchool student command.
     aliases: [sekolah]
-  kelas:
-    description: Perintah manajemen kelas bagi Guru dan Helper.
-    aliases: [class, k]
+  class:
+    description: Perintah manajemen kelas bagi Guru, Helper dan Siswa.
+    aliases: [kelas]
 
 permissions:
   naturalschool.admin:

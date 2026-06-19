@@ -50,3 +50,12 @@ api:
     - "127.0.0.1"
   discord-webhook-url: "none"
 
+# Classroom Module Settings
+class-settings:
+  # Tag format obrolan biasa (mendukung MiniMessage)
+  # Placeholder: <class_num>, <class_prefix>, <role_tag>, <prefix_luckperms>, <displayname>, <message>
+  chat-format: "<role_tag> <prefix_luckperms><displayname>: <message>"
+  
+  # Tag format obrolan saat norank aktif (prefix LuckPerms dihilangkan)
+  chat-format-norank: "<role_tag> <displayname>: <message>"
+

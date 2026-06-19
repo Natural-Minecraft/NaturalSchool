@@ -15,6 +15,8 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import org.bukkit.Bukkit;
 import java.util.stream.Collectors;
 
 public class SchoolCommand implements CommandExecutor, TabCompleter {
@@ -46,6 +48,7 @@ public class SchoolCommand implements CommandExecutor, TabCompleter {
             player.sendMessage(MiniMessage.miniMessage().deserialize(
                 "<gold>=== School Commands ===</gold>\n" +
                 "<yellow>/school info</yellow> - <gray>Menampilkan GUI dialog Informasi Pelajar Anda.</gray>\n" +
+                "<yellow>/school class [class/player]</yellow> - <gray>Menampilkan informasi struktur organisasi kelas.</gray>\n" +
                 "<yellow>/school exam</yellow> - <gray>Membuka Portal Ujian sekolah.</gray>"
             ));
             return true;
@@ -62,11 +65,106 @@ public class SchoolCommand implements CommandExecutor, TabCompleter {
             }
             plugin.getUiManager().openExamPortal(player);
             return true;
+        } else if (subCommand.equals("class")) {
+            int classNum = 0;
+            if (args.length == 1) {
+                classNum = profile.getAcademicClass();
+                if (classNum == 0) {
+                    player.sendMessage(MiniMessage.miniMessage().deserialize("<red>Anda tidak terdaftar di kelas mana pun.</red>"));
+                    return true;
+                }
+            } else {
+                String targetArg = args[1];
+                try {
+                    classNum = Integer.parseInt(targetArg.replaceAll("\\D+", ""));
+                } catch (NumberFormatException ignored) {}
+
+                if (classNum < 1 || classNum > 12) {
+                    classNum = 0;
+                    // Try looking up by player name
+                    org.bukkit.OfflinePlayer targetOp = org.bukkit.Bukkit.getOfflinePlayer(targetArg);
+                    if (targetOp.getUniqueId() != null) {
+                        Player targetOnline = targetOp.getPlayer();
+                        if (targetOnline != null) {
+                            StudentProfile targetProfile = plugin.getProfileManager().getProfile(targetOnline.getUniqueId());
+                            if (targetProfile != null) {
+                                classNum = targetProfile.getAcademicClass();
+                            }
+                        }
+                        if (classNum == 0) {
+                            try {
+                                StudentProfile targetProfile = plugin.getDatabaseManager().loadProfile(targetOp.getUniqueId());
+                                if (targetProfile != null) {
+                                    classNum = targetProfile.getAcademicClass();
+                                }
+                            } catch (Exception ignored) {}
+                        }
+                    }
+                }
+            }
+
+            if (classNum < 1 || classNum > 12) {
+                player.sendMessage(MiniMessage.miniMessage().deserialize("<red>Kelas atau Player tidak ditemukan!</red>"));
+                return true;
+            }
+
+            displayClassroomInfo(player, classNum);
+            return true;
         }
 
 
         player.sendMessage(MiniMessage.miniMessage().deserialize("<red>Subcommand tidak dikenal. Gunakan /school help untuk bantuan.</red>"));
         return true;
+    }
+
+    public void displayClassroomInfo(CommandSender sender, int classNum) {
+        id.naturalsmp.naturalSchool.classes.ClassroomManager.ClassroomData data = plugin.getClassroomManager().getClassroom(classNum);
+        String className = plugin.getRankPrefixConfig().getClassPrefix(classNum);
+        if (className == null || className.isEmpty()) {
+            className = "Kelas " + classNum;
+        }
+
+        String waliKelasName = "Tidak Ada";
+        if (data.getWaliKelasUuid() != null) {
+            org.bukkit.OfflinePlayer op = org.bukkit.Bukkit.getOfflinePlayer(data.getWaliKelasUuid());
+            if (op.getName() != null) {
+                waliKelasName = op.getName();
+            }
+        }
+
+        Map<java.util.UUID, String> officers = data.getOfficers();
+        String ketua = "Tidak Ada";
+        String wakil = "Tidak Ada";
+        String sekretaris = "Tidak Ada";
+        String bendahara = "Tidak Ada";
+
+        for (Map.Entry<java.util.UUID, String> entry : officers.entrySet()) {
+            String role = entry.getValue();
+            String name = org.bukkit.Bukkit.getOfflinePlayer(entry.getKey()).getName();
+            if (name == null) name = "Unknown";
+            
+            if ("KETUA".equalsIgnoreCase(role)) ketua = name;
+            else if ("WAKIL".equalsIgnoreCase(role)) wakil = name;
+            else if ("SEKRETARIS".equalsIgnoreCase(role)) sekretaris = name;
+            else if ("BENDAHARA".equalsIgnoreCase(role)) bendahara = name;
+        }
+
+        // Get student list
+        List<Map<String, String>> students = plugin.getDatabaseManager().getStudentsInClass(classNum);
+        String studentListStr = students.stream().map(m -> m.get("username")).collect(Collectors.joining(", "));
+        if (studentListStr.isEmpty()) {
+            studentListStr = "-";
+        }
+
+        sender.sendMessage(MiniMessage.miniMessage().deserialize(
+            "<gold>=== Struktur Informasi Kelas " + className.trim() + " ===</gold>\n" +
+            "<yellow>» Wali Kelas:</yellow> <white>" + waliKelasName + "</white>\n" +
+            "<yellow>» Ketua Kelas:</yellow> <white>" + ketua + "</white>\n" +
+            "<yellow>» Wakil Ketua:</yellow> <white>" + wakil + "</white>\n" +
+            "<yellow>» Sekretaris:</yellow> <white>" + sekretaris + "</white>\n" +
+            "<yellow>» Bendahara:</yellow> <white>" + bendahara + "</white>\n" +
+            "<yellow>» Daftar Murid:</yellow> <gray>" + studentListStr + "</gray>"
+        ));
     }
 
     @Override
@@ -82,8 +180,21 @@ public class SchoolCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 1) {
-            return Arrays.asList("info", "exam", "help").stream()
+            return Arrays.asList("info", "class", "exam", "help").stream()
                     .filter(s -> s.toLowerCase().startsWith(args[0].toLowerCase()))
+                    .collect(Collectors.toList());
+        }
+
+        if (args.length == 2 && args[0].equalsIgnoreCase("class")) {
+            List<String> suggestions = new java.util.ArrayList<>();
+            for (int i = 1; i <= 12; i++) {
+                suggestions.add("kelas" + i);
+            }
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                suggestions.add(p.getName());
+            }
+            return suggestions.stream()
+                    .filter(s -> s.toLowerCase().startsWith(args[1].toLowerCase()))
                     .collect(Collectors.toList());
         }
 

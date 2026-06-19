@@ -2,6 +2,17 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.7.0] - 2026-06-19
+### Added
+- **Classroom Organization Subsystem**: Implemented complete Classroom Module managing classroom details, organizational hierarchies, spatial bounds, block-door toggling, custom formatting, and visual transition feedback.
+- **Database Tables**: Introduced three new relational tables: `nschool_classrooms` (master classroom data), `nschool_classroom_officers` (student officer roles: KETUA, WAKIL, SEKRETARIS, BENDAHARA, ANGGOTA), and `nschool_classroom_doors` (block door coordinates).
+- **Class Chat Formatter**: Added a custom class chat formatter supporting MiniMessage styles configured dynamically in `config.yml` (`class-settings.chat-format` and `class-settings.chat-format-norank`) and rank labels in `rankprefix.yml`. Features `/class chat` channels, `/class chat <message>`, and `/class chat norank` mode.
+- **Spatial Area Transition Logs**: Added coordinate checks via `PlayerMoveEvent` that trigger visual enter/exit text feedback when a player crosses a classroom's bounding box.
+- **Dynamic Block Doors Toggling**: Automatically sets blocks inside registered classroom door boundaries to `Material.AIR` when a session starts, and closes doors with `Material.TINTED_GLASS` when the session concludes.
+- **Classroom Manager GUI Panel**: Created visual managers (`ClassroomManagerGui`) for both Java (Paper Dialog API) and Bedrock (Geyser Cumulus CustomForm) to configure classroom numbers, assign Wali Kelas, and define bounds from active WorldEdit selections.
+- **WorldEdit & LuckPerms Reflection Integrations**: Removed compile-time dependencies on soft-depends. WorldEdit/FAWE selections and LuckPerms player prefixes are retrieved at runtime via safe reflection hooks.
+- **Version Bump**: Elevated the project version to `1.7.0` in `pom.xml`, `plugin.yml`, and `UIManager.java`.
+
 ## [1.6.8] - 2026-06-11
 ### Changed
 - **Exam Portal Dropdown Selector**: Consolidated subject selection into a single dropdown/multiple-choice button in the Exam Portal. Subjects and status legends are now printed as plain text list lines.
