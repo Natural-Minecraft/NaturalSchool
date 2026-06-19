@@ -2,6 +2,20 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.7.1] - 2026-06-19
+### Added
+- **Database-Driven Prefix System**: Migrated ranks, class levels, and roles configuration from `rankprefix.yml` into a single, unified database table `nschool_prefixes` with composite primary keys `(target_type, target_key)`.
+- **Automatic Prefix Seeding**: Automatically seeds database `nschool_prefixes` table with default configurations from `rankprefix.yml` on first run if the table is empty.
+- **Universal Color Code Support**: The prefix parser now supports both legacy codes (`&` / `§`) and Kyori's MiniMessage formatting styles dynamically.
+- **Rank Management Command**: Replaced `/ns setrank` with a modernized administrative `/ns rank` command, supporting:
+  - `/ns rank set <player> <rank>` - Set internal player rank.
+  - `/ns rank list` - List prefixes and ranks from the database.
+  - `/ns rank update <RANK|CLASS|ROLE> <key> <prefix...>` - Update prefixes directly in the database asynchronously and refresh the memory cache.
+- **Smart Tab Completions**: Implemented smart tab completion suggestions for all `/ns rank` subcommands and their respective parameters.
+
+### Changed
+- **Version Bump**: Bumped system version to `1.7.1` in `pom.xml`, `plugin.yml`, and `UIManager.java`.
+
 ## [1.7.0] - 2026-06-19
 ### Added
 - **Classroom Organization Subsystem**: Implemented complete Classroom Module managing classroom details, organizational hierarchies, spatial bounds, block-door toggling, custom formatting, and visual transition feedback.

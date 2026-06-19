@@ -110,16 +110,25 @@ Sistem menyimpan struktur organisasi dan batasan area kelas dalam 3 tabel baru d
    );
    ```
 3. **`nschool_classroom_doors`**: Menyimpan batas koordinat pintu kelas yang akan berubah menjadi Tinted Glass (ketika kelas tutup) dan Air (ketika kelas buka).
-   ```sql
-   CREATE TABLE IF NOT EXISTS nschool_classroom_doors (
-       id_kelas INT NOT NULL,
-       door_number INT NOT NULL,
-       world VARCHAR(64) NOT NULL,
-       x1 INT NOT NULL, y1 INT NOT NULL, z1 INT NOT NULL,
-       x2 INT NOT NULL, y2 INT NOT NULL, z2 INT NOT NULL,
-       PRIMARY KEY (id_kelas, door_number)
-   );
-   ```
+    ```sql
+    CREATE TABLE IF NOT EXISTS nschool_classroom_doors (
+        id_kelas INT NOT NULL,
+        door_number INT NOT NULL,
+        world VARCHAR(64) NOT NULL,
+        x1 INT NOT NULL, y1 INT NOT NULL, z1 INT NOT NULL,
+        x2 INT NOT NULL, y2 INT NOT NULL, z2 INT NOT NULL,
+        PRIMARY KEY (id_kelas, door_number)
+    );
+    ```
+4. **`nschool_prefixes`**: Menyimpan prefix pangkat (Rank), tingkatan kelas (Class), dan peran kelas (Role) terpadu.
+    ```sql
+    CREATE TABLE IF NOT EXISTS nschool_prefixes (
+        target_type VARCHAR(20),
+        target_key VARCHAR(50),
+        prefix VARCHAR(255) NOT NULL,
+        PRIMARY KEY (target_type, target_key)
+    );
+    ```
 
 ### 3.2 Integrasi WorldGuard Region & Presensi
 Perintah `/kelas start` (atau `/class start`) menggunakan prinsip **Auto-Detect Region**. Staf pengajar tidak perlu menulis `<id_kelas>` sebagai argumen jika mereka sedang berada di dalam kelas. Plugin mendeteksi koordinat lokasi pengirim menggunakan API WorldGuard untuk mencocokkan region berawalan `"kelas"` (misal: `kelas8`). 
@@ -151,12 +160,13 @@ Auto-Fallback bertindak sebagai pengaman otomatis untuk mengantisipasi kelalaian
 * **Notifikasi**: Seluruh riwayat Auto-Fallback dikirimkan ke webhook Discord admin secara otomatis.
 
 ### 3.4 Obrolan Kelas Kustom & Struktur Peran
-Sistem memuat tag peran kepengurusan dari `rankprefix.yml` di bawah node `class-roles` (`WALI_KELAS`, `KETUA`, `WAKIL`, `SEKRETARIS`, `BENDAHARA`, `ANGGOTA`) dan prefix tingkatan kelas dari `class-prefixes` berdasarkan `academic_class` (1 s.d 12).
+Sistem memuat tag peran kepengurusan, prefix pangkat (Ranks), dan prefix tingkatan kelas dari basis data (`nschool_prefixes`) ke dalam volatile memory cache saat startup. Jika database kosong saat startup awal, plugin akan melakukan migrasi (seeding) data default dari berkas `rankprefix.yml` ke dalam database secara otomatis.
+
 Pemain dapat menggunakan perintah `/class chat <text>` atau `/class chat` (untuk toggle mode chat kelas) serta `/class chat norank` (untuk menyembunyikan prefix pangkat LuckPerms).
 Format obrolan kelas didefinisikan secara dinamis di `config.yml` melalui node `class-settings.chat-format` and `class-settings.chat-format-norank`, mendukung placeholders:
 - `<class_num>`: Angka kelas (1-12)
-- `<class_prefix>`: Prefix tingkatan kelas dari `rankprefix.yml`
-- `<role_tag>`: Tag peran kepengurusan dari `rankprefix.yml`
+- `<class_prefix>`: Prefix tingkatan kelas dari basis data
+- `<role_tag>`: Tag peran kepengurusan dari basis data
 - `<prefix_luckperms>`: Pangkat/prefix LuckPerms (diperoleh secara dinamis via Reflection API)
 - `<displayname>`: Nama tampilan pemain
 - `<message>`: Isi pesan (aman dari exploit MiniMessage)
@@ -276,7 +286,9 @@ Pemain baru yang baru pertama kali bergabung dengan server akan secara otomatis 
 | :--- | :--- |
 | `/ns reload` | Memuat ulang seluruh file konfigurasi (`config.yml`), prefix pangkat, basis data, dan modul ujian. |
 | `/ns info <player>` | Menampilkan informasi akademik detail mengenai profil pemain terkait (dapat mencari pemain offline dari DB). |
-| `/ns setrank <player> <rank>` | Mengubah peringkat internal sekolah pemain secara dinamis. |
+| `/ns rank set <player> <rank>` | Mengubah peringkat internal sekolah pemain secara dinamis. |
+| `/ns rank list` | Menampilkan seluruh pangkat/prefix beserta kuncinya dari database. |
+| `/ns rank update <RANK\|CLASS\|ROLE> <key> <prefix...>` | Mengubah prefix tertentu langsung di database dan memperbarui cache memori. |
 | `/ns setclass <player> <1-12>` | Mengubah nomor tingkatan kelas murid (1-12). |
 | `/ns setstage <player> <SD\|SMP\|SMA>` | Mengubah jenjang akademik murid. |
 | `/ns class list` | Menampilkan daftar seluruh kelas 1-12 beserta detail Wali Kelas, batas area, pengurus, dan pintu. |

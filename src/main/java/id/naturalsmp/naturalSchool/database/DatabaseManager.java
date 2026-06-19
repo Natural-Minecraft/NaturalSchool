@@ -153,6 +153,7 @@ public class DatabaseManager {
         String createClassroomsSQL;
         String createClassroomOfficersSQL;
         String createClassroomDoorsSQL;
+        String createPrefixesSQL;
         
         if ("MYSQL".equals(storageType)) {
             createTableSQL = "CREATE TABLE IF NOT EXISTS nschool_students ("
@@ -300,6 +301,12 @@ public class DatabaseManager {
                     + "x2 INT NOT NULL, y2 INT NOT NULL, z2 INT NOT NULL, "
                     + "PRIMARY KEY (id_kelas, door_number)"
                     + ");";
+            createPrefixesSQL = "CREATE TABLE IF NOT EXISTS nschool_prefixes ("
+                    + "target_type VARCHAR(20), "
+                    + "target_key VARCHAR(50), "
+                    + "prefix VARCHAR(255) NOT NULL, "
+                    + "PRIMARY KEY (target_type, target_key)"
+                    + ");";
         } else {
             createTableSQL = "CREATE TABLE IF NOT EXISTS nschool_students ("
                     + "uuid TEXT PRIMARY KEY, "
@@ -435,6 +442,12 @@ public class DatabaseManager {
                     + "x2 INTEGER NOT NULL, y2 INTEGER NOT NULL, z2 INTEGER NOT NULL, "
                     + "PRIMARY KEY (id_kelas, door_number)"
                     + ");";
+            createPrefixesSQL = "CREATE TABLE IF NOT EXISTS nschool_prefixes ("
+                    + "target_type TEXT, "
+                    + "target_key TEXT, "
+                    + "prefix TEXT NOT NULL, "
+                    + "PRIMARY KEY (target_type, target_key)"
+                    + ");";
         }
 
         try (Connection conn = getConnection()) {
@@ -461,6 +474,7 @@ public class DatabaseManager {
                 stmt.execute(createClassroomsSQL);
                 stmt.execute(createClassroomOfficersSQL);
                 stmt.execute(createClassroomDoorsSQL);
+                stmt.execute(createPrefixesSQL);
                 
                 if (!"MYSQL".equals(storageType)) {
                     stmt.execute("CREATE INDEX IF NOT EXISTS idx_questions_packet ON nschool_exam_questions (packet_id);");
@@ -1353,5 +1367,55 @@ public class DatabaseManager {
             plugin.getLogger().log(Level.SEVERE, "Error loading classroom doors for class " + idKelas, e);
         }
         return list;
+    }
+
+    public boolean isPrefixesTableEmpty() {
+        String sql = "SELECT COUNT(*) AS total FROM nschool_prefixes;";
+        try (Connection conn = getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            if (rs.next()) {
+                return rs.getInt("total") == 0;
+            }
+        } catch (SQLException e) {
+            return true;
+        }
+        return true;
+    }
+
+    public List<Map<String, String>> getAllPrefixes() {
+        List<Map<String, String>> list = new ArrayList<>();
+        String query = "SELECT * FROM nschool_prefixes;";
+        try (Connection conn = getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(query)) {
+            while (rs.next()) {
+                Map<String, String> map = new HashMap<>();
+                map.put("target_type", rs.getString("target_type"));
+                map.put("target_key", rs.getString("target_key"));
+                map.put("prefix", rs.getString("prefix"));
+                list.add(map);
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error loading prefixes from database", e);
+        }
+        return list;
+    }
+
+    public void savePrefix(String targetType, String targetKey, String prefix) {
+        String sql = "INSERT OR REPLACE INTO nschool_prefixes (target_type, target_key, prefix) VALUES (?, ?, ?);";
+        if ("MYSQL".equals(storageType)) {
+            sql = "INSERT INTO nschool_prefixes (target_type, target_key, prefix) VALUES (?, ?, ?) "
+                + "ON DUPLICATE KEY UPDATE prefix = VALUES(prefix);";
+        }
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, targetType);
+            ps.setString(2, targetKey);
+            ps.setString(3, prefix);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error saving prefix for " + targetType + ":" + targetKey, e);
+        }
     }
 }

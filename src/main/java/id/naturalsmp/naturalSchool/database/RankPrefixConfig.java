@@ -28,14 +28,9 @@ public class RankPrefixConfig {
     }
 
     /**
-     * Loads/reloads the rankprefix.yml configuration and rebuilds the legacy formatted prefix cache.
+     * Loads/reloads the rankprefix configuration from the database and rebuilds the legacy formatted prefix cache.
      */
     public synchronized void load() {
-        if (!configFile.exists()) {
-            plugin.saveResource("rankprefix.yml", false);
-        }
-        config = YamlConfiguration.loadConfiguration(configFile);
-
         // Detect ItemsAdder
         this.itemsAdderEnabled = Bukkit.getPluginManager().isPluginEnabled("ItemsAdder");
         if (itemsAdderEnabled) {
@@ -53,73 +48,114 @@ public class RankPrefixConfig {
             this.itemsAdderWrapper = null;
         }
 
-        // Rebuild cache
-        formattedPrefixCache.clear();
-        for (SchoolRank rank : SchoolRank.values()) {
-            String path = "ranks." + rank.name();
-            String prefix = config.getString(path + ".prefix", "");
-            String nameColor = config.getString(path + ".name-color", "");
-
-            // Fallback to enum display name if configuration is completely missing
-            if (prefix.isEmpty() && rank != SchoolRank.NONE) {
-                prefix = rank.getDisplayName();
+        // Seed default prefixes from rankprefix.yml if the prefixes table is empty
+        boolean empty = plugin.getDatabaseManager().isPrefixesTableEmpty();
+        if (empty) {
+            plugin.getLogger().info("Prefixes database table is empty. Seeding defaults from rankprefix.yml...");
+            if (!configFile.exists()) {
+                plugin.saveResource("rankprefix.yml", false);
             }
-
-            // Combine prefix + nameColor
-            String combinedRaw = prefix + nameColor;
-
-            // Apply ItemsAdder replacement if present
-            if (itemsAdderEnabled && itemsAdderWrapper != null) {
-                try {
-                    combinedRaw = (String) itemsAdderWrapper.getClass()
-                            .getMethod("replace", String.class)
-                            .invoke(itemsAdderWrapper, combinedRaw);
-                } catch (Exception e) {
-                    plugin.getLogger().warning("Failed to process ItemsAdder replacements for rank " + rank.name() + ": " + e.getMessage());
+            config = YamlConfiguration.loadConfiguration(configFile);
+            
+            // Seed ranks (we combine prefix and nameColor during seeding for backward compatibility)
+            if (config.isConfigurationSection("ranks")) {
+                for (String key : config.getConfigurationSection("ranks").getKeys(false)) {
+                    String prefix = config.getString("ranks." + key + ".prefix", "");
+                    String nameColor = config.getString("ranks." + key + ".name-color", "");
+                    plugin.getDatabaseManager().savePrefix("RANK", key.toUpperCase(), prefix + nameColor);
                 }
             }
-
-            // Parse MiniMessage color gradients/RGB and serialize to legacy Section formatting for PAPI external tools
-            String legacyFormatted = "";
-            if (!combinedRaw.isEmpty()) {
-                try {
-                    net.kyori.adventure.text.Component component = MiniMessage.miniMessage().deserialize(combinedRaw);
-                    legacyFormatted = LegacyComponentSerializer.builder()
-                            .hexColors()
-                            .character(LegacyComponentSerializer.SECTION_CHAR)
-                            .build()
-                            .serialize(component);
-                } catch (Exception e) {
-                    plugin.getLogger().warning("Failed to parse MiniMessage for rank " + rank.name() + ": " + e.getMessage());
-                    legacyFormatted = combinedRaw;
+            
+            // Seed class-prefixes
+            if (config.isConfigurationSection("class-prefixes")) {
+                for (String key : config.getConfigurationSection("class-prefixes").getKeys(false)) {
+                    String prefix = config.getString("class-prefixes." + key, "");
+                    plugin.getDatabaseManager().savePrefix("CLASS", key, prefix);
                 }
             }
-
-            formattedPrefixCache.put(rank, legacyFormatted);
+            
+            // Seed class-roles
+            if (config.isConfigurationSection("class-roles")) {
+                for (String key : config.getConfigurationSection("class-roles").getKeys(false)) {
+                    String prefix = config.getString("class-roles." + key, "");
+                    plugin.getDatabaseManager().savePrefix("ROLE", key.toUpperCase(), prefix);
+                }
+            }
         }
 
-        // Rebuild classPrefixCache and classRoleCache
+        // Rebuild cache from database
+        formattedPrefixCache.clear();
         classPrefixCache.clear();
-        if (config.isConfigurationSection("class-prefixes")) {
-            for (String key : config.getConfigurationSection("class-prefixes").getKeys(false)) {
+        classRoleCache.clear();
+
+        java.util.List<Map<String, String>> allPrefixes = plugin.getDatabaseManager().getAllPrefixes();
+        for (Map<String, String> map : allPrefixes) {
+            String type = map.get("target_type");
+            String key = map.get("target_key");
+            String rawVal = map.get("prefix");
+            if (type == null || key == null || rawVal == null) continue;
+
+            if ("RANK".equalsIgnoreCase(type)) {
+                SchoolRank rank;
+                try {
+                    rank = SchoolRank.valueOf(key.toUpperCase());
+                } catch (IllegalArgumentException e) {
+                    continue;
+                }
+
+                // Process ItemsAdder
+                String processed = rawVal;
+                if (itemsAdderEnabled && itemsAdderWrapper != null) {
+                    try {
+                        processed = (String) itemsAdderWrapper.getClass()
+                                .getMethod("replace", String.class)
+                                .invoke(itemsAdderWrapper, processed);
+                    } catch (Exception e) {
+                        plugin.getLogger().warning("Failed to process ItemsAdder replacements for rank " + rank.name() + ": " + e.getMessage());
+                    }
+                }
+
+                // Parse MiniMessage & legacy codes dynamically
+                String legacyFormatted = "";
+                if (!processed.isEmpty()) {
+                    try {
+                        net.kyori.adventure.text.Component component;
+                        if (processed.contains("<") && processed.contains(">")) {
+                            component = MiniMessage.miniMessage().deserialize(processed);
+                        } else {
+                            String translated = org.bukkit.ChatColor.translateAlternateColorCodes('&', processed);
+                            component = LegacyComponentSerializer.legacySection().deserialize(translated);
+                        }
+                        
+                        legacyFormatted = LegacyComponentSerializer.builder()
+                                .hexColors()
+                                .character(LegacyComponentSerializer.SECTION_CHAR)
+                                .build()
+                                .serialize(component);
+                    } catch (Exception e) {
+                        legacyFormatted = org.bukkit.ChatColor.translateAlternateColorCodes('&', processed);
+                    }
+                }
+                formattedPrefixCache.put(rank, legacyFormatted);
+            } else if ("CLASS".equalsIgnoreCase(type)) {
                 try {
                     int classNum = Integer.parseInt(key);
-                    String val = config.getString("class-prefixes." + key, "");
-                    classPrefixCache.put(classNum, val);
+                    classPrefixCache.put(classNum, rawVal);
                 } catch (NumberFormatException ignored) {}
+            } else if ("ROLE".equalsIgnoreCase(type)) {
+                classRoleCache.put(key.toUpperCase(), rawVal);
             }
         }
 
-        classRoleCache.clear();
-        if (config.isConfigurationSection("class-roles")) {
-            for (String key : config.getConfigurationSection("class-roles").getKeys(false)) {
-                String val = config.getString("class-roles." + key, "");
-                classRoleCache.put(key.toUpperCase(), val);
+        // Fill in missing ranks with default display names as fallback
+        for (SchoolRank rank : SchoolRank.values()) {
+            if (!formattedPrefixCache.containsKey(rank)) {
+                formattedPrefixCache.put(rank, rank.getDisplayName());
             }
         }
 
         plugin.getLogger().info("Successfully loaded and cached " + formattedPrefixCache.size() + " rank prefixes, " 
-            + classPrefixCache.size() + " class prefixes, and " + classRoleCache.size() + " class roles.");
+            + classPrefixCache.size() + " class prefixes, and " + classRoleCache.size() + " class roles from database.");
     }
 
     /**

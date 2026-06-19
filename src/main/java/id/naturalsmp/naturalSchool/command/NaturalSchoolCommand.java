@@ -70,8 +70,8 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
             case "info":
                 handleInfo(sender, args);
                 break;
-            case "setrank":
-                handleSetRank(sender, args);
+            case "rank":
+                handleRankCommand(sender, args);
                 break;
             case "setclass":
                 handleSetClass(sender, args);
@@ -107,7 +107,7 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
             "<gold>=== NaturalSchool Administrative Commands ===</gold>\n" +
             "<yellow>/naturalschool reload</yellow> - <gray>Reload configuration and database connections.</gray>\n" +
             "<yellow>/naturalschool info <player></yellow> - <gray>View player academic profile details.</gray>\n" +
-            "<yellow>/naturalschool setrank <player> <rank></yellow> - <gray>Set player internal school rank.</gray>\n" +
+            "<yellow>/naturalschool rank ...</yellow> - <gray>Manage rank prefixes and assign rank to players. Type /ns rank for help.</gray>\n" +
             "<yellow>/naturalschool setclass <player> <1-12></yellow> - <gray>Set student academic class.</gray>\n" +
             "<yellow>/naturalschool setstage <player> <SD|SMP|SMA></yellow> - <gray>Set student academic stage.</gray>\n" +
             "<yellow>/naturalschool nis help</yellow> - <gray>View NIS Management System help.</gray>\n" +
@@ -458,58 +458,136 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
         ));
     }
 
-    private void handleSetRank(CommandSender sender, String[] args) {
-        if (args.length < 3) {
-            sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Usage: /naturalschool setrank <player> <RANK_ID></red>"));
+    private void handleRankCommand(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            sender.sendMessage(MiniMessage.miniMessage().deserialize(
+                "<gold>=== Perintah Rank NaturalSchool ===</gold>\n" +
+                "<yellow>/ns rank set <player> <rank></yellow> - <gray>Mengatur pangkat internal sekolah pemain.</gray>\n" +
+                "<yellow>/ns rank list</yellow> - <gray>Menampilkan daftar pangkat beserta prefix dari database.</gray>\n" +
+                "<yellow>/ns rank update <RANK|CLASS|ROLE> <key> <prefix></yellow> - <gray>Mengubah prefix tertentu langsung di database.</gray>"
+            ));
             return;
         }
 
-        String targetName = args[1];
-        String rawRank = args[2].toUpperCase();
-        SchoolRank newRank;
-        try {
-            newRank = SchoolRank.valueOf(rawRank);
-        } catch (IllegalArgumentException e) {
-            sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Invalid rank ID. Use tab completion to see valid ranks.</red>"));
-            return;
-        }
+        String sub = args[1].toLowerCase();
+        if (sub.equals("set")) {
+            if (args.length < 4) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Format: /ns rank set <player> <rank></red>"));
+                return;
+            }
 
-        Player targetPlayer = Bukkit.getPlayerExact(targetName);
-        if (targetPlayer != null) {
-            StudentProfile profile = plugin.getProfileManager().getProfile(targetPlayer.getUniqueId());
-            if (profile != null) {
-                SchoolRank oldRank = profile.getRank();
-                if (oldRank == newRank) {
-                    sender.sendMessage(MiniMessage.miniMessage().deserialize("<yellow>" + targetPlayer.getName() + " is already " + newRank.getDisplayName() + ".</yellow>"));
-                    return;
-                }
+            String targetName = args[2];
+            String rawRank = args[3].toUpperCase();
+            SchoolRank newRank;
+            try {
+                newRank = SchoolRank.valueOf(rawRank);
+            } catch (IllegalArgumentException e) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Pangkat tidak dikenal!</red>"));
+                return;
+            }
 
-                plugin.getNaturalSchoolAPI().setPlayerRank(targetPlayer.getUniqueId(), newRank);
+            Player targetPlayer = Bukkit.getPlayerExact(targetName);
+            if (targetPlayer != null) {
+                StudentProfile profile = plugin.getProfileManager().getProfile(targetPlayer.getUniqueId());
+                if (profile != null) {
+                    SchoolRank oldRank = profile.getRank();
+                    if (oldRank == newRank) {
+                        sender.sendMessage(MiniMessage.miniMessage().deserialize("<yellow>" + targetPlayer.getName() + " sudah memiliki pangkat tersebut.</yellow>"));
+                        return;
+                    }
 
-                if (profile.getRank() != newRank) {
-                    sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Rank change for " + targetPlayer.getName() + " was cancelled by another plugin.</red>"));
+                    plugin.getNaturalSchoolAPI().setPlayerRank(targetPlayer.getUniqueId(), newRank);
+
+                    if (profile.getRank() != newRank) {
+                        sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Perubahan pangkat dibatalkan oleh plugin lain.</red>"));
+                    } else {
+                        sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>Berhasil mengatur pangkat </green>" + newRank.getDisplayName() + "<green> untuk " + targetPlayer.getName() + ".</green>"));
+                    }
                 } else {
-                    sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>Set rank to </green>" + newRank.getDisplayName() + "<green> for " + targetPlayer.getName() + ".</green>"));
+                    sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Gagal memuat profil cache untuk " + targetPlayer.getName() + ".</red>"));
                 }
             } else {
-                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Profile cache not loaded for " + targetPlayer.getName() + ".</red>"));
-            }
-        } else {
-            sender.sendMessage(MiniMessage.miniMessage().deserialize("<yellow>Player is offline. Updating rank in database...</yellow>"));
-            OfflinePlayer offlineTarget = Bukkit.getOfflinePlayer(targetName);
-            UUID uuid = offlineTarget.getUniqueId();
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<yellow>Pemain offline. Memperbarui di database...</yellow>"));
+                OfflinePlayer offlineTarget = Bukkit.getOfflinePlayer(targetName);
+                UUID uuid = offlineTarget.getUniqueId();
 
-            plugin.getNaturalSchoolAPI().getOfflineProfile(uuid).thenAccept(optProfile -> {
-                if (optProfile.isPresent()) {
-                    plugin.getNaturalSchoolAPI().setPlayerRank(uuid, newRank);
-                    sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>Set rank to </green>" + newRank.getDisplayName() + "<green> for offline player " + (offlineTarget.getName() != null ? offlineTarget.getName() : targetName) + ".</green>"));
-                } else {
-                    sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Player profile not found in database.</red>"));
+                plugin.getNaturalSchoolAPI().getOfflineProfile(uuid).thenAccept(optProfile -> {
+                    if (optProfile.isPresent()) {
+                        plugin.getNaturalSchoolAPI().setPlayerRank(uuid, newRank);
+                        sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>Berhasil mengatur pangkat </green>" + newRank.getDisplayName() + "<green> untuk pemain offline " + (offlineTarget.getName() != null ? offlineTarget.getName() : targetName) + ".</green>"));
+                    } else {
+                        sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Profil pemain tidak ditemukan di database.</red>"));
+                    }
+                }).exceptionally(ex -> {
+                    sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Gagal memperbarui pangkat pemain offline: " + ex.getMessage() + "</red>"));
+                    return null;
+                });
+            }
+        } else if (sub.equals("list")) {
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<gold>=== Daftar Prefix NaturalSchool (Database) ===</gold>"));
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<yellow>» Pangkat (Ranks):</yellow>"));
+            for (SchoolRank rank : SchoolRank.values()) {
+                String prefix = plugin.getRankPrefixConfig().getFormattedPrefix(rank);
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("  - <white>" + rank.name() + ":</white> " + prefix));
+            }
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<yellow>» Tingkatan Kelas (Class Prefixes):</yellow>"));
+            for (int i = 1; i <= 12; i++) {
+                String prefix = plugin.getRankPrefixConfig().getClassPrefix(i);
+                if (!prefix.isEmpty()) {
+                    sender.sendMessage(MiniMessage.miniMessage().deserialize("  - <white>Kelas " + i + ":</white> " + prefix));
                 }
-            }).exceptionally(ex -> {
-                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Failed to update offline player rank: " + ex.getMessage() + "</red>"));
-                return null;
+            }
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<yellow>» Peran Kelas (Class Roles):</yellow>"));
+            for (String role : Arrays.asList("WALI_KELAS", "KETUA", "WAKIL", "SEKRETARIS", "BENDAHARA", "ANGGOTA")) {
+                String prefix = plugin.getRankPrefixConfig().getClassRolePrefix(role);
+                if (!prefix.isEmpty()) {
+                    sender.sendMessage(MiniMessage.miniMessage().deserialize("  - <white>" + role + ":</white> " + prefix));
+                }
+            }
+        } else if (sub.equals("update")) {
+            if (args.length < 5) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Format: /ns rank update <RANK|CLASS|ROLE> <key> <prefix></red>"));
+                return;
+            }
+            String rawType = args[2].toUpperCase();
+            String rawKey = args[3];
+            
+            // Rebuild multi-word prefix if it was split by space
+            StringBuilder sb = new StringBuilder();
+            for (int i = 4; i < args.length; i++) {
+                sb.append(args[i]).append(" ");
+            }
+            String prefix = sb.toString().trim();
+
+            if (!Arrays.asList("RANK", "CLASS", "ROLE").contains(rawType)) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Tipe harus bernilai RANK, CLASS, atau ROLE!</red>"));
+                return;
+            }
+
+            if ("RANK".equals(rawType)) {
+                try {
+                    SchoolRank.valueOf(rawKey.toUpperCase());
+                } catch (IllegalArgumentException e) {
+                    sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Pangkat tidak dikenal!</red>"));
+                    return;
+                }
+                rawKey = rawKey.toUpperCase();
+            } else if ("ROLE".equals(rawType)) {
+                rawKey = rawKey.toUpperCase();
+            }
+
+            final String type = rawType;
+            final String key = rawKey;
+            
+            // Save asynchronously
+            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+                plugin.getDatabaseManager().savePrefix(type, key, prefix);
+                // Reload in config
+                plugin.getRankPrefixConfig().load();
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>Berhasil memperbarui prefix " + type + " [" + key + "] di database!</green>"));
             });
+        } else {
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Subcommand tidak dikenal. Gunakan set, list, atau update.</red>"));
         }
     }
 
@@ -1001,7 +1079,7 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 1) {
-            List<String> subCommands = Arrays.asList("reload", "info", "setrank", "setclass", "setstage", "nis", "gui", "semester", "exam", "class");
+            List<String> subCommands = Arrays.asList("reload", "info", "rank", "setclass", "setstage", "nis", "gui", "semester", "exam", "class");
             return filterList(subCommands, args[0]);
         }
 
@@ -1017,7 +1095,9 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
                 return filterList(Arrays.asList("welcome", "exam1", "exam2", "exam3", "exam4", "exam5", "version"), args[1]);
             } else if ("class".equals(subCommand)) {
                 return filterList(Arrays.asList("list", "spy", "setwali", "panel", "area", "door"), args[1]);
-            } else if (Arrays.asList("info", "setrank", "setclass", "setstage").contains(subCommand)) {
+            } else if ("rank".equals(subCommand)) {
+                return filterList(Arrays.asList("set", "list", "update"), args[1]);
+            } else if (Arrays.asList("info", "setclass", "setstage").contains(subCommand)) {
                 List<String> players = Bukkit.getOnlinePlayers().stream()
                         .map(Player::getName)
                         .collect(Collectors.toList());
@@ -1057,11 +1137,16 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
                     }
                     return filterList(classes, args[2]);
                 }
-            } else if ("setrank".equals(subCommand)) {
-                List<String> ranks = Arrays.stream(SchoolRank.values())
-                        .map(SchoolRank::name)
-                        .collect(Collectors.toList());
-                return filterList(ranks, args[2]);
+            } else if ("rank".equals(subCommand)) {
+                String subRank = args[1].toLowerCase();
+                if ("set".equals(subRank)) {
+                    List<String> players = Bukkit.getOnlinePlayers().stream()
+                            .map(Player::getName)
+                            .collect(Collectors.toList());
+                    return filterList(players, args[2]);
+                } else if ("update".equals(subRank)) {
+                    return filterList(Arrays.asList("RANK", "CLASS", "ROLE"), args[2]);
+                }
             } else if ("setclass".equals(subCommand)) {
                 List<String> classes = new ArrayList<>();
                 for (int i = 1; i <= 12; i++) {
@@ -1090,6 +1175,30 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
                     List<String> doorNums = Arrays.asList("1", "2", "3", "4");
                     return filterList(doorNums, args[3]);
                 }
+            } else if ("rank".equals(subCommand)) {
+                String subRank = args[1].toLowerCase();
+                if ("set".equals(subRank)) {
+                    List<String> ranks = Arrays.stream(SchoolRank.values())
+                            .map(SchoolRank::name)
+                            .collect(Collectors.toList());
+                    return filterList(ranks, args[3]);
+                } else if ("update".equals(subRank)) {
+                    String type = args[2].toUpperCase();
+                    if ("RANK".equals(type)) {
+                        List<String> ranks = Arrays.stream(SchoolRank.values())
+                                .map(SchoolRank::name)
+                                .collect(Collectors.toList());
+                        return filterList(ranks, args[3]);
+                    } else if ("CLASS".equals(type)) {
+                        List<String> classes = new ArrayList<>();
+                        for (int i = 1; i <= 12; i++) {
+                            classes.add(String.valueOf(i));
+                        }
+                        return filterList(classes, args[3]);
+                    } else if ("ROLE".equals(type)) {
+                        return filterList(Arrays.asList("WALI_KELAS", "KETUA", "WAKIL", "SEKRETARIS", "BENDAHARA", "ANGGOTA"), args[3]);
+                    }
+                }
             }
         }
 
@@ -1097,6 +1206,8 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
             String subCommand = args[0].toLowerCase();
             if ("class".equals(subCommand) && "door".equalsIgnoreCase(args[1])) {
                 return filterList(Arrays.asList("set", "remove"), args[4]);
+            } else if ("rank".equals(subCommand) && "update".equalsIgnoreCase(args[1])) {
+                return filterList(Collections.singletonList("<prefix>"), args[4]);
             }
         }
 
