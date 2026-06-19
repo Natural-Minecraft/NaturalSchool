@@ -106,9 +106,19 @@ public final class NaturalSchool extends JavaPlugin {
         }
 
         // Register PlaceholderAPI Expansion if PAPI is present on the server
-        if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
+        if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {
             new NaturalSchoolExpansion(this).register();
             getLogger().info("PlaceholderAPI integration registered successfully.");
+        } else if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
+            getServer().getPluginManager().registerEvents(new org.bukkit.event.Listener() {
+                @org.bukkit.event.EventHandler
+                public void onPluginEnable(org.bukkit.event.server.PluginEnableEvent event) {
+                    if (event.getPlugin().getName().equals("PlaceholderAPI")) {
+                        new NaturalSchoolExpansion(NaturalSchool.this).register();
+                        getLogger().info("PlaceholderAPI detected post-startup and expansion registered successfully.");
+                    }
+                }
+            }, this);
         }
 
         // Run initial semester auto-rotation check

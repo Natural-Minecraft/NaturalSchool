@@ -326,6 +326,9 @@ NaturalSchool mengekspos variabel data internal siswa menggunakan pengidentifika
 | `%naturalschool_class%` | Menampilkan nomor tingkatan kelas murid (1-12) | `10` |
 | `%naturalschool_stage%` | Menampilkan nama jenjang akademik murid (SD/SMP/SMA) | `SMA` |
 | `%naturalschool_nis%` | Menampilkan nomor NIS terdaftar, atau `-` jika belum | `1002090626` |
+| `%naturalschool_class_cash%` | Menampilkan saldo kas kelas siswa saat ini | `25,000` |
+| `%naturalschool_class_fee%` | Menampilkan biaya kas mingguan kelas siswa | `1,000` |
+| `%naturalschool_class_fee_status%` | Menampilkan status keaktifan kas mingguan kelas | `Aktif` |
 
 ### 7.2 Log Discord Terintegrasi (Discord Webhooks)
 Plugin menembakkan log peristiwa penting dalam format Rich Embed secara asinkron ke URL webhook Discord yang dikonfigurasi di `api.discord-webhook-url`:

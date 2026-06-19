@@ -3,6 +3,8 @@ package id.naturalsmp.naturalSchool.placeholder;
 import id.naturalsmp.naturalSchool.NaturalSchool;
 import id.naturalsmp.naturalSchool.profile.SchoolRank;
 import id.naturalsmp.naturalSchool.profile.StudentProfile;
+import id.naturalsmp.naturalSchool.classes.ClassroomManager;
+import id.naturalsmp.naturalSchool.classes.ClassroomManager.ClassroomData;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
@@ -68,6 +70,33 @@ public class NaturalSchoolExpansion extends PlaceholderExpansion {
             case "nis":
                 String nis = profile.getNis();
                 return (nis != null && !nis.trim().isEmpty()) ? nis : "-";
+
+            case "class_cash":
+            case "class_cash_balance":
+                int cNumCash = profile.getAcademicClass();
+                if (cNumCash >= 1 && cNumCash <= 12) {
+                    ClassroomData data = plugin.getClassroomManager().getClassroom(cNumCash);
+                    return String.format("%,.0f", data.getCashBalance());
+                }
+                return "0";
+
+            case "class_weekly_fee":
+            case "class_fee":
+                int cNumFee = profile.getAcademicClass();
+                if (cNumFee >= 1 && cNumFee <= 12) {
+                    ClassroomData data = plugin.getClassroomManager().getClassroom(cNumFee);
+                    return String.format("%,.0f", data.getWeeklyFee());
+                }
+                return "0";
+
+            case "class_weekly_fee_enabled":
+            case "class_fee_status":
+                int cNumStatus = profile.getAcademicClass();
+                if (cNumStatus >= 1 && cNumStatus <= 12) {
+                    ClassroomData data = plugin.getClassroomManager().getClassroom(cNumStatus);
+                    return data.isWeeklyFeeEnabled() ? "Aktif" : "Nonaktif";
+                }
+                return "Nonaktif";
 
             default:
                 return null;
