@@ -43,6 +43,10 @@ public final class NaturalSchool extends JavaPlugin {
         // Load default config configuration
         saveDefaultConfig();
 
+        // Initialize Database Infrastructure
+        databaseManager = new DatabaseManager(this);
+        databaseManager.initialize();
+
         // Initialize Semester Manager
         semesterManager = new SemesterManager(this);
 
@@ -62,10 +66,6 @@ public final class NaturalSchool extends JavaPlugin {
         // Initialize Rank Prefix Configuration
         rankPrefixConfig = new RankPrefixConfig(this);
         rankPrefixConfig.load();
-
-        // Initialize Database Infrastructure
-        databaseManager = new DatabaseManager(this);
-        databaseManager.initialize();
 
         // Load classroom configurations from Database
         classroomManager.loadAllClassrooms();
