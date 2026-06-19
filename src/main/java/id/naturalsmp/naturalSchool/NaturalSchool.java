@@ -150,7 +150,18 @@ public final class NaturalSchool extends JavaPlugin {
             }
         }, 200L, 1200L); // check every 60s
 
-        getLogger().info("NaturalSchool has been enabled successfully.");
+        org.bukkit.Bukkit.getConsoleSender().sendMessage(
+                org.bukkit.ChatColor.translateAlternateColorCodes('&',
+                    "\n&a================================================================================\n" +
+                    "&b _   _       _                               _      &d ____       _                 _\n" +
+                    "&b| \\ | | __ _| |_ _   _ _ __ __ _  | |   &d/ ___|  ___| |__   ___   ___ | |\n" +
+                    "&b|  \\| |/ _` | __| | | | '__/ _` | | |   &d\\___ \\ / __| '_ \\ / _ \\ / _ \\| |\n" +
+                    "&b| |\\  | (_| | |_| |_| | | | (_| | | |   &d ___) | (__| | | | (_) | (_) | |\n" +
+                    "&b|_| \\_|\\__,_|\\__|\\__,_|_|  \\__,_|_|_|   &d|____/ \\___|_| |_|\\___/ \\___/|_|\n" +
+                    "          &f>> &bNaturalSchool v" + getDescription().getVersion() + " Enabled! <<\n" +
+                    "&a================================================================================\n"
+                )
+        );
     }
 
     @Override
