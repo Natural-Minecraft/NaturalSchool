@@ -236,7 +236,7 @@ public class ExamGui {
                             selectOptions.add(io.papermc.paper.registry.data.dialog.input.SingleOptionDialogInput.OptionEntry.create(
                                 String.valueOf(subjectId),
                                 Component.text(subjectName),
-                                true
+                                subjectId == 1
                             ));
                         }
 
