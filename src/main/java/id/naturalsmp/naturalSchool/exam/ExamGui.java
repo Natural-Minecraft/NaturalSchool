@@ -121,18 +121,16 @@ public class ExamGui {
         // Custom divider line to stretch the width
         Component divider = MiniMessage.miniMessage().deserialize("<gray>──────────────────────────────────────────</gray>");
 
-        // Handle error message rendering at the top
-        if (errorMsg != null && !errorMsg.isEmpty()) {
-            bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<red><bold>[!] Error: " + errorMsg + "</bold></red>")));
-            bodies.add(DialogBody.plainMessage(Component.text(" ")));
-        }
-
         switch (view.toLowerCase()) {
             case "portal": {
                 rawTitle = "Portal Sekolah";
                 bodies.add(DialogBody.item(new ItemStack(Material.BOOKSHELF)).build());
                 bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>=== Portal Sekolah ===</bold></gold>")));
-                bodies.add(DialogBody.plainMessage(divider));
+                if (errorMsg != null && !errorMsg.isEmpty()) {
+                    bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<red><bold>[!] Error: " + errorMsg + "</bold></red>")));
+                } else {
+                    bodies.add(DialogBody.plainMessage(divider));
+                }
                 bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Silakan pilih tipe ujian di bawah ini:</yellow>")));
 
                 List<ActionButton> buttons = List.of(
@@ -192,14 +190,14 @@ public class ExamGui {
                         int academicClass = profile.getAcademicClass();
 
                         List<DialogBody> asyncBodies = new ArrayList<>();
-                        if (errorMsg != null && !errorMsg.isEmpty()) {
-                            asyncBodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<red><bold>[!] Error: " + errorMsg + "</bold></red>")));
-                            asyncBodies.add(DialogBody.plainMessage(Component.text(" ")));
-                        }
 
                         asyncBodies.add(DialogBody.item(new ItemStack(Material.BOOK)).build());
                         asyncBodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>=== Portal Ujian " + examType + " ===</bold></gold>")));
-                        asyncBodies.add(DialogBody.plainMessage(divider));
+                        if (errorMsg != null && !errorMsg.isEmpty()) {
+                            asyncBodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<red><bold>[!] Error: " + errorMsg + "</bold></red>")));
+                        } else {
+                            asyncBodies.add(DialogBody.plainMessage(divider));
+                        }
                         asyncBodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Pilih mata pelajaran di bawah ini:</yellow>")));
 
                         List<io.papermc.paper.registry.data.dialog.input.SingleOptionDialogInput.OptionEntry> selectOptions = new ArrayList<>();
@@ -662,9 +660,14 @@ public class ExamGui {
                     return;
                 }
 
+                String body = "Selamat datang di Portal Sekolah\n"
+                    + (errorMsg != null && !errorMsg.isEmpty()
+                        ? "§c[!] Error: " + errorMsg
+                        : "------------------------------------------")
+                    + "\nSilakan pilih tipe ujian di bawah ini:";
                 SimpleForm form = SimpleForm.builder()
                     .title("Portal Sekolah")
-                    .content("Selamat datang di Portal Sekolah")
+                    .content(body)
                     .button("[ Ujian Harian ]")
                     .button("[ Ujian Semester ]")
                     .button("[ Ujian Akhir Semester ]")
@@ -708,8 +711,11 @@ public class ExamGui {
                         int academicClass = profile.getAcademicClass();
 
                         StringBuilder contentBuilder = new StringBuilder();
+                        contentBuilder.append("=== Portal Ujian ").append(examType).append(" ===\n");
                         if (errorMsg != null && !errorMsg.isEmpty()) {
                             contentBuilder.append("§c[!] Error: ").append(errorMsg).append("\n\n");
+                        } else {
+                            contentBuilder.append("------------------------------------------\n\n");
                         }
 
                         contentBuilder.append("Pilih mata pelajaran di bawah ini untuk memulai:\n\n");
