@@ -89,8 +89,8 @@ public class ClassroomManagerGui {
                 .canCloseWithEscape(true)
                 .body(bodies)
                 .inputs(List.of(
-                    DialogInput.text("class_num", Component.text("Nomor Kelas (1-12)")).build(),
-                    DialogInput.text("wali_kelas", Component.text("Nama Wali Kelas (Kosongkan jika tidak diubah)")).build(),
+                    DialogInput.text("class_num", Component.text("Nomor Kelas (1-12)")).width(320).build(),
+                    DialogInput.text("wali_kelas", Component.text("Nama Wali Kelas (Kosongkan jika tidak diubah)")).width(320).build(),
                     DialogInput.bool("set_bounds", Component.text("Atur Area Kelas dari seleksi WorldEdit"), false, "Yes", "No")
                 ))
                 .build())

@@ -190,8 +190,8 @@ public class ClassCashGui {
                 bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Saldo Tersedia: Rp" + String.format("%,.0f", data.getCashBalance()) + "</yellow>")));
                 bodies.add(DialogBody.plainMessage(Component.text("Silakan isi jumlah penarikan dan alasan penarikan di bawah.")));
 
-                inputs.add(DialogInput.text("amount", Component.text("Jumlah Penarikan (Angka)")).build());
-                inputs.add(DialogInput.text("reason", Component.text("Alasan Penarikan")).build());
+                inputs.add(DialogInput.text("amount", Component.text("Jumlah Penarikan (Angka)")).width(320).build());
+                inputs.add(DialogInput.text("reason", Component.text("Alasan Penarikan")).width(320).build());
 
                 submitBtn = ActionButton.builder(Component.text("Tarik Saldo"))
                     .action(DialogAction.customClick((view, audience) -> {
@@ -235,9 +235,9 @@ public class ClassCashGui {
                 bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold>=== Form Denda Murid ===</gold>")));
                 bodies.add(DialogBody.plainMessage(Component.text("Pemberian denda akan menarik saldo dompet murid secara paksa ke kas kelas.")));
 
-                inputs.add(DialogInput.text("target", Component.text("Nama Murid (Target)")).build());
-                inputs.add(DialogInput.text("amount", Component.text("Jumlah Denda (Angka)")).build());
-                inputs.add(DialogInput.text("reason", Component.text("Alasan Denda")).build());
+                inputs.add(DialogInput.text("target", Component.text("Nama Murid (Target)")).width(320).build());
+                inputs.add(DialogInput.text("amount", Component.text("Jumlah Denda (Angka)")).width(320).build());
+                inputs.add(DialogInput.text("reason", Component.text("Alasan Denda")).width(320).build());
 
                 submitBtn = ActionButton.builder(Component.text("Keluarkan Denda"))
                     .action(DialogAction.customClick((view, audience) -> {
