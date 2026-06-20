@@ -112,14 +112,10 @@ public class ExamGui {
     // ─────────────────────────────────────────────────────────────────────────
 
     public void openExamGuiJava(Player player, String view, String packetId, String errorMsg) {
-        // Widen the form using spaces padding on both sides of title
         String rawTitle = "Portal Ujian";
         List<DialogBody> bodies = new ArrayList<>();
         List<DialogInput> inputs = new ArrayList<>();
         ActionButton submitBtn = null;
-
-        // Custom divider line to stretch the width
-        Component divider = MiniMessage.miniMessage().deserialize("<gray>──────────────────────────────────────────</gray>");
 
         switch (view.toLowerCase()) {
             case "portal": {
@@ -128,8 +124,6 @@ public class ExamGui {
                 bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>=== Portal Sekolah ===</bold></gold>")));
                 if (errorMsg != null && !errorMsg.isEmpty()) {
                     bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<red><bold>[!] Error: " + errorMsg + "</bold></red>")));
-                } else {
-                    bodies.add(DialogBody.plainMessage(divider));
                 }
                 bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Silakan pilih tipe ujian di bawah ini:</yellow>")));
 
@@ -195,8 +189,6 @@ public class ExamGui {
                         asyncBodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>=== Portal Ujian " + examType + " ===</bold></gold>")));
                         if (errorMsg != null && !errorMsg.isEmpty()) {
                             asyncBodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<red><bold>[!] Error: " + errorMsg + "</bold></red>")));
-                        } else {
-                            asyncBodies.add(DialogBody.plainMessage(divider));
                         }
                         asyncBodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Pilih mata pelajaran di bawah ini:</yellow>")));
 
@@ -271,7 +263,7 @@ public class ExamGui {
 
                         // Render single notice with back and start confirmation
                         Dialog dialog = Dialog.create(builder -> builder.empty()
-                            .base(DialogBase.builder(Component.text("               " + "Portal Ujian - " + examType + "               "))
+                            .base(DialogBase.builder(Component.text("Portal Ujian - " + examType))
                                 .canCloseWithEscape(true)
                                 .body(asyncBodies)
                                 .inputs(asyncInputs)
@@ -298,7 +290,6 @@ public class ExamGui {
 
                 bodies.add(DialogBody.item(new ItemStack(Material.WRITABLE_BOOK)).build());
                 bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>=== Pra-Ujian ===</bold></gold>")));
-                bodies.add(DialogBody.plainMessage(divider));
                 bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Nama Siswa:</yellow> <white>" + name + "</white>")));
                 bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>NIS:</yellow> <white>" + nis + "</white>")));
                 bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Kelas:</yellow> <white>" + academicClass + "</white>")));
@@ -330,7 +321,7 @@ public class ExamGui {
 
                 final String currentTitle = rawTitle;
                 Dialog dialog = Dialog.create(builder -> builder.empty()
-                    .base(DialogBase.builder(Component.text("               " + currentTitle + "               "))
+                    .base(DialogBase.builder(Component.text(currentTitle))
                         .canCloseWithEscape(false)
                         .body(bodies)
                         .build())
@@ -364,7 +355,6 @@ public class ExamGui {
 
                 // Header Navigation Links [Soal 1] | [Soal 2] ...
                 bodies.add(DialogBody.plainMessage(buildNavBarJava(player, packetId, session, qNum)));
-                bodies.add(DialogBody.plainMessage(divider));
 
                 bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize(
                     "<gold><bold>" + subjectName + " (" + examType + ") - Soal " + qNum + "/10</bold></gold>"
@@ -441,7 +431,6 @@ public class ExamGui {
                 rawTitle = "Konfirmasi Akhir";
                 bodies.add(DialogBody.item(new ItemStack(Material.WRITTEN_BOOK)).build());
                 bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>=== Konfirmasi Pengiriman ===</bold></gold>")));
-                bodies.add(DialogBody.plainMessage(divider));
                 bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize(
                     "<yellow>Apakah Anda yakin ingin menyelesaikan ujian dan mengirimkan jawaban Anda sekarang?</yellow>"
                 )));
@@ -470,7 +459,7 @@ public class ExamGui {
 
                 final String confirmTitle = rawTitle;
                 Dialog dialog = Dialog.create(builder -> builder.empty()
-                    .base(DialogBase.builder(Component.text("               " + confirmTitle + "               "))
+                    .base(DialogBase.builder(Component.text(confirmTitle))
                         .canCloseWithEscape(false)
                         .body(bodies)
                         .build())
@@ -484,7 +473,6 @@ public class ExamGui {
                 rawTitle = "Portal Ditutup";
                 bodies.add(DialogBody.item(new ItemStack(Material.BARRIER)).build());
                 bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<red><bold>Portal Sedang ditutup!</bold></red>")));
-                bodies.add(DialogBody.plainMessage(divider));
                 bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize(
                     plugin.getExamManager().getPortalMessage()
                 )));
@@ -495,7 +483,6 @@ public class ExamGui {
                 rawTitle = "Ujian Selesai";
                 bodies.add(DialogBody.item(new ItemStack(Material.BOOK)).build());
                 bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<green><bold>Sudah Selesai</bold></green>")));
-                bodies.add(DialogBody.plainMessage(divider));
                 bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize(
                     "Anda telah menyelesaikan Ujian untuk mata pelajaran ini. Hasil nilai Anda sudah tersimpan di database."
                 )));
@@ -506,7 +493,6 @@ public class ExamGui {
                 rawTitle = "Portal Ditutup";
                 bodies.add(DialogBody.item(new ItemStack(Material.BARRIER)).build());
                 bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<red><bold>Portal Semester Ditutup</bold></red>")));
-                bodies.add(DialogBody.plainMessage(divider));
                 bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize(
                     "Maaf, saat ini portal ujian semester tidak dibuka. Hubungi Kepala Sekolah atau Kementerian!"
                 )));
@@ -516,7 +502,6 @@ public class ExamGui {
             case "error": {
                 rawTitle = "Error Ujian";
                 bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<red><bold>Gagal Mengirim Ujian</bold></red>")));
-                bodies.add(DialogBody.plainMessage(divider));
                 if ("DATABASE_ERROR".equals(packetId)) {
                     bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize(
                         "<red>Gagal mengirim jawaban ke database. Jawaban Anda masih aman di memori server. Hubungi pengawas teknis!</red>"
@@ -573,13 +558,10 @@ public class ExamGui {
     }
 
     private void renderDialog(Player player, String rawTitle, List<DialogBody> bodies, List<DialogInput> inputs, ActionButton submitBtn, List<ActionButton> buttons) {
-        // Apply spaces padding to force stretch form width
-        String paddedTitle = "               " + rawTitle + "               ";
-
         Dialog dialog;
         if (buttons != null && !buttons.isEmpty()) {
             dialog = Dialog.create(builder -> builder.empty()
-                .base(DialogBase.builder(Component.text(paddedTitle))
+                .base(DialogBase.builder(Component.text(rawTitle))
                     .canCloseWithEscape(true)
                     .body(bodies)
                     .inputs(inputs)
@@ -588,7 +570,7 @@ public class ExamGui {
             );
         } else {
             dialog = Dialog.create(builder -> builder.empty()
-                .base(DialogBase.builder(Component.text(paddedTitle))
+                .base(DialogBase.builder(Component.text(rawTitle))
                     .canCloseWithEscape(true)
                     .body(bodies)
                     .inputs(inputs)
@@ -660,11 +642,8 @@ public class ExamGui {
                     return;
                 }
 
-                String body = "Selamat datang di Portal Sekolah\n"
-                    + (errorMsg != null && !errorMsg.isEmpty()
-                        ? "§c[!] Error: " + errorMsg
-                        : "------------------------------------------")
-                    + "\nSilakan pilih tipe ujian di bawah ini:";
+                String body = (errorMsg != null && !errorMsg.isEmpty() ? "§c[!] Error: " + errorMsg + "\n\n" : "")
+                    + "Selamat datang di Portal Sekolah\nSilakan pilih tipe ujian di bawah ini:";
                 SimpleForm form = SimpleForm.builder()
                     .title("Portal Sekolah")
                     .content(body)
@@ -711,11 +690,9 @@ public class ExamGui {
                         int academicClass = profile.getAcademicClass();
 
                         StringBuilder contentBuilder = new StringBuilder();
-                        contentBuilder.append("=== Portal Ujian ").append(examType).append(" ===\n");
+                        contentBuilder.append("=== Portal Ujian ").append(examType).append(" ===\n\n");
                         if (errorMsg != null && !errorMsg.isEmpty()) {
                             contentBuilder.append("§c[!] Error: ").append(errorMsg).append("\n\n");
-                        } else {
-                            contentBuilder.append("------------------------------------------\n\n");
                         }
 
                         contentBuilder.append("Pilih mata pelajaran di bawah ini untuk memulai:\n\n");
