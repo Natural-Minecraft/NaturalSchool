@@ -35,8 +35,11 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
         this.plugin = plugin;
     }
 
-    private boolean checkPermission(CommandSender sender) {
-        if (sender.hasPermission("naturalschool.admin")) {
+    private static final String NO_PERMISSION = "<red><bold>NaturalSchool</bold> <gray>»</gray> <red>You don't have permission to perform this command!</red>";
+
+    private boolean hasSubCommandPermission(CommandSender sender, String sub) {
+        String node = "naturalschool." + sub;
+        if (sender.hasPermission("naturalschool.admin") || sender.hasPermission("naturalschool.*") || sender.hasPermission(node)) {
             return true;
         }
         if (sender instanceof Player) {
@@ -50,10 +53,56 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
         return false;
     }
 
+    private boolean hasAnyAdminPermission(CommandSender sender) {
+        if (sender.hasPermission("naturalschool.admin") || sender.hasPermission("naturalschool.*")) {
+            return true;
+        }
+        for (String perm : Arrays.asList("general", "rank", "setclass", "setstage", "nis", "gui", "semester", "exam", "class")) {
+            if (sender.hasPermission("naturalschool." + perm)) {
+                return true;
+            }
+        }
+        if (sender instanceof Player) {
+            Player player = (Player) sender;
+            StudentProfile profile = plugin.getProfileManager().getProfile(player.getUniqueId());
+            if (profile != null) {
+                SchoolRank rank = profile.getRank();
+                return rank == SchoolRank.KETUA_YAYASAN || rank == SchoolRank.WAKIL_KETUA_YAYASAN;
+            }
+        }
+        return false;
+    }
+
+    private String getPermissionGroup(String sub) {
+        switch (sub.toLowerCase()) {
+            case "reload":
+            case "info":
+                return "general";
+            case "rank":
+                return "rank";
+            case "setclass":
+                return "setclass";
+            case "setstage":
+                return "setstage";
+            case "nis":
+                return "nis";
+            case "gui":
+                return "gui";
+            case "semester":
+                return "semester";
+            case "exam":
+                return "exam";
+            case "class":
+                return "class";
+            default:
+                return null;
+        }
+    }
+
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        if (!checkPermission(sender)) {
-            sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>No Permission!</red>"));
+        if (!hasAnyAdminPermission(sender)) {
+            sender.sendMessage(MiniMessage.miniMessage().deserialize(NO_PERMISSION));
             return true;
         }
 
@@ -63,6 +112,12 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
         }
 
         String subCommand = args[0].toLowerCase();
+        String group = getPermissionGroup(subCommand);
+        if (group != null && !hasSubCommandPermission(sender, group)) {
+            sender.sendMessage(MiniMessage.miniMessage().deserialize(NO_PERMISSION));
+            return true;
+        }
+
         switch (subCommand) {
             case "reload":
                 handleReload(sender);
@@ -103,19 +158,36 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
     }
 
     private void sendHelpMessage(CommandSender sender) {
-        sender.sendMessage(MiniMessage.miniMessage().deserialize(
-            "<gold>=== NaturalSchool Administrative Commands ===</gold>\n" +
-            "<yellow>/naturalschool reload</yellow> - <gray>Reload configuration and database connections.</gray>\n" +
-            "<yellow>/naturalschool info <player></yellow> - <gray>View player academic profile details.</gray>\n" +
-            "<yellow>/naturalschool rank ...</yellow> - <gray>Manage rank prefixes and assign rank to players. Type /ns rank for help.</gray>\n" +
-            "<yellow>/naturalschool setclass <player> <1-12></yellow> - <gray>Set student academic class.</gray>\n" +
-            "<yellow>/naturalschool setstage <player> <SD|SMP|SMA></yellow> - <gray>Set student academic stage.</gray>\n" +
-            "<yellow>/naturalschool nis help</yellow> - <gray>View NIS Management System help.</gray>\n" +
-            "<yellow>/naturalschool gui <welcome|exam1|exam2|exam3|exam4|exam5|version> [player]</yellow> - <gray>Manually trigger school GUI dialogs or view GUI version.</gray>\n" +
-            "<yellow>/naturalschool semester <info|end></yellow> - <gray>Manage and rotate active school semesters.</gray>\n" +
-            "<yellow>/naturalschool exam <open|close|message|sync> [msg]</yellow> - <gray>Manage exam portal status, messages, and synchronization.</gray>\n" +
-            "<yellow>/naturalschool class ...</yellow> - <gray>Manage classrooms, homerooms, areas, and doors. Type /ns class for sub-help.</gray>"
-        ));
+        StringBuilder sb = new StringBuilder("<gold>=== NaturalSchool Administrative Commands ===</gold>");
+        if (hasSubCommandPermission(sender, "general")) {
+            sb.append("\n<yellow>/naturalschool reload</yellow> - <gray>Reload configuration and database connections.</gray>");
+            sb.append("\n<yellow>/naturalschool info <player></yellow> - <gray>View player academic profile details.</gray>");
+        }
+        if (hasSubCommandPermission(sender, "rank")) {
+            sb.append("\n<yellow>/naturalschool rank ...</yellow> - <gray>Manage rank prefixes and assign rank to players. Type /ns rank for help.</gray>");
+        }
+        if (hasSubCommandPermission(sender, "setclass")) {
+            sb.append("\n<yellow>/naturalschool setclass <player> <1-12></yellow> - <gray>Set student academic class.</gray>");
+        }
+        if (hasSubCommandPermission(sender, "setstage")) {
+            sb.append("\n<yellow>/naturalschool setstage <player> <SD|SMP|SMA></yellow> - <gray>Set student academic stage.</gray>");
+        }
+        if (hasSubCommandPermission(sender, "nis")) {
+            sb.append("\n<yellow>/naturalschool nis help</yellow> - <gray>View NIS Management System help.</gray>");
+        }
+        if (hasSubCommandPermission(sender, "gui")) {
+            sb.append("\n<yellow>/naturalschool gui <welcome|exam1|exam2|exam3|exam4|exam5|version> [player]</yellow> - <gray>Manually trigger school GUI dialogs or view GUI version.</gray>");
+        }
+        if (hasSubCommandPermission(sender, "semester")) {
+            sb.append("\n<yellow>/naturalschool semester <info|end></yellow> - <gray>Manage and rotate active school semesters.</gray>");
+        }
+        if (hasSubCommandPermission(sender, "exam")) {
+            sb.append("\n<yellow>/naturalschool exam <open|close|message|sync> [msg]</yellow> - <gray>Manage exam portal status, messages, and synchronization.</gray>");
+        }
+        if (hasSubCommandPermission(sender, "class")) {
+            sb.append("\n<yellow>/naturalschool class ...</yellow> - <gray>Manage classrooms, homerooms, areas, and doors. Type /ns class for sub-help.</gray>");
+        }
+        sender.sendMessage(MiniMessage.miniMessage().deserialize(sb.toString()));
     }
 
     private void handleClassCommand(CommandSender sender, String[] args) {
@@ -702,8 +774,8 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
     }
 
     private void handleNisCommand(CommandSender sender, String[] args) {
-        if (!sender.hasPermission("naturalschool.admin")) {
-            sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>No Permission!</red>"));
+        if (!hasSubCommandPermission(sender, "nis")) {
+            sender.sendMessage(MiniMessage.miniMessage().deserialize(NO_PERMISSION));
             return;
         }
 
@@ -1074,13 +1146,28 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        if (!checkPermission(sender)) {
+        if (!hasAnyAdminPermission(sender)) {
             return Collections.emptyList();
+        }
+
+        if (args.length >= 2) {
+            String subCommand = args[0].toLowerCase();
+            String group = getPermissionGroup(subCommand);
+            if (group != null && !hasSubCommandPermission(sender, group)) {
+                return Collections.emptyList();
+            }
         }
 
         if (args.length == 1) {
             List<String> subCommands = Arrays.asList("reload", "info", "rank", "setclass", "setstage", "nis", "gui", "semester", "exam", "class");
-            return filterList(subCommands, args[0]);
+            List<String> allowed = new ArrayList<>();
+            for (String sub : subCommands) {
+                String group = getPermissionGroup(sub);
+                if (group != null && hasSubCommandPermission(sender, group)) {
+                    allowed.add(sub);
+                }
+            }
+            return filterList(allowed, args[0]);
         }
 
         if (args.length == 2) {

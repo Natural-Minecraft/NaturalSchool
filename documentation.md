@@ -280,7 +280,17 @@ Pemain baru yang baru pertama kali bergabung dengan server akan secara otomatis 
 | `/kelas jawab <index> <jawaban>` | (Internal Siswa) Mengirimkan opsi jawaban kuis harian ke memori kuis kelas yang aktif. |
 
 ### 6.3 Perintah Administrator (`/naturalschool` / `/ns`)
-* **Izin**: `naturalschool.admin` atau peringkat internal `KETUA_YAYASAN` / `WAKIL_KETUA_YAYASAN`.
+* **Izin Global**: `naturalschool.admin`, `naturalschool.*`, atau peringkat internal `KETUA_YAYASAN` / `WAKIL_KETUA_YAYASAN`.
+* **Izin Per Sub-perintah (Fine-grained)**:
+  * `naturalschool.general` : Mengakses `/ns reload` dan `/ns info`
+  * `naturalschool.rank`    : Mengakses `/ns rank` (set, list, update)
+  * `naturalschool.setclass` : Mengakses `/ns setclass`
+  * `naturalschool.setstage` : Mengakses `/ns setstage`
+  * `naturalschool.nis`      : Mengakses `/ns nis` (register, unregister, set, show, help)
+  * `naturalschool.gui`      : Mengakses `/ns gui`
+  * `naturalschool.semester` : Mengakses `/ns semester` (info, end, reset)
+  * `naturalschool.exam`     : Mengakses `/ns exam` (open, close, message, sync)
+  * `naturalschool.class`    : Mengakses `/ns class` (list, spy, setwali, area, door, panel)
 
 | Perintah | Deskripsi |
 | :--- | :--- |

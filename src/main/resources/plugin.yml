@@ -1,5 +1,5 @@
 name: NaturalSchool
-version: '1.7.2'
+version: '1.7.3'
 main: id.naturalsmp.naturalSchool.NaturalSchool
 api-version: '1.21'
 load: STARTUP
@@ -20,5 +20,47 @@ commands:
 
 permissions:
   naturalschool.admin:
-    description: Allows administrative access to NaturalSchool commands.
+    description: Allows administrative access to all NaturalSchool commands.
+    default: op
+    children:
+      naturalschool.*: true
+  naturalschool.*:
+    description: Grants all administrative permissions for NaturalSchool.
+    default: op
+    children:
+      naturalschool.general: true
+      naturalschool.rank: true
+      naturalschool.setclass: true
+      naturalschool.setstage: true
+      naturalschool.nis: true
+      naturalschool.gui: true
+      naturalschool.semester: true
+      naturalschool.exam: true
+      naturalschool.class: true
+  naturalschool.general:
+    description: Access to reload configurations and view student profile information.
+    default: op
+  naturalschool.rank:
+    description: Access to set internal ranks, list prefixes, and update prefix entries in the database.
+    default: op
+  naturalschool.setclass:
+    description: Access to override student class levels.
+    default: op
+  naturalschool.setstage:
+    description: Access to override student academic stages (SD/SMP/SMA).
+    default: op
+  naturalschool.nis:
+    description: Access to register, set, unregister, or view student NIS details.
+    default: op
+  naturalschool.gui:
+    description: Access to manually open client GUI screens or onboarding flows.
+    default: op
+  naturalschool.semester:
+    description: Access to view semester information, end semesters, or reset states.
+    default: op
+  naturalschool.exam:
+    description: Access to toggle exam state, update announcement messages, and sync exam questions.
+    default: op
+  naturalschool.class:
+    description: Access to spy on class chats and configure class properties, zones, and door selections.
     default: op

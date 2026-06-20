@@ -2,6 +2,16 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.7.3] - 2026-06-20
+### Added
+- **Fine-grained Admin Permissions**: Replaced blanket `naturalschool.admin` with specific permission nodes for each administrative subcommand group (`general`, `rank`, `setclass`, `setstage`, `nis`, `gui`, `semester`, `exam`, `class`), structured hierarchically under a new wildcard node `naturalschool.*`.
+- **Dynamic Help Menu Filter**: Auto-filters administration help descriptions so players only see commands they have authority to execute.
+- **Smart Permission-Aware Autocomplete**: Restricts command tab-completions so players can only see and execute subcommands they possess permission nodes for.
+- **Styled Access-Denied Warning**: Introduced a new styled permission-denied warning message utilizing a visual red prefix (`NaturalSchool » You don't have permission to perform this command!`).
+
+### Changed
+- **Version Bump**: Elevated system version to `1.7.3` in `pom.xml`, `plugin.yml`, and `UIManager.java`.
+
 ## [1.7.2] - 2026-06-19
 ### Added
 - **Class Fund & Bank Subsystem**: Implemented `/class fund` (and `/class bank`) commands allowing students to pay weekly cash, view class balances, and view transaction history logs.
