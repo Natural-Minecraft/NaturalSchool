@@ -22,6 +22,14 @@ public class RankPrefixConfig {
     private boolean itemsAdderEnabled;
     private Object itemsAdderWrapper;
 
+    public boolean isItemsAdderEnabled() {
+        return itemsAdderEnabled;
+    }
+
+    public Object getItemsAdderWrapper() {
+        return itemsAdderWrapper;
+    }
+
     public RankPrefixConfig(NaturalSchool plugin) {
         this.plugin = plugin;
         this.configFile = new File(plugin.getDataFolder(), "rankprefix.yml");

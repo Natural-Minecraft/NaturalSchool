@@ -71,6 +71,68 @@ public class NaturalSchoolExpansion extends PlaceholderExpansion {
                 String nis = profile.getNis();
                 return (nis != null && !nis.trim().isEmpty()) ? nis : "-";
 
+            case "class_prefix": {
+                int classNo = profile.getAcademicClass();
+                if (classNo < 1 || classNo > 12) return "";
+                String rawPrefix = plugin.getRankPrefixConfig().getClassPrefix(classNo);
+                return formatRawPrefix(rawPrefix);
+            }
+
+            case "role": {
+                int classNo = profile.getAcademicClass();
+                String role = "ANGGOTA";
+                if (classNo >= 1 && classNo <= 12) {
+                    ClassroomData classData = plugin.getClassroomManager().getClassroom(classNo);
+                    if (classData != null) {
+                        if (player.getUniqueId().equals(classData.getWaliKelasUuid())) {
+                            role = "WALI_KELAS";
+                        } else {
+                            ClassroomManager.OfficerInfo assignedOfficer = classData.getOfficers().get(player.getUniqueId());
+                            if (assignedOfficer != null) {
+                                role = assignedOfficer.getRole();
+                            }
+                        }
+                    }
+                }
+                if (role.equals("ANGGOTA")) {
+                    for (ClassroomData data : plugin.getClassroomManager().getAllClassroomData()) {
+                        if (player.getUniqueId().equals(data.getWaliKelasUuid())) {
+                            role = "WALI_KELAS";
+                            break;
+                        }
+                    }
+                }
+                return role;
+            }
+
+            case "role_prefix": {
+                int classNo = profile.getAcademicClass();
+                String role = "ANGGOTA";
+                if (classNo >= 1 && classNo <= 12) {
+                    ClassroomData classData = plugin.getClassroomManager().getClassroom(classNo);
+                    if (classData != null) {
+                        if (player.getUniqueId().equals(classData.getWaliKelasUuid())) {
+                            role = "WALI_KELAS";
+                        } else {
+                            ClassroomManager.OfficerInfo assignedOfficer = classData.getOfficers().get(player.getUniqueId());
+                            if (assignedOfficer != null) {
+                                role = assignedOfficer.getRole();
+                            }
+                        }
+                    }
+                }
+                if (role.equals("ANGGOTA")) {
+                    for (ClassroomData data : plugin.getClassroomManager().getAllClassroomData()) {
+                        if (player.getUniqueId().equals(data.getWaliKelasUuid())) {
+                            role = "WALI_KELAS";
+                            break;
+                        }
+                    }
+                }
+                String rawPrefix = plugin.getRankPrefixConfig().getClassRolePrefix(role);
+                return formatRawPrefix(rawPrefix);
+            }
+
             case "class_cash":
             case "class_cash_balance":
                 int cNumCash = profile.getAcademicClass();
@@ -100,6 +162,40 @@ public class NaturalSchoolExpansion extends PlaceholderExpansion {
 
             default:
                 return null;
+        }
+    }
+
+    private String formatRawPrefix(String rawVal) {
+        if (rawVal == null || rawVal.isEmpty()) {
+            return "";
+        }
+        
+        // Process ItemsAdder if enabled
+        String processed = rawVal;
+        if (plugin.getRankPrefixConfig().isItemsAdderEnabled() && plugin.getRankPrefixConfig().getItemsAdderWrapper() != null) {
+            try {
+                Object wrapper = plugin.getRankPrefixConfig().getItemsAdderWrapper();
+                processed = (String) wrapper.getClass()
+                        .getMethod("replace", String.class)
+                        .invoke(wrapper, processed);
+            } catch (Exception ignored) {}
+        }
+
+        try {
+            net.kyori.adventure.text.Component component;
+            if (processed.contains("<") && processed.contains(">")) {
+                component = MiniMessage.miniMessage().deserialize(processed);
+            } else {
+                String translated = org.bukkit.ChatColor.translateAlternateColorCodes('&', processed);
+                component = LegacyComponentSerializer.legacySection().deserialize(translated);
+            }
+            return LegacyComponentSerializer.builder()
+                    .hexColors()
+                    .character(LegacyComponentSerializer.SECTION_CHAR)
+                    .build()
+                    .serialize(component);
+        } catch (Exception e) {
+            return org.bukkit.ChatColor.translateAlternateColorCodes('&', processed);
         }
     }
 }
