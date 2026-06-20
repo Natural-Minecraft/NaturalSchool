@@ -232,7 +232,7 @@ public class ExamGui {
 
                         List<DialogInput> asyncInputs = List.of(
                             DialogInput.singleOption("selected_subject", Component.text("Mata Pelajaran"), selectOptions)
-                                .width(300)
+                                .width(320)
                                 .build()
                         );
 
@@ -375,11 +375,19 @@ public class ExamGui {
                 }
 
                 bodies.add(DialogBody.plainMessage(Component.text(" ")));
+                List<io.papermc.paper.registry.data.dialog.input.SingleOptionDialogInput.OptionEntry> answerOptions = new ArrayList<>();
+
                 if (options != null) {
                     for (int i = 0; i < options.size(); i++) {
                         String optText = options.get(i);
                         String optChar = String.valueOf((char) ('A' + i));
                         boolean isSelected = optChar.equalsIgnoreCase(currentAns);
+
+                        answerOptions.add(io.papermc.paper.registry.data.dialog.input.SingleOptionDialogInput.OptionEntry.create(
+                            optChar,
+                            Component.text(optChar + ". " + optText),
+                            isSelected
+                        ));
 
                         if (isSelected) {
                             bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize(
@@ -402,11 +410,21 @@ public class ExamGui {
                     }
                 }
 
+                inputs = List.of(
+                    DialogInput.singleOption("answer", Component.text("Pilihan Jawaban"), answerOptions)
+                        .width(320)
+                        .build()
+                );
+
                 // Single Navigation Button at the bottom
                 if (qNum < 10) {
                     submitBtn = ActionButton.builder(Component.text("Ke Soal Selanjutnya"))
-                        .action(DialogAction.customClick((v, aud) -> {
+                        .action(DialogAction.customClick((viewObj, aud) -> {
                             if (aud instanceof Player p) {
+                                String selectedAns = viewObj.getText("answer");
+                                if (selectedAns != null) {
+                                    session.setAnswer(qNum - 1, selectedAns);
+                                }
                                 session.setCurrentQuestion(qNum + 1);
                                 session.setShowWarning(false);
                                 Bukkit.getScheduler().runTask(plugin, () -> openExamGuiJava(p, "question", packetId, null));
@@ -415,8 +433,12 @@ public class ExamGui {
                         .build();
                 } else {
                     submitBtn = ActionButton.builder(Component.text("Selesai & Kirim"))
-                        .action(DialogAction.customClick((v, aud) -> {
+                        .action(DialogAction.customClick((viewObj, aud) -> {
                             if (aud instanceof Player p) {
+                                String selectedAns = viewObj.getText("answer");
+                                if (selectedAns != null) {
+                                    session.setAnswer(qNum - 1, selectedAns);
+                                }
                                 session.setCurrentQuestion(11);
                                 session.setShowWarning(false);
                                 Bukkit.getScheduler().runTask(plugin, () -> openExamGuiJava(p, "confirmation", packetId, null));
