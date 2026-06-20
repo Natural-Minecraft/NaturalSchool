@@ -2,6 +2,15 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.7.4] - 2026-06-20
+### Added
+- **Revamped Ujian (Exam) Subsystem**: Refactored the entire Ujian module using a consolidated layout pattern matching ClassCashGui.
+- **Cross-Platform GUI Improvements**: Implemented pixel-perfect Java Edition form/dialog padding and added dropdown CustomForms/SimpleForms navigation buttons for Bedrock clients.
+- **Stateful In-Memory Answers**: Choice selections are stored inside the active session (`ExamSession`) and highlighted in Green Bold without prematurely shifting client view.
+
+### Changed
+- **Version Bump**: Elevated system version to `1.7.4` in `pom.xml`, `plugin.yml`, and `UIManager.java`.
+
 ## [1.7.3] - 2026-06-20
 ### Added
 - **Fine-grained Admin Permissions**: Replaced blanket `naturalschool.admin` with specific permission nodes for each administrative subcommand group (`general`, `rank`, `setclass`, `setstage`, `nis`, `gui`, `semester`, `exam`, `class`), structured hierarchically under a new wildcard node `naturalschool.*`.

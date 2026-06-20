@@ -1,7 +1,6 @@
 package id.naturalsmp.naturalSchool.exam;
 
 import id.naturalsmp.naturalSchool.NaturalSchool;
-import id.naturalsmp.naturalSchool.ui.UIManager;
 import io.papermc.paper.dialog.Dialog;
 import io.papermc.paper.registry.data.dialog.DialogBase;
 import io.papermc.paper.registry.data.dialog.ActionButton;
@@ -21,16 +20,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * GUI mandiri untuk varian soal ujian prototype (/ns gui exam1–5).
- * Berisi implementasi Java Edition (Dialog API) dan Bedrock Edition (Cumulus Form)
- * dalam satu file yang sama.
- *
- * - exam0 / testexam : soal tunggal pilihan ganda (legacy test)
- * - exam1            : MCQ dengan validasi pilih-satu
- * - exam2            : Benar / Salah
- * - exam3            : MCQ matematika dengan validasi pilih-satu
- * - exam4            : Pernyataan majemuk (multiple statement checklist)
- * - exam5            : Pakta Integritas (deklarasi)
+ * GUI for mock exam prototypes (/ns gui exam1-5).
+ * Contains both Java and Bedrock implementations.
  */
 public class ExamVariantsGui {
 
@@ -44,7 +35,6 @@ public class ExamVariantsGui {
     // JAVA EDITION — Paper Dialog API
     // ─────────────────────────────────────────────────────────────────────────
 
-    /** [Java] Exam 1 — MCQ pilih-satu dengan validasi. */
     public void openExam1Java(Player player, boolean showMoreThanOneWarning) {
         List<DialogBody> bodies = new ArrayList<>();
         bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>Ujian Kelulusan - Sejarah</bold></gold>")));
@@ -80,7 +70,7 @@ public class ExamVariantsGui {
             .build();
 
         Dialog dialog = Dialog.create(builder -> builder.empty()
-            .base(DialogBase.builder(Component.text("Ujian 1: Pilihan Ganda"))
+            .base(DialogBase.builder(Component.text("               Ujian 1: Pilihan Ganda               "))
                 .canCloseWithEscape(true)
                 .body(bodies)
                 .inputs(List.of(
@@ -96,7 +86,6 @@ public class ExamVariantsGui {
         player.showDialog(dialog);
     }
 
-    /** [Java] Exam 2 — Benar / Salah. */
     public void openExam2Java(Player player) {
         List<DialogBody> bodies = List.of(
             DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>Ujian Kelulusan - Kebijakan</bold></gold>")),
@@ -122,7 +111,7 @@ public class ExamVariantsGui {
             .build();
 
         Dialog dialog = Dialog.create(builder -> builder.empty()
-            .base(DialogBase.builder(Component.text("Ujian 2: Benar / Salah"))
+            .base(DialogBase.builder(Component.text("               Ujian 2: Benar / Salah               "))
                 .canCloseWithEscape(true)
                 .body(bodies)
                 .build())
@@ -132,7 +121,6 @@ public class ExamVariantsGui {
         player.showDialog(dialog);
     }
 
-    /** [Java] Exam 3 — MCQ matematika dengan validasi pilih-satu. */
     public void openExam3Java(Player player, boolean showMoreThanOneWarning) {
         List<DialogBody> bodies = new ArrayList<>();
         bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>Ujian Kelulusan - Matematika</bold></gold>")));
@@ -168,7 +156,7 @@ public class ExamVariantsGui {
             .build();
 
         Dialog dialog = Dialog.create(builder -> builder.empty()
-            .base(DialogBase.builder(Component.text("Ujian 3: Pilihan Ganda"))
+            .base(DialogBase.builder(Component.text("               Ujian 3: Pilihan Ganda               "))
                 .canCloseWithEscape(true)
                 .body(bodies)
                 .inputs(List.of(
@@ -184,7 +172,6 @@ public class ExamVariantsGui {
         player.showDialog(dialog);
     }
 
-    /** [Java] Exam 4 — Pernyataan majemuk (multiple statement checklist). */
     public void openExam4Java(Player player) {
         List<DialogBody> bodies = List.of(
             DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>Ujian Kelulusan - Logika Kelas</bold></gold>")),
@@ -211,7 +198,7 @@ public class ExamVariantsGui {
             .build();
 
         Dialog dialog = Dialog.create(builder -> builder.empty()
-            .base(DialogBase.builder(Component.text("Ujian 4: Pernyataan Majemuk"))
+            .base(DialogBase.builder(Component.text("               Ujian 4: Pernyataan Majemuk               "))
                 .canCloseWithEscape(true)
                 .body(bodies)
                 .inputs(List.of(
@@ -226,7 +213,6 @@ public class ExamVariantsGui {
         player.showDialog(dialog);
     }
 
-    /** [Java] Exam 5 — Pakta Integritas (deklarasi komitmen). */
     public void openExam5Java(Player player, boolean showWarning) {
         List<DialogBody> bodies = new ArrayList<>();
         bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold><bold>Ujian Kelulusan - Pakta Integritas</bold></gold>")));
@@ -253,7 +239,7 @@ public class ExamVariantsGui {
             .build();
 
         Dialog dialog = Dialog.create(builder -> builder.empty()
-            .base(DialogBase.builder(Component.text("Ujian 5: Pakta Integritas"))
+            .base(DialogBase.builder(Component.text("               Ujian 5: Pakta Integritas               "))
                 .canCloseWithEscape(true)
                 .body(bodies)
                 .inputs(List.of(
@@ -271,7 +257,6 @@ public class ExamVariantsGui {
     // BEDROCK EDITION — Geyser/Floodgate Cumulus Form
     // ─────────────────────────────────────────────────────────────────────────
 
-    /** [Bedrock] Exam 1 — MCQ pilih-satu dengan validasi (CustomForm toggle). */
     public void openExam1Bedrock(Player player, boolean showWarning) {
         CustomForm.Builder builder = CustomForm.builder().title("Ujian 1: Pilihan Ganda");
 
@@ -309,7 +294,6 @@ public class ExamVariantsGui {
         FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
     }
 
-    /** [Bedrock] Exam 2 — Benar / Salah (SimpleForm). */
     public void openExam2Bedrock(Player player) {
         SimpleForm form = SimpleForm.builder()
             .title("Ujian 2: Benar / Salah")
@@ -331,7 +315,6 @@ public class ExamVariantsGui {
         FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
     }
 
-    /** [Bedrock] Exam 3 — MCQ matematika pilih-satu (CustomForm toggle). */
     public void openExam3Bedrock(Player player, boolean showWarning) {
         CustomForm.Builder builder = CustomForm.builder().title("Ujian 3: Pilihan Ganda");
 
@@ -369,7 +352,6 @@ public class ExamVariantsGui {
         FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
     }
 
-    /** [Bedrock] Exam 4 — Pernyataan majemuk (CustomForm toggle). */
     public void openExam4Bedrock(Player player) {
         CustomForm form = CustomForm.builder()
             .title("Ujian 4: Pernyataan Majemuk")
@@ -395,7 +377,6 @@ public class ExamVariantsGui {
         FloodgateApi.getInstance().sendForm(player.getUniqueId(), form);
     }
 
-    /** [Bedrock] Exam 5 — Pakta Integritas (CustomForm toggle). */
     public void openExam5Bedrock(Player player, boolean showWarning) {
         CustomForm.Builder builder = CustomForm.builder().title("Ujian 5: Pakta Integritas");
 

@@ -24,7 +24,7 @@ import java.util.logging.Level;
 
 public class UIManager {
 
-    public static final String GUI_VERSION = "1.7.3";
+    public static final String GUI_VERSION = "1.7.4";
 
     private static final MiniMessage MM = MiniMessage.miniMessage();
 
@@ -183,9 +183,18 @@ public class UIManager {
     // Exam main flow GUI routing  →  ExamGui
     // ─────────────────────────────────────────────────────────────────────────
 
+    public void openExamGui(Player player, String view, String packetId, String errorMsg) {
+        if (isBedrockPlayer(player)) {
+            if (bedrockHandler != null) {
+                bedrockHandler.openExamGui(player, view, packetId, errorMsg);
+            }
+        } else {
+            examGui.openExamGuiJava(player, view, packetId, errorMsg);
+        }
+    }
+
     public void openExamPortal(Player player) {
-        if (isBedrockPlayer(player)) bedrockHandler.openExamPortal(player);
-        else examGui.openExamPortalJava(player);
+        openExamGui(player, "portal", null, null);
     }
 
     public void openPortalUjian(Player player, String examType) {
@@ -193,28 +202,31 @@ public class UIManager {
     }
 
     public void openPortalUjian(Player player, String examType, String warning) {
-        if (isBedrockPlayer(player)) bedrockHandler.openPortalUjian(player, examType, warning);
-        else examGui.openPortalUjianJava(player, examType, warning);
+        openExamGui(player, "subject_select", examType, warning);
     }
 
     public void openExamClosed(Player player) {
-        if (isBedrockPlayer(player)) bedrockHandler.openExamClosed(player);
-        else examGui.openExamClosedJava(player);
+        openExamGui(player, "closed", null, null);
     }
 
     public void openExamPre(Player player, String packetId) {
-        if (isBedrockPlayer(player)) bedrockHandler.openExamPre(player, packetId);
-        else examGui.openExamPreJava(player, packetId);
+        openExamGui(player, "pre_exam", packetId, null);
     }
 
     public void openExamQuestion(Player player, String packetId, int questionNum) {
-        if (isBedrockPlayer(player)) bedrockHandler.openExamQuestion(player, packetId, questionNum);
-        else examGui.openExamQuestionJava(player, packetId, questionNum);
+        ExamSession session = getExamSession(player.getUniqueId());
+        if (session == null) {
+            startExamSession(player, packetId);
+            session = getExamSession(player.getUniqueId());
+        }
+        if (session != null) {
+            session.setCurrentQuestion(questionNum);
+        }
+        openExamGui(player, "question", packetId, null);
     }
 
     public void openExamConfirmation(Player player, String packetId) {
-        if (isBedrockPlayer(player)) bedrockHandler.openExamConfirmation(player, packetId);
-        else examGui.openExamConfirmationJava(player, packetId);
+        openExamGui(player, "confirmation", packetId, null);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
