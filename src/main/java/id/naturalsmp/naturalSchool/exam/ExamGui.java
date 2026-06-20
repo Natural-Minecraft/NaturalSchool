@@ -231,7 +231,9 @@ public class ExamGui {
                         }
 
                         List<DialogInput> asyncInputs = List.of(
-                            DialogInput.singleOption("selected_subject", Component.text("Mata Pelajaran"), selectOptions).build()
+                            DialogInput.singleOption("selected_subject", Component.text("Mata Pelajaran"), selectOptions)
+                                .width(300)
+                                .build()
                         );
 
                         ActionButton startBtn = ActionButton.builder(Component.text("Mulai Ujian"))
