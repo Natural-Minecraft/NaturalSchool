@@ -6,15 +6,12 @@ All notable changes to the NaturalSchool project will be documented in this file
 ### Added
 - **Classroom Attendance Command & GUI (`/class absen`)**: Introduced custom cross-platform attendance forms. Java Edition players use a native Paper notice dialog flow (with Hadir/Izin checkboxes and reason prompts), while Bedrock players use Floodgate/Cumulus SimpleForm/CustomForm inputs.
 - **Leave Excuse Teleportation**: Students who submit a leave reason ("Izin") are automatically teleported 2 blocks outside the classroom bounds (safely aligned via `getHighestBlockYAt` + 1.0) or to world spawn if bounds are undefined.
-- **Leave Reasons Persistency**: Modified the database schema and query architecture to dynamically append the `alasan` field to the `nschool_student_attendance` table and log leave reasons upon session rekapitulasi.
-- **Auto-Rename Migration**: Implemented dynamic database migrations to automatically rename legacy `natural_` tables to the new `nschool_` prefix names on startup if they exist, ensuring zero data loss during update.
+- **Leave Reasons Persistency**: Modified the database schema and query architecture to dynamically append the `alasan` field to the `natural_student_attendance` table and log leave reasons upon session rekapitulasi.
 
 ### Changed
-- **Database Table Rename**: Changed database table prefixes from `natural_` to `nschool_` for unified naming conventions (`nschool_student_attendance`, `nschool_academic_grades`, `nschool_e_rapor_digital`, and `nschool_lesson_files`).
 - **Classroom UI Package Migration**: Relocated classroom-related GUIs (`ClassroomManagerGui` and `ClassCashGui`) to a centralized `id.naturalsmp.naturalSchool.classes.gui` package and removed legacy files.
 - **Prefix Seeding Reliability**: Fixed class role prefix seeding (e.g. `[Ketua Kelas]`) by replacing the empty table constraint check with dynamic insert checks (`savePrefixIfAbsent`), ensuring prefixes load without overriding admin configurations.
 - **Legacy Table Cleanup**: Dropped four unused legacy tables (`nschool_classrooms`, `nschool_classroom_doors`, `nschool_classroom_officers`, and `nschool_class_fund_transaction`) to clean up database schema.
-- **Version Bump**: Elevated system version to `1.7.5` in `pom.xml`, `plugin.yml`, and `UIManager.java`.
 
 ## [1.7.4] - 2026-06-20
 ### Added
