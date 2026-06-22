@@ -25,6 +25,9 @@ public class ClassSession {
     // Attendance record: student UUID -> Status ('HADIR', 'TERLAMBAT', 'ALFA', 'IZIN', 'SAKIT')
     private final Map<UUID, String> attendanceMap = new ConcurrentHashMap<>();
 
+    // Attendance excuse/leave reason: student UUID -> Reason string
+    private final Map<UUID, String> attendanceReasonMap = new ConcurrentHashMap<>();
+
     // Grades record: student UUID -> Quiz score (0-100)
     private final Map<UUID, Integer> gradesMap = new ConcurrentHashMap<>();
 
@@ -104,6 +107,10 @@ public class ClassSession {
 
     public Map<UUID, String> getAttendanceMap() {
         return attendanceMap;
+    }
+
+    public Map<UUID, String> getAttendanceReasonMap() {
+        return attendanceReasonMap;
     }
 
     public Map<UUID, Integer> getGradesMap() {

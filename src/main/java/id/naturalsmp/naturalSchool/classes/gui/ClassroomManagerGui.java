@@ -1,4 +1,4 @@
-package id.naturalsmp.naturalSchool.ui.gui;
+package id.naturalsmp.naturalSchool.classes.gui;
 
 import id.naturalsmp.naturalSchool.NaturalSchool;
 import id.naturalsmp.naturalSchool.classes.ClassroomManager;

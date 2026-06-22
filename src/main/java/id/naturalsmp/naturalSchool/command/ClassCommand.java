@@ -77,6 +77,13 @@ public class ClassCommand implements CommandExecutor, TabCompleter {
             } else if (sub.equals("fund") || sub.equals("bank") || sub.equals("gui")) {
                 handleFund(sender, args);
                 return true;
+            } else if (sub.equals("absen")) {
+                if (!(sender instanceof Player)) {
+                    sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Hanya player yang dapat melakukan absen!</red>"));
+                    return true;
+                }
+                handleAbsen((Player) sender, args);
+                return true;
             } else if (sub.equals("help")) {
                 sendHelpMessage(sender);
                 return true;
@@ -841,6 +848,22 @@ public class ClassCommand implements CommandExecutor, TabCompleter {
         }
     }
 
+    private void handleAbsen(Player player, String[] args) {
+        StudentProfile profile = plugin.getProfileManager().getProfile(player.getUniqueId());
+        int classNum = profile != null ? profile.getAcademicClass() : 0;
+        if (classNum == 0) {
+            player.sendMessage(MiniMessage.miniMessage().deserialize("<red>Anda tidak terdaftar di kelas manapun!</red>"));
+            return;
+        }
+        String idKelas = "kelas" + classNum;
+        ClassSession session = plugin.getClassManager().getSession(idKelas);
+        if (session == null) {
+            player.sendMessage(MiniMessage.miniMessage().deserialize("<red>Tidak ada sesi kelas aktif untuk kelas Anda saat ini!</red>"));
+            return;
+        }
+        plugin.getUiManager().openAttendanceGui(player);
+    }
+
     private String getPlayerRegion(Player player) {
         try {
             if (Bukkit.getPluginManager().getPlugin("WorldGuard") == null) return null;
@@ -886,6 +909,7 @@ public class ClassCommand implements CommandExecutor, TabCompleter {
             list.add("fund");
             list.add("bank");
             list.add("gui");
+            list.add("absen");
             if (checkStaffPermission(sender)) {
                 list.add("start");
                 list.add("selesai");
@@ -986,7 +1010,7 @@ public class ClassCommand implements CommandExecutor, TabCompleter {
 
     private List<String> getLessonFilesNames(String type) {
         List<String> list = new ArrayList<>();
-        String query = "SELECT nama_file FROM natural_lesson_files WHERE tipe = ?;";
+        String query = "SELECT nama_file FROM nschool_lesson_files WHERE tipe = ?;";
         try (Connection conn = plugin.getDatabaseManager().getConnection();
              PreparedStatement ps = conn.prepareStatement(query)) {
             ps.setString(1, type);

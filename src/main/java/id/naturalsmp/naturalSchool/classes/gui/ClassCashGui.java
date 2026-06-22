@@ -1,4 +1,4 @@
-package id.naturalsmp.naturalSchool.ui.gui;
+package id.naturalsmp.naturalSchool.classes.gui;
 
 import id.naturalsmp.naturalSchool.NaturalSchool;
 import id.naturalsmp.naturalSchool.classes.ClassroomManager.ClassroomData;
@@ -625,8 +625,8 @@ public class ClassCashGui {
 
                         String color = type.equalsIgnoreCase("DEPOSIT") || type.equalsIgnoreCase("FINE") ? "+" : "-";
                         sb.append("[").append(dateStr).append("] ")
-                          .append(color).append("Rp").append(String.format("%,.0f", amt))
-                          .append(" - ").append(desc).append("\n");
+                           .append(color).append("Rp").append(String.format("%,.0f", amt))
+                           .append(" - ").append(desc).append("\n");
                     }
                 }
 

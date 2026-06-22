@@ -221,7 +221,7 @@ public class DatabaseManager {
                     + "state_value TEXT, "
                     + "description TEXT"
                     + ");";
-            createAttendanceSQL = "CREATE TABLE IF NOT EXISTS natural_student_attendance ("
+            createAttendanceSQL = "CREATE TABLE IF NOT EXISTS nschool_student_attendance ("
                     + "id_log INT AUTO_INCREMENT PRIMARY KEY, "
                     + "player_uuid VARCHAR(36) NOT NULL, "
                     + "player_name VARCHAR(16) NOT NULL, "
@@ -233,7 +233,7 @@ public class DatabaseManager {
                     + "INDEX (player_uuid), "
                     + "INDEX (status_kehadiran)"
                     + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
-            createGradesSQL = "CREATE TABLE IF NOT EXISTS natural_academic_grades ("
+            createGradesSQL = "CREATE TABLE IF NOT EXISTS nschool_academic_grades ("
                     + "id_nilai INT AUTO_INCREMENT PRIMARY KEY, "
                     + "player_uuid VARCHAR(36) NOT NULL, "
                     + "jenjang ENUM('SD', 'SMP', 'SMA') NOT NULL, "
@@ -246,7 +246,7 @@ public class DatabaseManager {
                     + "UNIQUE KEY unique_student_subject (player_uuid, mata_pelajaran, tipe_ujian), "
                     + "INDEX (player_uuid)"
                     + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
-            createRaporSQL = "CREATE TABLE IF NOT EXISTS natural_e_rapor_digital ("
+            createRaporSQL = "CREATE TABLE IF NOT EXISTS nschool_e_rapor_digital ("
                     + "id_rapor INT AUTO_INCREMENT PRIMARY KEY, "
                     + "player_uuid VARCHAR(36) NOT NULL, "
                     + "nomor_induk_siswa VARCHAR(12) NOT NULL UNIQUE, "
@@ -262,7 +262,7 @@ public class DatabaseManager {
                     + "waktu_cetak TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
                     + "INDEX (player_uuid)"
                     + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
-            createLessonFilesSQL = "CREATE TABLE IF NOT EXISTS natural_lesson_files ("
+            createLessonFilesSQL = "CREATE TABLE IF NOT EXISTS nschool_lesson_files ("
                     + "id_file INT AUTO_INCREMENT PRIMARY KEY, "
                     + "nama_file VARCHAR(64) NOT NULL UNIQUE, "
                     + "tipe ENUM('MATERI_PROYEKTOR', 'SOAL_KUIS') NOT NULL, "
@@ -378,7 +378,7 @@ public class DatabaseManager {
                     + "state_value TEXT, "
                     + "description TEXT"
                     + ");";
-            createAttendanceSQL = "CREATE TABLE IF NOT EXISTS natural_student_attendance ("
+            createAttendanceSQL = "CREATE TABLE IF NOT EXISTS nschool_student_attendance ("
                     + "id_log INTEGER PRIMARY KEY AUTOINCREMENT, "
                     + "player_uuid TEXT NOT NULL, "
                     + "player_name TEXT NOT NULL, "
@@ -388,7 +388,7 @@ public class DatabaseManager {
                     + "status_kehadiran TEXT NOT NULL, "
                     + "waktu_record TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
                     + ");";
-            createGradesSQL = "CREATE TABLE IF NOT EXISTS natural_academic_grades ("
+            createGradesSQL = "CREATE TABLE IF NOT EXISTS nschool_academic_grades ("
                     + "id_nilai INTEGER PRIMARY KEY AUTOINCREMENT, "
                     + "player_uuid TEXT NOT NULL, "
                     + "jenjang TEXT NOT NULL, "
@@ -400,7 +400,7 @@ public class DatabaseManager {
                     + "waktu_input TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
                     + "UNIQUE(player_uuid, mata_pelajaran, tipe_ujian)"
                     + ");";
-            createRaporSQL = "CREATE TABLE IF NOT EXISTS natural_e_rapor_digital ("
+            createRaporSQL = "CREATE TABLE IF NOT EXISTS nschool_e_rapor_digital ("
                     + "id_rapor INTEGER PRIMARY KEY AUTOINCREMENT, "
                     + "player_uuid TEXT NOT NULL, "
                     + "nomor_induk_siswa TEXT NOT NULL UNIQUE, "
@@ -415,7 +415,7 @@ public class DatabaseManager {
                     + "catatan_wali_kelas TEXT, "
                     + "waktu_cetak TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
                     + ");";
-            createLessonFilesSQL = "CREATE TABLE IF NOT EXISTS natural_lesson_files ("
+            createLessonFilesSQL = "CREATE TABLE IF NOT EXISTS nschool_lesson_files ("
                     + "id_file INTEGER PRIMARY KEY AUTOINCREMENT, "
                     + "nama_file TEXT NOT NULL UNIQUE, "
                     + "tipe TEXT NOT NULL, "
@@ -500,12 +500,12 @@ public class DatabaseManager {
                     stmt.execute("CREATE INDEX IF NOT EXISTS idx_questions_cls ON nschool_exam_questions (academic_class);");
                     stmt.execute("CREATE INDEX IF NOT EXISTS idx_attempts_uuid ON nschool_student_exam_attempts (uuid);");
                     stmt.execute("CREATE INDEX IF NOT EXISTS idx_attempts_packet ON nschool_student_exam_attempts (packet_id);");
-                    stmt.execute("CREATE INDEX IF NOT EXISTS idx_attendance_player ON natural_student_attendance (player_uuid);");
-                    stmt.execute("CREATE INDEX IF NOT EXISTS idx_attendance_status ON natural_student_attendance (status_kehadiran);");
-                    stmt.execute("CREATE INDEX IF NOT EXISTS idx_grades_player ON natural_academic_grades (player_uuid);");
-                    stmt.execute("CREATE INDEX IF NOT EXISTS idx_rapor_player ON natural_e_rapor_digital (player_uuid);");
-                    stmt.execute("CREATE INDEX IF NOT EXISTS idx_lesson_files_jenjang ON natural_lesson_files (jenjang, mata_pelajaran);");
-                    stmt.execute("CREATE INDEX IF NOT EXISTS idx_lesson_files_tipe ON natural_lesson_files (tipe);");
+                    stmt.execute("CREATE INDEX IF NOT EXISTS idx_attendance_player ON nschool_student_attendance (player_uuid);");
+                    stmt.execute("CREATE INDEX IF NOT EXISTS idx_attendance_status ON nschool_student_attendance (status_kehadiran);");
+                    stmt.execute("CREATE INDEX IF NOT EXISTS idx_grades_player ON nschool_academic_grades (player_uuid);");
+                    stmt.execute("CREATE INDEX IF NOT EXISTS idx_rapor_player ON nschool_e_rapor_digital (player_uuid);");
+                    stmt.execute("CREATE INDEX IF NOT EXISTS idx_lesson_files_jenjang ON nschool_lesson_files (jenjang, mata_pelajaran);");
+                    stmt.execute("CREATE INDEX IF NOT EXISTS idx_lesson_files_tipe ON nschool_lesson_files (tipe);");
                 }
 
                 // Seed default 7 subjects
@@ -586,6 +586,50 @@ public class DatabaseManager {
 
     private void migrateTable() {
         try (Connection conn = getConnection()) {
+            // Rename legacy tables starting with natural_ to nschool_ if they exist
+            String[][] tableRenames = {
+                {"natural_student_attendance", "nschool_student_attendance"},
+                {"natural_academic_grades", "nschool_academic_grades"},
+                {"natural_e_rapor_digital", "nschool_e_rapor_digital"},
+                {"natural_lesson_files", "nschool_lesson_files"}
+            };
+            for (String[] rename : tableRenames) {
+                String oldTable = rename[0];
+                String newTable = rename[1];
+                try {
+                    boolean oldExists = false;
+                    boolean newExists = false;
+                    java.sql.DatabaseMetaData dbm = conn.getMetaData();
+                    try (ResultSet rs = dbm.getTables(null, null, oldTable, null)) {
+                        if (rs.next()) oldExists = true;
+                    }
+                    if (!oldExists) {
+                        try (ResultSet rs = dbm.getTables(null, null, oldTable.toUpperCase(), null)) {
+                            if (rs.next()) oldExists = true;
+                        }
+                    }
+                    try (ResultSet rs = dbm.getTables(null, null, newTable, null)) {
+                        if (rs.next()) newExists = true;
+                    }
+                    if (!newExists) {
+                        try (ResultSet rs = dbm.getTables(null, null, newTable.toUpperCase(), null)) {
+                            if (rs.next()) newExists = true;
+                        }
+                    }
+                    if (oldExists && !newExists) {
+                        plugin.getLogger().info("Renaming legacy table " + oldTable + " to " + newTable);
+                        try (Statement stmt = conn.createStatement()) {
+                            if ("MYSQL".equals(storageType)) {
+                                stmt.execute("RENAME TABLE " + oldTable + " TO " + newTable + ";");
+                            } else {
+                                stmt.execute("ALTER TABLE " + oldTable + " RENAME TO " + newTable + ";");
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    plugin.getLogger().log(Level.WARNING, "Failed to rename legacy table " + oldTable, e);
+                }
+            }
             if (!hasColumn(conn, "nschool_students", "current_semester")) {
                 plugin.getLogger().info("Migrating database: Column 'current_semester' is missing in 'nschool_students'. Adding column...");
                 String alterSQL;
@@ -611,6 +655,50 @@ public class DatabaseManager {
                 try (Statement stmt = conn.createStatement()) {
                     stmt.execute(alterSQL);
                     plugin.getLogger().info("Successfully added uq_student_packet unique constraint/index.");
+                }
+            }
+
+            if (!hasColumn(conn, "nschool_student_attendance", "alasan")) {
+                plugin.getLogger().info("Migrating database: Column 'alasan' is missing in 'nschool_student_attendance'. Adding column...");
+                String alterSQL;
+                if ("MYSQL".equals(storageType)) {
+                    alterSQL = "ALTER TABLE nschool_student_attendance ADD COLUMN alasan VARCHAR(255) NULL;";
+                } else {
+                    alterSQL = "ALTER TABLE nschool_student_attendance ADD COLUMN alasan TEXT NULL;";
+                }
+                try (Statement stmt = conn.createStatement()) {
+                    stmt.execute(alterSQL);
+                    plugin.getLogger().info("Successfully added 'alasan' column to 'nschool_student_attendance' table.");
+                }
+            }
+
+            // Drop unused legacy tables to clean up database schema as requested
+            String[] unusedTables = {"nschool_classrooms", "nschool_classroom_doors", "nschool_classroom_officers", "nschool_class_fund_transaction"};
+            for (String tableName : unusedTables) {
+                try {
+                    boolean exists = false;
+                    java.sql.DatabaseMetaData dbm = conn.getMetaData();
+                    try (ResultSet rs = dbm.getTables(null, null, tableName, null)) {
+                        if (rs.next()) exists = true;
+                    }
+                    if (!exists) {
+                        try (ResultSet rs = dbm.getTables(null, null, tableName.toUpperCase(), null)) {
+                            if (rs.next()) exists = true;
+                        }
+                    }
+                    if (!exists) {
+                        try (ResultSet rs = dbm.getTables(null, null, tableName.toLowerCase(), null)) {
+                            if (rs.next()) exists = true;
+                        }
+                    }
+                    if (exists) {
+                        plugin.getLogger().info("Dropping unused legacy table: " + tableName);
+                        try (Statement stmt = conn.createStatement()) {
+                            stmt.execute("DROP TABLE " + tableName + ";");
+                        }
+                    }
+                } catch (Exception e) {
+                    plugin.getLogger().log(Level.WARNING, "Failed to drop unused table: " + tableName, e);
                 }
             }
         } catch (SQLException e) {
@@ -993,8 +1081,12 @@ public class DatabaseManager {
     }
 
     public void saveAttendance(String uuid, String name, String idKelas, String idHelper, String subject, String status) {
-        String query = "INSERT INTO natural_student_attendance (player_uuid, player_name, id_kelas, id_helper, mata_pelajaran, status_kehadiran) "
-                + "VALUES (?, ?, ?, ?, ?, ?);";
+        saveAttendance(uuid, name, idKelas, idHelper, subject, status, null);
+    }
+
+    public void saveAttendance(String uuid, String name, String idKelas, String idHelper, String subject, String status, String alasan) {
+        String query = "INSERT INTO nschool_student_attendance (player_uuid, player_name, id_kelas, id_helper, mata_pelajaran, status_kehadiran, alasan) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?);";
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(query)) {
             ps.setString(1, uuid);
@@ -1003,6 +1095,7 @@ public class DatabaseManager {
             ps.setString(4, idHelper);
             ps.setString(5, subject);
             ps.setString(6, status);
+            if (alasan == null) ps.setNull(7, java.sql.Types.VARCHAR); else ps.setString(7, alasan);
             ps.executeUpdate();
         } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "Error saving attendance for " + name, e);
@@ -1012,11 +1105,11 @@ public class DatabaseManager {
     public void saveGrade(String uuid, String jenjang, String subject, int score, String examType, String reason) {
         String query;
         if ("MYSQL".equals(storageType)) {
-            query = "INSERT INTO natural_academic_grades (player_uuid, jenjang, mata_pelajaran, nilai_angka, tipe_ujian, alasan_nilai) "
+            query = "INSERT INTO nschool_academic_grades (player_uuid, jenjang, mata_pelajaran, nilai_angka, tipe_ujian, alasan_nilai) "
                     + "VALUES (?, ?, ?, ?, ?, ?) "
                     + "ON DUPLICATE KEY UPDATE nilai_angka = VALUES(nilai_angka), alasan_nilai = VALUES(alasan_nilai);";
         } else {
-            query = "INSERT OR REPLACE INTO natural_academic_grades (player_uuid, jenjang, mata_pelajaran, nilai_angka, tipe_ujian, alasan_nilai) "
+            query = "INSERT OR REPLACE INTO nschool_academic_grades (player_uuid, jenjang, mata_pelajaran, nilai_angka, tipe_ujian, alasan_nilai) "
                     + "VALUES (?, ?, ?, ?, ?, ?);";
         }
         try (Connection conn = getConnection();
@@ -1034,7 +1127,7 @@ public class DatabaseManager {
     }
 
     public Map<String, Object> loadLatestLessonFile(String jenjang, String subject, String type) {
-        String query = "SELECT * FROM natural_lesson_files WHERE jenjang = ? AND mata_pelajaran = ? AND tipe = ? ORDER BY dibuat_pada DESC LIMIT 1;";
+        String query = "SELECT * FROM nschool_lesson_files WHERE jenjang = ? AND mata_pelajaran = ? AND tipe = ? ORDER BY dibuat_pada DESC LIMIT 1;";
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(query)) {
             ps.setString(1, jenjang);
@@ -1059,7 +1152,7 @@ public class DatabaseManager {
     }
 
     public Map<String, Object> loadLessonFileByName(String fileName) {
-        String query = "SELECT * FROM natural_lesson_files WHERE nama_file = ?;";
+        String query = "SELECT * FROM nschool_lesson_files WHERE nama_file = ?;";
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(query)) {
             ps.setString(1, fileName);
@@ -1084,11 +1177,11 @@ public class DatabaseManager {
     public void saveLessonFile(String fileName, String type, String jenjang, String subject, String contentJson, String creatorUuid) {
         String query;
         if ("MYSQL".equals(storageType)) {
-            query = "INSERT INTO natural_lesson_files (nama_file, tipe, jenjang, mata_pelajaran, konten_json, dibuat_oleh) "
+            query = "INSERT INTO nschool_lesson_files (nama_file, tipe, jenjang, mata_pelajaran, konten_json, dibuat_oleh) "
                     + "VALUES (?, ?, ?, ?, ?, ?) "
                     + "ON DUPLICATE KEY UPDATE konten_json = VALUES(konten_json), dibuat_oleh = VALUES(dibuat_oleh);";
         } else {
-            query = "INSERT OR REPLACE INTO natural_lesson_files (nama_file, tipe, jenjang, mata_pelajaran, konten_json, dibuat_oleh) "
+            query = "INSERT OR REPLACE INTO nschool_lesson_files (nama_file, tipe, jenjang, mata_pelajaran, konten_json, dibuat_oleh) "
                     + "VALUES (?, ?, ?, ?, ?, ?);";
         }
         try (Connection conn = getConnection();
@@ -1106,7 +1199,7 @@ public class DatabaseManager {
     }
 
     public void updateLessonFileUsedTime(String fileName) {
-        String query = "UPDATE natural_lesson_files SET dipakai_terakhir = CURRENT_TIMESTAMP WHERE nama_file = ?;";
+        String query = "UPDATE nschool_lesson_files SET dipakai_terakhir = CURRENT_TIMESTAMP WHERE nama_file = ?;";
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(query)) {
             ps.setString(1, fileName);
@@ -1413,6 +1506,24 @@ public class DatabaseManager {
             ps.executeUpdate();
         } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "Error saving prefix for " + targetType + ":" + targetKey, e);
+        }
+    }
+
+    public void savePrefixIfAbsent(String targetType, String targetKey, String prefix) {
+        String sql;
+        if ("MYSQL".equals(storageType)) {
+            sql = "INSERT IGNORE INTO nschool_prefixes (target_type, target_key, prefix) VALUES (?, ?, ?);";
+        } else {
+            sql = "INSERT OR IGNORE INTO nschool_prefixes (target_type, target_key, prefix) VALUES (?, ?, ?);";
+        }
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, targetType);
+            ps.setString(2, targetKey);
+            ps.setString(3, prefix);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error saving prefix if absent for " + targetType + ":" + targetKey, e);
         }
     }
 }

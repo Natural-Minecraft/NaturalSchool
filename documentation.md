@@ -89,38 +89,20 @@ Tingkatan jabatan dalam sekolah diatur dalam sistem enum `SchoolRank` yang menam
 Modul Organisasi Kelas menyediakan infrastruktur terintegrasi untuk mengelola struktur kepengurusan kelas, batas wilayah spasial kelas, log transisi visual saat melintasi kelas, obrolan kelas terformat, pintu blok otomatis berbasis tinted glass, serta panel visual manajemen kelas.
 
 ### 3.1 Skema Database Baru (Clean DB)
-Sistem menyimpan struktur organisasi dan batasan area kelas dalam 3 tabel baru di database SQLite (`school.db`) dan MySQL:
-1. **`nschool_classrooms`**: Menyimpan data dasar ruang kelas (1 s.d 12), guru Wali Kelas, dan koordinat area kubus kelas.
-   ```sql
-   CREATE TABLE IF NOT EXISTS nschool_classrooms (
-       id_kelas INT PRIMARY KEY,
-       wali_kelas_uuid VARCHAR(36) NULL,
-       world VARCHAR(64) NULL,
-       x1 INT NULL, y1 INT NULL, z1 INT NULL,
-       x2 INT NULL, y2 INT NULL, z2 INT NULL
-   );
-   ```
-2. **`nschool_classroom_officers`**: Menyimpan kepengurusan kelas yang ditunjuk Wali Kelas (Ketua, Wakil, Sekretaris, Bendahara, Anggota).
-   ```sql
-   CREATE TABLE IF NOT EXISTS nschool_classroom_officers (
-       player_uuid VARCHAR(36) PRIMARY KEY,
-       id_kelas INT NOT NULL,
-       role VARCHAR(20) NOT NULL,
-       INDEX idx_officer_class (id_kelas)
-   );
-   ```
-3. **`nschool_classroom_doors`**: Menyimpan batas koordinat pintu kelas yang akan berubah menjadi Tinted Glass (ketika kelas tutup) dan Air (ketika kelas buka).
-    ```sql
-    CREATE TABLE IF NOT EXISTS nschool_classroom_doors (
-        id_kelas INT NOT NULL,
-        door_number INT NOT NULL,
-        world VARCHAR(64) NOT NULL,
-        x1 INT NOT NULL, y1 INT NOT NULL, z1 INT NOT NULL,
-        x2 INT NOT NULL, y2 INT NOT NULL, z2 INT NOT NULL,
-        PRIMARY KEY (id_kelas, door_number)
-    );
-    ```
-4. **`nschool_prefixes`**: Menyimpan prefix pangkat (Rank), tingkatan kelas (Class), dan peran kelas (Role) terpadu.
+Sistem menyimpan struktur organisasi, batasan area kelas, prefix, presensi, dan mutasi keuangan.
+> [!NOTE]
+> Sejak versi `1.7.2`, tabel spasial legacy (`nschool_classrooms`, `nschool_classroom_doors`, `nschool_classroom_officers`) dan tabel kas singular (`nschool_class_fund_transaction`) telah dihapus secara permanen dan disatukan ke dalam tabel terpadu `nschool_class` (lihat Bagian 8.1).
+> 
+> Sejak versi `1.7.5`, seluruh tabel database yang sebelumnya berawalan `natural_` telah diubah namanya menjadi `nschool_` untuk keseragaman penamaan:
+> - `natural_student_attendance` -> `nschool_student_attendance`
+> - `natural_academic_grades` -> `nschool_academic_grades`
+> - `natural_e_rapor_digital` -> `nschool_e_rapor_digital`
+> - `natural_lesson_files` -> `nschool_lesson_files`
+> 
+> Migrasi tabel lama ke baru dilakukan secara otomatis oleh plugin saat startup (auto-rename check) tanpa kehilangan data.
+
+Tabel prefix terpadu yang digunakan:
+1. **`nschool_prefixes`**: Menyimpan prefix pangkat (Rank), tingkatan kelas (Class), dan peran kelas (Role) terpadu.
     ```sql
     CREATE TABLE IF NOT EXISTS nschool_prefixes (
         target_type VARCHAR(20),
@@ -135,7 +117,11 @@ Perintah `/kelas start` (atau `/class start`) menggunakan prinsip **Auto-Detect 
 
 * **Presensi Awal**: Murid yang berada di dalam region saat sesi dimulai otomatis mendapatkan status `HADIR` (atau `TERLAMBAT` jika dimulai di atas pukul 20:00 WIB).
 * **Pemulangan Dini**: Murid yang telah menyelesaikan semua aktivitas belajar dapat dipulangkan oleh guru menggunakan `/kelas selesaikan <player>`. Ini mengunci status kehadiran mereka sebagai `HADIR` dan membuka pintu keluar region bagi pemain terkait untuk dapat meninggalkan area sekolah tanpa penalti.
-* **Rekap Sesi**: Saat sesi ditutup, sistem akan mendata seluruh murid terdaftar. Siswa online yang tidak hadir di dalam kelas akan langsung mendapat status `ALFA`. Rekapitulasi nilai kuis dan presensi kemudian disimpan langsung ke database secara asinkron.
+* **Mekanisme Absen Mandiri (`/class absen`)**: Siswa dapat mengabsen mandiri secara interaktif:
+  - Jika berada di **dalam** region kelas: Murid dapat memilih `Hadir` atau `Izin`. Memilih `Hadir` akan langsung mencatat status `HADIR` (atau `TERLAMBAT` jika setelah pukul 20:00 WIB).
+  - Jika berada di **luar** region kelas: Murid hanya diperbolehkan mengajukan `Izin`.
+  - Ketika memilih/mengajukan `Izin`, siswa wajib menuliskan **alasan izin**. Sistem mencatat status `IZIN` beserta alasannya di database, kemudian memindahkan (teleportasi) pemain 2 blok ke luar batas kubus kelas agar tidak mengganggu jalannya kelas (atau ke spawn jika batas kelas belum didefinisikan).
+* **Rekap Sesi**: Saat sesi ditutup, sistem akan mendata seluruh murid terdaftar. Siswa online yang tidak hadir di dalam kelas (dan tidak mengajukan `IZIN`) akan langsung mendapat status `ALFA`. Rekapitulasi nilai kuis dan presensi beserta alasan izin (`alasan` column) kemudian disimpan langsung ke database secara asinkron.
 
 ### 3.3 Kebijakan Auto-Fallback & Guardian Policy
 Auto-Fallback bertindak sebagai pengaman otomatis untuk mengantisipasi kelalaian staf pengajar yang tidak hadir saat kelas dimulai pada jam 18:00 WIB. Mekanisme ini dieksekusi secara otomatis oleh scheduler pada pukul **18:15 WIB**:
@@ -264,6 +250,7 @@ Pemain baru yang baru pertama kali bergabung dengan server akan secara otomatis 
 | `/class chat` | Toggle masuk/keluar saluran chat kelas secara permanen. |
 | `/class chat norank` | Toggle menyembunyikan prefix pangkat LuckPerms di chat kelas. |
 | `/class info` | Menampilkan kepengurusan kelas Anda saat ini. |
+| `/class absen` | Membuka form presensi mandiri (Hadir/Izin). Jika di luar kelas, hanya diperbolehkan mengajukan Izin dengan alasan tertulis dan pemain akan diteleportasi keluar kelas. |
 
 ### 6.2 Perintah Guru & Helper (`/kelas` / `/class`)
 * **Izin**: `naturalschool.admin` atau pengajar dengan peringkat prioritas $\ge$ `GURU_HONORER` (serta Wali Kelas untuk kelas terkait).

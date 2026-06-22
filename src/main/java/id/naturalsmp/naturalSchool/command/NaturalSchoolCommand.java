@@ -277,7 +277,7 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
                 }
             } catch (Throwable ignored) {}
             
-            id.naturalsmp.naturalSchool.ui.gui.ClassroomManagerGui gui = new id.naturalsmp.naturalSchool.ui.gui.ClassroomManagerGui(plugin);
+            id.naturalsmp.naturalSchool.classes.gui.ClassroomManagerGui gui = new id.naturalsmp.naturalSchool.classes.gui.ClassroomManagerGui(plugin);
             if (isBedrock) {
                 gui.openClassroomManagerBedrock(target);
             } else {

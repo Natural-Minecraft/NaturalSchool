@@ -9,7 +9,8 @@ import id.naturalsmp.naturalSchool.profile.SchoolRank;
 import id.naturalsmp.naturalSchool.ui.gui.ProfileGui;
 import id.naturalsmp.naturalSchool.ui.gui.RegistrationGui;
 import id.naturalsmp.naturalSchool.ui.gui.StaffPanelGui;
-import id.naturalsmp.naturalSchool.ui.gui.ClassCashGui;
+import id.naturalsmp.naturalSchool.classes.gui.ClassCashGui;
+import id.naturalsmp.naturalSchool.classes.gui.AttendanceGui;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -24,7 +25,7 @@ import java.util.logging.Level;
 
 public class UIManager {
 
-    public static final String GUI_VERSION = "1.7.4";
+    public static final String GUI_VERSION = "1.7.5";
 
     private static final MiniMessage MM = MiniMessage.miniMessage();
 
@@ -37,6 +38,7 @@ public class UIManager {
     private final ExamVariantsGui  examVariantsGui;
     private final ExamGui          examGui;
     private final ClassCashGui     classCashGui;
+    private final AttendanceGui    attendanceGui;
 
     private BedrockHandler bedrockHandler;
     private final boolean floodgateEnabled;
@@ -55,6 +57,7 @@ public class UIManager {
         this.examVariantsGui  = new ExamVariantsGui(plugin);
         this.examGui          = new ExamGui(plugin);
         this.classCashGui     = new ClassCashGui(plugin);
+        this.attendanceGui    = new AttendanceGui(plugin);
 
         this.floodgateEnabled = Bukkit.getPluginManager().isPluginEnabled("floodgate");
         if (this.floodgateEnabled) {
@@ -74,6 +77,14 @@ public class UIManager {
 
     public ClassCashGui getClassCashGui() {
         return classCashGui;
+    }
+
+    public AttendanceGui getAttendanceGui() {
+        return attendanceGui;
+    }
+
+    public void openAttendanceGui(Player player) {
+        attendanceGui.openAttendanceGui(player);
     }
 
     // ─────────────────────────────────────────────────────────────────────────

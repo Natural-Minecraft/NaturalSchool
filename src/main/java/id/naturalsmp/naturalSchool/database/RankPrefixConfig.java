@@ -56,38 +56,34 @@ public class RankPrefixConfig {
             this.itemsAdderWrapper = null;
         }
 
-        // Seed default prefixes from rankprefix.yml if the prefixes table is empty
-        boolean empty = plugin.getDatabaseManager().isPrefixesTableEmpty();
-        if (empty) {
-            plugin.getLogger().info("Prefixes database table is empty. Seeding defaults from rankprefix.yml...");
-            if (!configFile.exists()) {
-                plugin.saveResource("rankprefix.yml", false);
+        // Seed default prefixes from rankprefix.yml if they are absent in database
+        if (!configFile.exists()) {
+            plugin.saveResource("rankprefix.yml", false);
+        }
+        config = YamlConfiguration.loadConfiguration(configFile);
+        
+        // Seed ranks (we combine prefix and nameColor during seeding for backward compatibility)
+        if (config.isConfigurationSection("ranks")) {
+            for (String key : config.getConfigurationSection("ranks").getKeys(false)) {
+                String prefix = config.getString("ranks." + key + ".prefix", "");
+                String nameColor = config.getString("ranks." + key + ".name-color", "");
+                plugin.getDatabaseManager().savePrefixIfAbsent("RANK", key.toUpperCase(), prefix + nameColor);
             }
-            config = YamlConfiguration.loadConfiguration(configFile);
-            
-            // Seed ranks (we combine prefix and nameColor during seeding for backward compatibility)
-            if (config.isConfigurationSection("ranks")) {
-                for (String key : config.getConfigurationSection("ranks").getKeys(false)) {
-                    String prefix = config.getString("ranks." + key + ".prefix", "");
-                    String nameColor = config.getString("ranks." + key + ".name-color", "");
-                    plugin.getDatabaseManager().savePrefix("RANK", key.toUpperCase(), prefix + nameColor);
-                }
+        }
+        
+        // Seed class-prefixes
+        if (config.isConfigurationSection("class-prefixes")) {
+            for (String key : config.getConfigurationSection("class-prefixes").getKeys(false)) {
+                String prefix = config.getString("class-prefixes." + key, "");
+                plugin.getDatabaseManager().savePrefixIfAbsent("CLASS", key, prefix);
             }
-            
-            // Seed class-prefixes
-            if (config.isConfigurationSection("class-prefixes")) {
-                for (String key : config.getConfigurationSection("class-prefixes").getKeys(false)) {
-                    String prefix = config.getString("class-prefixes." + key, "");
-                    plugin.getDatabaseManager().savePrefix("CLASS", key, prefix);
-                }
-            }
-            
-            // Seed class-roles
-            if (config.isConfigurationSection("class-roles")) {
-                for (String key : config.getConfigurationSection("class-roles").getKeys(false)) {
-                    String prefix = config.getString("class-roles." + key, "");
-                    plugin.getDatabaseManager().savePrefix("ROLE", key.toUpperCase(), prefix);
-                }
+        }
+        
+        // Seed class-roles
+        if (config.isConfigurationSection("class-roles")) {
+            for (String key : config.getConfigurationSection("class-roles").getKeys(false)) {
+                String prefix = config.getString("class-roles." + key, "");
+                plugin.getDatabaseManager().savePrefixIfAbsent("ROLE", key.toUpperCase(), prefix);
             }
         }
 

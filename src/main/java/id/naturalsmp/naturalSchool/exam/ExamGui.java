@@ -375,7 +375,6 @@ public class ExamGui {
                 }
 
                 bodies.add(DialogBody.plainMessage(Component.text(" ")));
-                List<io.papermc.paper.registry.data.dialog.input.SingleOptionDialogInput.OptionEntry> answerOptions = new ArrayList<>();
 
                 if (options != null) {
                     for (int i = 0; i < options.size(); i++) {
@@ -383,21 +382,10 @@ public class ExamGui {
                         String optChar = String.valueOf((char) ('A' + i));
                         boolean isSelected = optChar.equalsIgnoreCase(currentAns);
 
-                        answerOptions.add(io.papermc.paper.registry.data.dialog.input.SingleOptionDialogInput.OptionEntry.create(
-                            optChar,
-                            Component.text(optChar + ". " + optText),
-                            isSelected
-                        ));
-
-                        if (isSelected) {
-                            bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize(
-                                "<green><bold>" + optChar + ". " + optText + " (Terpilih)</bold></green>"
-                            )));
-                        } else {
-                            final String finalOptChar = optChar;
-                            Component optLink = MiniMessage.miniMessage().deserialize(
-                                "<white>" + optChar + ". " + optText + "</white>"
-                            ).clickEvent(ClickEvent.callback(aud -> {
+                        final String finalOptChar = optChar;
+                        String formatStr = isSelected ? "<green><bold>" + optChar + ". " + optText + "</bold></green>" : "<white>" + optChar + ". " + optText + "</white>";
+                        Component optLink = MiniMessage.miniMessage().deserialize(formatStr)
+                            .clickEvent(ClickEvent.callback(aud -> {
                                 if (aud instanceof Player p) {
                                     session.setAnswer(qNum - 1, finalOptChar);
                                     session.setShowWarning(false);
@@ -405,26 +393,15 @@ public class ExamGui {
                                     Bukkit.getScheduler().runTask(plugin, () -> openExamGuiJava(p, "question", packetId, null));
                                 }
                             }));
-                            bodies.add(DialogBody.plainMessage(optLink));
-                        }
+                        bodies.add(DialogBody.plainMessage(optLink));
                     }
                 }
-
-                inputs = List.of(
-                    DialogInput.singleOption("answer", Component.text("Pilihan Jawaban"), answerOptions)
-                        .width(320)
-                        .build()
-                );
 
                 // Single Navigation Button at the bottom
                 if (qNum < 10) {
                     submitBtn = ActionButton.builder(Component.text("Ke Soal Selanjutnya"))
                         .action(DialogAction.customClick((viewObj, aud) -> {
                             if (aud instanceof Player p) {
-                                String selectedAns = viewObj.getText("answer");
-                                if (selectedAns != null) {
-                                    session.setAnswer(qNum - 1, selectedAns);
-                                }
                                 session.setCurrentQuestion(qNum + 1);
                                 session.setShowWarning(false);
                                 Bukkit.getScheduler().runTask(plugin, () -> openExamGuiJava(p, "question", packetId, null));
@@ -435,10 +412,6 @@ public class ExamGui {
                     submitBtn = ActionButton.builder(Component.text("Selesai & Kirim"))
                         .action(DialogAction.customClick((viewObj, aud) -> {
                             if (aud instanceof Player p) {
-                                String selectedAns = viewObj.getText("answer");
-                                if (selectedAns != null) {
-                                    session.setAnswer(qNum - 1, selectedAns);
-                                }
                                 session.setCurrentQuestion(11);
                                 session.setShowWarning(false);
                                 Bukkit.getScheduler().runTask(plugin, () -> openExamGuiJava(p, "confirmation", packetId, null));

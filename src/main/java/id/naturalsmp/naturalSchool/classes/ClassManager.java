@@ -260,8 +260,10 @@ public class ClassManager {
                 }
             }
 
+            String alasan = session.getAttendanceReasonMap().get(studentUuid);
+
             // Save to database
-            plugin.getDatabaseManager().saveAttendance(studentUuid.toString(), studentName, idKelas, idHelper, session.getSubject(), status);
+            plugin.getDatabaseManager().saveAttendance(studentUuid.toString(), studentName, idKelas, idHelper, session.getSubject(), status, alasan);
 
             // 2. Quiz Grade
             Integer score = session.getGradesMap().get(studentUuid);
