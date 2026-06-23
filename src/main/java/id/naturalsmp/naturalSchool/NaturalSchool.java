@@ -205,6 +205,13 @@ public final class NaturalSchool extends JavaPlugin {
             examManager.stopWebhookServer();
         }
 
+        // Stop all active sessions to clean up WorldGuard region states/members
+        if (classManager != null) {
+            for (String classId : new java.util.HashSet<>(classManager.getActiveSessions().keySet())) {
+                classManager.stopSession(classId);
+            }
+        }
+
         // Close Database Pools and Connections
         if (databaseManager != null) {
             databaseManager.close();

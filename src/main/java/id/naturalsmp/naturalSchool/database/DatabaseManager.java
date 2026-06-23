@@ -549,6 +549,12 @@ public class DatabaseManager {
                 }
 
                 // Seeding default values for nschool_core_state
+                try (Statement cleanup = conn.createStatement()) {
+                    cleanup.execute("DELETE FROM nschool_core_state WHERE state_key = 'is_semester_break';");
+                } catch (SQLException e) {
+                    // Ignore if not present
+                }
+                
                 if ("MYSQL".equals(storageType)) {
                     stmt.execute("INSERT INTO nschool_core_state (state_key, state_value, description) VALUES "
                             + "('exam_version', '1', 'Exam questions version') ON DUPLICATE KEY UPDATE state_key = state_key;");
@@ -561,7 +567,9 @@ public class DatabaseManager {
                     stmt.execute("INSERT INTO nschool_core_state (state_key, state_value, description) VALUES "
                             + "('current_active_semester_packets', '[]', 'JSON list of active semester packet IDs') ON DUPLICATE KEY UPDATE state_key = state_key;");
                     stmt.execute("INSERT INTO nschool_core_state (state_key, state_value, description) VALUES "
-                            + "('is_semester_break', 'false', 'Status of semester break') ON DUPLICATE KEY UPDATE state_key = state_key;");
+                            + "('semester_simulation_enabled', 'false', 'Enable simulated academic time') ON DUPLICATE KEY UPDATE state_key = state_key;");
+                    stmt.execute("INSERT INTO nschool_core_state (state_key, state_value, description) VALUES "
+                            + "('semester_simulation_offset_ms', '0', 'Offset in milliseconds for simulation') ON DUPLICATE KEY UPDATE state_key = state_key;");
                 } else {
                     stmt.execute("INSERT OR IGNORE INTO nschool_core_state (state_key, state_value, description) VALUES "
                             + "('exam_version', '1', 'Exam questions version');");
@@ -574,7 +582,9 @@ public class DatabaseManager {
                     stmt.execute("INSERT OR IGNORE INTO nschool_core_state (state_key, state_value, description) VALUES "
                             + "('current_active_semester_packets', '[]');");
                     stmt.execute("INSERT OR IGNORE INTO nschool_core_state (state_key, state_value, description) VALUES "
-                            + "('is_semester_break', 'false');");
+                            + "('semester_simulation_enabled', 'false');");
+                    stmt.execute("INSERT OR IGNORE INTO nschool_core_state (state_key, state_value, description) VALUES "
+                            + "('semester_simulation_offset_ms', '0');");
                 }
 
                 plugin.getLogger().info("Database tables verified/created successfully.");
@@ -906,6 +916,30 @@ public class DatabaseManager {
         }
     }
 
+    public void saveSimulationState(boolean enabled, long offsetMs) {
+        setCoreState("semester_simulation_enabled", String.valueOf(enabled));
+        setCoreState("semester_simulation_offset_ms", String.valueOf(offsetMs));
+    }
+
+    public Map<String, Object> loadSimulationState() {
+        Map<String, Object> state = new HashMap<>();
+        String enabledStr = getCoreState("semester_simulation_enabled");
+        String offsetStr = getCoreState("semester_simulation_offset_ms");
+        
+        boolean enabled = enabledStr != null && Boolean.parseBoolean(enabledStr);
+        long offset = 0;
+        if (offsetStr != null) {
+            try {
+                offset = Long.parseLong(offsetStr);
+            } catch (NumberFormatException e) {
+                // Keep 0
+            }
+        }
+        state.put("enabled", enabled);
+        state.put("offset", offset);
+        return state;
+    }
+
     public List<String> getAttemptedPackets(UUID uuid) {
         List<String> list = new ArrayList<>();
         String query = "SELECT packet_id FROM nschool_student_exam_attempts WHERE uuid = ?;";
@@ -1005,7 +1039,7 @@ public class DatabaseManager {
             scoreHarian = getAverageUhScore(uuid, subjectId, academicClass);
         } else if (examType.equalsIgnoreCase("UTS")) {
             scoreUts = score;
-        } else if (examType.equalsIgnoreCase("UAS")) {
+        } else if (examType.equalsIgnoreCase("UAS") || examType.equalsIgnoreCase("US")) {
             scoreUas = score;
         }
 

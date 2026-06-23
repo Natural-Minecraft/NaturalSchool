@@ -2,6 +2,29 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.7.6] - 2026-06-23
+### Added
+- **Dynamic Semester Calendar System**: Rewrote Semester Manager to calculate academic semesters and phases dynamically based on the **First Monday of each calendar month** (Anti-Drift timeline).
+  - Week 1: Semester 1 (Ganjil) - UTS.
+  - Week 2: Semester 1 (Ganjil) - US.
+  - Week 3: Semester 2 (Genap) - UTS.
+  - Week 4: Semester 2 (Genap) - UAS.
+  - Days 28+ / Week 5: Transition/Vacation phase.
+- **Academic Holidays (Libur Senin-Selasa)**: Monday and Tuesday of Week 1 and Week 3 are automatically marked as Transition/Holidays (following semester rotations). Week 2 and Week 4 have normal school days on Monday-Tuesday (no holiday after UTS).
+- **Time Simulation Engine (`/ns semester simulation`)**:
+  - `/ns semester simulation <on|off>`: Turns simulation on or off. Turning it off clears simulated offsets completely and returns to server system clock.
+  - `/ns semester simulation date <DD> [MM]`: Sets the target simulated date (day and month), calculating the millisecond offset relative to the Asia/Jakarta timezone.
+- **Student Academic Calendar Info (`/school semester`)**: Displays active semester, academic year, phase, remaining time, and a dynamic calendar showing the calendar dates of the active month's academic cycle.
+- **Semester Sync Command (`/ns semester sync`)**: Force recalculates and propagates active semester states to all students' databases and cache.
+- **US Exam Mapping**: Mapped both US (Semester 1) and UAS (Semester 2) exam scores to write directly to `score_uas` in the student rapor table.
+- **Dynamic WorldGuard Region Membership Bypass**: Excused ("Izin") and early-dismissed students are now dynamically added as members of their classroom's WorldGuard region when they submit their leave excuse or are dismissed by a teacher. This allows them to manually walk across the classroom boundaries without being blocked or teleported back by WorldGuard's `ENTRY DENY` restriction.
+- **Session Cleanup on Shutdown**: Modified `onDisable` to stop all active classroom sessions, ensuring any dynamically added WorldGuard region members and region configurations are cleanly reset upon server restart or shutdown.
+
+### Changed
+- **Removed Semester Break/Pause**: Completely eliminated `is_semester_break` checks and database seeds.
+- **Exam Schedule Validation**: Restructured `isAllowedExamTime()` to enforce exams only on Saturdays and Sundays during active academic phases (UTS/US/UAS), adhering to configured exam hour windows.
+- **Removed Forced Leave Teleportation**: Removed the automatic teleportation of players outside the classroom boundaries upon submitting an "Izin" excuse. Excused students can now walk out of the classroom manually.
+
 ## [1.7.5] - 2026-06-23
 ### Added
 - **Classroom Attendance Command & GUI (`/class absen`)**: Introduced custom cross-platform attendance forms. Java Edition players use a native Paper notice dialog flow (with Hadir/Izin checkboxes and reason prompts), while Bedrock players use Floodgate/Cumulus SimpleForm/CustomForm inputs.

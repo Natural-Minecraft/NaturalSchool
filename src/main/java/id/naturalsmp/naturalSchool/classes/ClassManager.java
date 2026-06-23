@@ -108,6 +108,16 @@ public class ClassManager {
         session.setClosed(true);
         setWorldGuardRegionEntry(idKelas, true);
 
+        // Clean up WorldGuard region members for this class session
+        for (UUID uuid : session.getAttendanceMap().keySet()) {
+            if ("IZIN".equals(session.getAttendanceMap().get(uuid))) {
+                setWorldGuardMember(idKelas, uuid, false);
+            }
+        }
+        for (UUID uuid : session.getEarlyDismissed()) {
+            setWorldGuardMember(idKelas, uuid, false);
+        }
+
         // Toggle tinted glass doors to TINTED_GLASS
         plugin.getClassroomManager().toggleDoors(getClassNumber(idKelas), false);
 
@@ -224,6 +234,8 @@ public class ClassManager {
         session.getAttendanceMap().put(studentUuid, "HADIR"); // Lock presence
 
         // Open WorldGuard region passage for them (usually handled dynamically by listener)
+        setWorldGuardMember(idKelas, studentUuid, true);
+
         Player p = Bukkit.getPlayer(studentUuid);
         if (p != null) {
             p.sendMessage(MiniMessage.miniMessage().deserialize("<green>Anda telah diperbolehkan pulang dini oleh Guru Piket! Status presensi Anda aman.</green>"));
@@ -414,6 +426,49 @@ public class ClassManager {
             }
         } catch (Throwable t) {
             // Silent fallback
+        }
+    }
+
+    public void setWorldGuardMember(String regionId, UUID playerUuid, boolean add) {
+        String customRegionName = regionId;
+        try {
+            int classNum = getClassNumber(regionId);
+            if (classNum > 0) {
+                String dbRegion = plugin.getClassroomManager().getClassroomRegion(classNum);
+                if (dbRegion != null && !dbRegion.isEmpty()) {
+                    customRegionName = dbRegion;
+                }
+            }
+        } catch (Exception ignored) {}
+
+        try {
+            if (Bukkit.getPluginManager().getPlugin("WorldGuard") == null) return;
+            Class<?> wgClass = Class.forName("com.sk89q.worldguard.WorldGuard");
+            Object wgInstance = wgClass.getMethod("getInstance").invoke(null);
+            Object platform = wgClass.getMethod("getPlatform").invoke(wgInstance);
+            Object container = platform.getClass().getMethod("getRegionContainer").invoke(platform);
+
+            Class<?> bukkitWorldClass = Class.forName("com.sk89q.worldedit.bukkit.BukkitWorld");
+
+            for (org.bukkit.World w : Bukkit.getWorlds()) {
+                Object editWorld = bukkitWorldClass.getConstructor(org.bukkit.World.class).newInstance(w);
+                Object manager = container.getClass().getMethod("get", Class.forName("com.sk89q.worldedit.world.World")).invoke(container, editWorld);
+                if (manager != null) {
+                    Object region = manager.getClass().getMethod("getRegion", String.class).invoke(manager, customRegionName);
+                    if (region != null) {
+                        Object members = region.getClass().getMethod("getMembers").invoke(region);
+                        if (members != null) {
+                            if (add) {
+                                members.getClass().getMethod("addPlayer", UUID.class).invoke(members, playerUuid);
+                            } else {
+                                members.getClass().getMethod("removePlayer", UUID.class).invoke(members, playerUuid);
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Throwable t) {
+            plugin.getLogger().log(Level.WARNING, "Failed to update WorldGuard member " + playerUuid + " for region " + customRegionName, t);
         }
     }
 

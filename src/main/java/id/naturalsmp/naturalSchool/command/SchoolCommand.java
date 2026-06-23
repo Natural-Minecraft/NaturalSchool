@@ -18,6 +18,8 @@ import java.util.List;
 import java.util.Map;
 import org.bukkit.Bukkit;
 import java.util.stream.Collectors;
+import java.time.ZonedDateTime;
+import id.naturalsmp.naturalSchool.semester.SemesterManager;
 
 public class SchoolCommand implements CommandExecutor, TabCompleter {
 
@@ -49,6 +51,7 @@ public class SchoolCommand implements CommandExecutor, TabCompleter {
                 "<gold>=== School Commands ===</gold>\n" +
                 "<yellow>/school info</yellow> - <gray>Menampilkan GUI dialog Informasi Pelajar Anda.</gray>\n" +
                 "<yellow>/school class [class/player]</yellow> - <gray>Menampilkan informasi struktur organisasi kelas.</gray>\n" +
+                "<yellow>/school semester</yellow> - <gray>Menampilkan kalender akademik dan sisa waktu semester.</gray>\n" +
                 "<yellow>/school exam</yellow> - <gray>Membuka Portal Ujian sekolah.</gray>"
             ));
             return true;
@@ -64,6 +67,68 @@ public class SchoolCommand implements CommandExecutor, TabCompleter {
                 return true;
             }
             plugin.getUiManager().openExamPortal(player);
+            return true;
+        } else if (subCommand.equals("semester")) {
+            ZonedDateTime now = plugin.getSemesterManager().getCurrentTime();
+            SemesterManager.AcademicState state = plugin.getSemesterManager().getAcademicState(now);
+            
+            ZonedDateTime nextPhaseStart;
+            int weekIndex = state.getWeekIndex();
+            if (weekIndex == 0) {
+                nextPhaseStart = state.getCycleStart().plusDays(7);
+            } else if (weekIndex == 1) {
+                nextPhaseStart = state.getCycleStart().plusDays(14);
+            } else if (weekIndex == 2) {
+                nextPhaseStart = state.getCycleStart().plusDays(21);
+            } else if (weekIndex == 3) {
+                nextPhaseStart = state.getCycleStart().plusDays(28);
+            } else {
+                nextPhaseStart = plugin.getSemesterManager().getFirstMondayOfMonth(state.getCycleStart().plusMonths(1));
+            }
+            
+            long diffSeconds = java.time.Duration.between(now, nextPhaseStart).getSeconds();
+            if (diffSeconds < 0) diffSeconds = 0;
+            long days = diffSeconds / 86400;
+            long hours = (diffSeconds % 86400) / 3600;
+            long minutes = (diffSeconds % 3600) / 60;
+            
+            String countdown = String.format("%d hari, %d jam, %d menit", days, hours, minutes);
+            
+            java.time.format.DateTimeFormatter dayFormatter = java.time.format.DateTimeFormatter.ofPattern("dd MMM");
+            ZonedDateTime mondayW1 = state.getCycleStart();
+            ZonedDateTime mondayW2 = mondayW1.plusDays(7);
+            ZonedDateTime mondayW3 = mondayW1.plusDays(14);
+            ZonedDateTime mondayW4 = mondayW1.plusDays(21);
+            ZonedDateTime transitionStart = mondayW1.plusDays(28);
+            
+            String dateW1 = mondayW1.format(dayFormatter) + " - " + mondayW1.plusDays(6).format(dayFormatter);
+            String dateW2 = mondayW2.format(dayFormatter) + " - " + mondayW2.plusDays(6).format(dayFormatter);
+            String dateW3 = mondayW3.format(dayFormatter) + " - " + mondayW3.plusDays(6).format(dayFormatter);
+            String dateW4 = mondayW4.format(dayFormatter) + " - " + mondayW4.plusDays(6).format(dayFormatter);
+            
+            ZonedDateTime nextCycle = plugin.getSemesterManager().getFirstMondayOfMonth(mondayW1.plusMonths(1));
+            String dateTrans = transitionStart.format(dayFormatter) + " - " + nextCycle.minusDays(1).format(dayFormatter);
+            
+            player.sendMessage(MiniMessage.miniMessage().deserialize(
+                "<gold>=============================================</gold>\n" +
+                "<yellow><bold>KALENDER AKADEMIK SEKOLAH</bold></yellow>\n" +
+                "<gray>» Tahun Akademik: <white>" + state.getAcademicYear() + "</white>\n" +
+                "<gray>» Semester: <white>" + state.getSemester() + "</white>\n" +
+                "<gray>» Fase Aktif: <green>" + state.getPhase() + "</green>\n" +
+                "<gray>» Sisa Waktu Fase: <aqua>" + countdown + "</aqua>\n" +
+                "<gold>---------------------------------------------</gold>\n" +
+                "<yellow><bold>JADWAL AKADEMIS BULAN INI:</bold></yellow>\n" +
+                "<gray>• <white>Minggu 1 (" + dateW1 + ")</white>: Ganjil - UTS\n" +
+                "  <gray>» Ujian: Sabtu, Susulan: Minggu. Senin-Selasa Libur.</gray>\n" +
+                "<gray>• <white>Minggu 2 (" + dateW2 + ")</white>: Ganjil - US\n" +
+                "  <gray>» Ujian: Sabtu, Susulan: Minggu. Senin-Selasa Normal.</gray>\n" +
+                "<gray>• <white>Minggu 3 (" + dateW3 + ")</white>: Genap - UTS\n" +
+                "  <gray>» Ujian: Sabtu, Susulan: Minggu. Senin-Selasa Libur.</gray>\n" +
+                "<gray>• <white>Minggu 4 (" + dateW4 + ")</white>: Genap - UAS\n" +
+                "  <gray>» Ujian: Sabtu, Susulan: Minggu. Senin-Selasa Normal.</gray>\n" +
+                "<gray>• <white>Libur Akhir (" + dateTrans + ")</white>: Transisi/Libur semester.\n" +
+                "<gold>=============================================</gold>"
+            ));
             return true;
         } else if (subCommand.equals("class")) {
             int classNum = 0;
@@ -180,7 +245,7 @@ public class SchoolCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 1) {
-            return Arrays.asList("info", "class", "exam", "help").stream()
+            return Arrays.asList("info", "class", "exam", "semester", "help").stream()
                     .filter(s -> s.toLowerCase().startsWith(args[0].toLowerCase()))
                     .collect(Collectors.toList());
         }

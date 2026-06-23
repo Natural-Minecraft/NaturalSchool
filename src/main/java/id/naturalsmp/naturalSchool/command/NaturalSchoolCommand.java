@@ -15,6 +15,8 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -179,7 +181,7 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
             sb.append("\n<yellow>/naturalschool gui <welcome|exam1|exam2|exam3|exam4|exam5|version> [player]</yellow> - <gray>Manually trigger school GUI dialogs or view GUI version.</gray>");
         }
         if (hasSubCommandPermission(sender, "semester")) {
-            sb.append("\n<yellow>/naturalschool semester <info|end></yellow> - <gray>Manage and rotate active school semesters.</gray>");
+            sb.append("\n<yellow>/naturalschool semester <info|end|reset|sync|simulation></yellow> - <gray>Manage school semesters and time simulation.</gray>");
         }
         if (hasSubCommandPermission(sender, "exam")) {
             sb.append("\n<yellow>/naturalschool exam <open|close|message|sync> [msg]</yellow> - <gray>Manage exam portal status, messages, and synchronization.</gray>");
@@ -390,6 +392,8 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage(MiniMessage.miniMessage().deserialize(
                 "<gold>=== NaturalSchool Semester Management ===</gold>\n" +
                 "<yellow>/naturalschool semester info</yellow> - <gray>Tampilkan status semester saat ini.</gray>\n" +
+                "<yellow>/naturalschool semester sync</yellow> - <gray>Sinkronisasi status semester & database.</gray>\n" +
+                "<yellow>/naturalschool semester simulation</yellow> - <gray>Kelola simulasi waktu akademik.</gray>\n" +
                 "<yellow>/naturalschool semester end</yellow> - <gray>Paksa rotasi semester baru (asynchronous).</gray>\n" +
                 "<yellow>/naturalschool semester reset</yellow> - <gray>Reset semester kembali ke kalender real-life.</gray>"
             ));
@@ -429,8 +433,76 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
                 ));
                 return null;
             });
+        } else if ("sync".equals(sub)) {
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<yellow>Memulai transaksi sinkronisasi semester secara asynchronous...</yellow>"));
+            plugin.getSemesterManager().syncSemesterState().thenAccept(affected -> {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize(
+                    "<green>Transaksi sinkronisasi semester selesai! Total pelajar terdampak: </green><aqua>" + affected + "</aqua>"
+                ));
+            }).exceptionally(ex -> {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize(
+                    "<red>Gagal melakukan sinkronisasi semester: " + ex.getMessage() + "</red>"
+                ));
+                return null;
+            });
+        } else if ("simulation".equals(sub)) {
+            if (args.length < 3) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize(
+                    "<gold>=== NaturalSchool Semester Simulation Help ===</gold>\n" +
+                    "<yellow>/ns semester simulation on</yellow> - <gray>Aktifkan mode simulasi.</gray>\n" +
+                    "<yellow>/ns semester simulation off</yellow> - <gray>Matikan mode simulasi (bersihkan offset).</gray>\n" +
+                    "<yellow>/ns semester simulation date <DD> [MM]</yellow> - <gray>Set tanggal simulasi (DD: Hari 1-31, MM: Bulan 1-12).</gray>"
+                ));
+                return;
+            }
+            String action = args[2].toLowerCase();
+            if ("on".equals(action)) {
+                plugin.getSemesterManager().setSimulationMode(true, plugin.getSemesterManager().getSimulationOffsetMs());
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>Mode simulasi semester diaktifkan! Offset saat ini: </green><yellow>" + plugin.getSemesterManager().getSimulationOffsetMs() + " ms</yellow>"));
+                plugin.getSemesterManager().syncSemesterState();
+            } else if ("off".equals(action)) {
+                plugin.getSemesterManager().setSimulationMode(false, 0);
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>Mode simulasi semester dimatikan. Waktu dikembalikan ke alur nyata server.</green>"));
+                plugin.getSemesterManager().syncSemesterState();
+            } else if ("date".equals(action)) {
+                if (args.length < 4) {
+                    sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Format: /ns semester simulation date <DD> [MM]</red>"));
+                    return;
+                }
+                int day;
+                try {
+                    day = Integer.parseInt(args[3]);
+                } catch (NumberFormatException e) {
+                    sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Tanggal (DD) harus berupa angka!</red>"));
+                    return;
+                }
+                Integer month = null;
+                if (args.length >= 5) {
+                    try {
+                        month = Integer.parseInt(args[4]);
+                    } catch (NumberFormatException e) {
+                        sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Bulan (MM) harus berupa angka!</red>"));
+                        return;
+                    }
+                }
+                
+                long offset = plugin.getSemesterManager().calculateSimulationOffset(day, month);
+                plugin.getSemesterManager().setSimulationMode(true, offset);
+                
+                ZonedDateTime targetTime = plugin.getSemesterManager().getCurrentTime();
+                DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss");
+                
+                sender.sendMessage(MiniMessage.miniMessage().deserialize(
+                    "<green>Simulasi tanggal berhasil diubah!</green>\n" +
+                    "<gray>» Target Waktu: <yellow>" + targetTime.format(dtf) + " WIB</yellow>\n" +
+                    "<gray>» Offset: <white>" + offset + " ms</white></gray>"
+                ));
+                plugin.getSemesterManager().syncSemesterState();
+            } else {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Aksi simulasi tidak dikenal. Gunakan: on, off, atau date.</red>"));
+            }
         } else {
-            sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Subcommand tidak dikenal. Gunakan info, end, atau reset.</red>"));
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Subcommand tidak dikenal. Gunakan info, sync, simulation, end, atau reset.</red>"));
         }
     }
 
@@ -1175,7 +1247,7 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
             if ("nis".equals(subCommand)) {
                 return filterList(Arrays.asList("register", "unregister", "set", "show", "help"), args[1]);
             } else if ("semester".equals(subCommand)) {
-                return filterList(Arrays.asList("info", "end", "reset"), args[1]);
+                return filterList(Arrays.asList("info", "end", "reset", "sync", "simulation"), args[1]);
             } else if ("exam".equals(subCommand)) {
                 return filterList(Arrays.asList("open", "close", "message", "sync"), args[1]);
             } else if ("gui".equals(subCommand)) {
@@ -1242,6 +1314,11 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
                 return filterList(classes, args[2]);
             } else if ("setstage".equals(subCommand)) {
                 return filterList(Arrays.asList("SD", "SMP", "SMA"), args[2]);
+            } else if ("semester".equals(subCommand)) {
+                String subSem = args[1].toLowerCase();
+                if ("simulation".equals(subSem)) {
+                    return filterList(Arrays.asList("on", "off", "date"), args[2]);
+                }
             }
         }
 
@@ -1286,6 +1363,11 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
                         return filterList(Arrays.asList("WALI_KELAS", "KETUA", "WAKIL", "SEKRETARIS", "BENDAHARA", "ANGGOTA"), args[3]);
                     }
                 }
+            } else if ("semester".equals(subCommand)) {
+                String subSem = args[1].toLowerCase();
+                if ("simulation".equals(subSem) && "date".equalsIgnoreCase(args[2])) {
+                    return filterList(Collections.singletonList("<DD>"), args[3]);
+                }
             }
         }
 
@@ -1295,6 +1377,11 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
                 return filterList(Arrays.asList("set", "remove"), args[4]);
             } else if ("rank".equals(subCommand) && "update".equalsIgnoreCase(args[1])) {
                 return filterList(Collections.singletonList("<prefix>"), args[4]);
+            } else if ("semester".equals(subCommand)) {
+                String subSem = args[1].toLowerCase();
+                if ("simulation".equals(subSem) && "date".equalsIgnoreCase(args[2])) {
+                    return filterList(Collections.singletonList("[MM]"), args[4]);
+                }
             }
         }
 

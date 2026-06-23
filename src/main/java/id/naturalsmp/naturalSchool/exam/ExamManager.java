@@ -358,9 +358,9 @@ public class ExamManager {
         return message != null ? message : "Portal Ujian Sedang ditutup!";
     }
 
+    @Deprecated
     public boolean isSemesterBreak() {
-        String breakStr = plugin.getDatabaseManager().getCoreState("is_semester_break");
-        return "true".equalsIgnoreCase(breakStr);
+        return false;
     }
 
     public List<String> getActiveUhPackets() {

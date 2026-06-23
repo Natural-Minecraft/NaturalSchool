@@ -120,7 +120,7 @@ Perintah `/kelas start` (atau `/class start`) menggunakan prinsip **Auto-Detect 
 * **Mekanisme Absen Mandiri (`/class absen`)**: Siswa dapat mengabsen mandiri secara interaktif:
   - Jika berada di **dalam** region kelas: Murid dapat memilih `Hadir` atau `Izin`. Memilih `Hadir` akan langsung mencatat status `HADIR` (atau `TERLAMBAT` jika setelah pukul 20:00 WIB).
   - Jika berada di **luar** region kelas: Murid hanya diperbolehkan mengajukan `Izin`.
-  - Ketika memilih/mengajukan `Izin`, siswa wajib menuliskan **alasan izin**. Sistem mencatat status `IZIN` beserta alasannya di database, kemudian memindahkan (teleportasi) pemain 2 blok ke luar batas kubus kelas agar tidak mengganggu jalannya kelas (atau ke spawn jika batas kelas belum didefinisikan).
+  - Ketika memilih/mengajukan `Izin`, siswa wajib menuliskan **alasan izin**. Sistem mencatat status `IZIN` beserta alasannya di database, dan secara otomatis menambahkan UUID pemain ke dalam daftar anggota (members) wilayah WorldGuard kelas tersebut. Hal ini memberikan akses bypass bagi siswa untuk keluar-masuk area kelas secara manual tanpa terhalang atau terkena teleportasi balik (tp back) oleh pembatasan WorldGuard.
 * **Rekap Sesi**: Saat sesi ditutup, sistem akan mendata seluruh murid terdaftar. Siswa online yang tidak hadir di dalam kelas (dan tidak mengajukan `IZIN`) akan langsung mendapat status `ALFA`. Rekapitulasi nilai kuis dan presensi beserta alasan izin (`alasan` column) kemudian disimpan langsung ke database secara asinkron.
 
 ### 3.3 Kebijakan Auto-Fallback & Guardian Policy
@@ -176,8 +176,28 @@ Menu ujian kelulusan diakses melalui `/school exam` dan dialirkan melalui satu p
 2. **Scenario 2 (TIDAK ADA SOAL)**: Mencegah masuk ke dalam ujian apabila paket soal yang dipanggil dari cache memori tidak ditemukan atau tidak berjumlah tepat 10 pertanyaan.
 3. **Scenario 3 (SUDAH MENGERJAKAN)**: Menerapkan perisai anti-pengerjaan ulang (*anti-retake database shield*). Sistem memeriksa database secara asinkron; jika pemain sudah memiliki catatan pengerjaan untuk paket tersebut, antarmuka inventaris klien akan langsung ditutup paksa.
 
-### 4.2 Semester Break Interceptor
-Selama pelaksanaan ujian UTS atau UAS, administrator dapat menyalakan status jeda istirahat (`is_semester_break`). Jika status ini aktif, siswa yang mencoba memulai mata pelajaran UTS/UAS berikutnya akan diblokir dengan pesan peringatan agar beristirahat hingga sesi berikutnya dibuka.
+### 4.2 Siklus Akademik Berbasis Senin Pertama & Libur Sekolah
+Siklus akademik sekolah dikunci pada **Hari Senin Pertama setiap bulan kalender masehi** untuk menghindari drift. Hari sebelum Senin Pertama dianggap sebagai masa libur transisi.
+Setiap bulan kalender mewakili 1 Tahun Ajaran (berisi 2 Semester) yang dibagi menjadi:
+* **Minggu 1**: Semester 1 (Ganjil) - UTS.
+  * *Hari Senin & Selasa*: Libur Transisi Semester Baru.
+  * *Hari Rabu - Jumat*: Kelas Aktif Pembelajaran.
+  * *Hari Sabtu*: Pelaksanaan Ujian UTS.
+  * *Hari Minggu*: Pelaksanaan Ujian Susulan UTS.
+* **Minggu 2**: Semester 1 (Ganjil) - US.
+  * *Hari Senin - Jumat*: Kelas Aktif Pembelajaran (Tanpa libur Senin-Selasa setelah UTS).
+  * *Hari Sabtu*: Pelaksanaan Ujian US Ganjil.
+  * *Hari Minggu*: Pelaksanaan Ujian Susulan US.
+* **Minggu 3**: Semester 2 (Genap) - UTS.
+  * *Hari Senin & Selasa*: Libur Transisi Semester Baru (1-2).
+  * *Hari Rabu - Jumat*: Kelas Aktif Pembelajaran.
+  * *Hari Sabtu*: Pelaksanaan Ujian UTS.
+  * *Hari Minggu*: Pelaksanaan Ujian Susulan UTS.
+* **Minggu 4**: Semester 2 (Genap) - UAS.
+  * *Hari Senin - Jumat*: Kelas Aktif Pembelajaran (Tanpa libur Senin-Selasa setelah UTS).
+  * *Hari Sabtu*: Pelaksanaan Ujian UAS Genap.
+  * *Hari Minggu*: Pelaksanaan Ujian Susulan UAS.
+* **Minggu 5+ (Tanggal 28 s/d akhir bulan)**: Masa Libur Panjang/Transisi Akhir Tahun Ajaran.
 
 ### 4.3 Logika Penilaian & Rumus Rapor Akhir Semester
 Setiap paket ujian memiliki 10 pertanyaan. Pada pengiriman jawaban, plugin menghitung jumlah jawaban benar dan mengonversinya ke dalam skala 100 secara asinkron.
@@ -250,7 +270,7 @@ Pemain baru yang baru pertama kali bergabung dengan server akan secara otomatis 
 | `/class chat` | Toggle masuk/keluar saluran chat kelas secara permanen. |
 | `/class chat norank` | Toggle menyembunyikan prefix pangkat LuckPerms di chat kelas. |
 | `/class info` | Menampilkan kepengurusan kelas Anda saat ini. |
-| `/class absen` | Membuka form presensi mandiri (Hadir/Izin). Jika di luar kelas, hanya diperbolehkan mengajukan Izin dengan alasan tertulis dan pemain akan diteleportasi keluar kelas. |
+| `/class absen` | Membuka form presensi mandiri (Hadir/Izin). Jika di luar kelas, hanya diperbolehkan mengajukan Izin dengan alasan tertulis. Siswa yang izin mendapatkan akses bypass untuk keluar-masuk area kelas secara manual. |
 
 ### 6.2 Perintah Guru & Helper (`/kelas` / `/class`)
 * **Izin**: `naturalschool.admin` atau pengajar dengan peringkat prioritas $\ge$ `GURU_HONORER` (serta Wali Kelas untuk kelas terkait).
@@ -301,8 +321,11 @@ Pemain baru yang baru pertama kali bergabung dengan server akan secara otomatis 
 | `/ns nis set <player> <10-digit>` | Menentukan NIS numerik kustom 10-digit secara manual untuk siswa. |
 | `/ns nis show [player]` | Menampilkan informasi NIS siswa terkait. |
 | `/ns gui <welcome\|exam1-5\|version> [player]` | Membuka antarmuka prototipe atau memeriksa versi visual GUI secara paksa. |
-| `/ns semester info` | Menampilkan tahun ajaran dan semester aktif. |
-| `/ns semester end` | Melakukan pemutaran semester baru secara asinkron (GANJIL <-> GENAP). |
+| `/ns semester info` | Menampilkan status semester dan tahun ajaran saat ini. |
+| `/ns semester sync` | Melakukan sinkronisasi status semester & database. |
+| `/ns semester simulation <on\|off>` | Mengaktifkan/menonaktifkan simulasi waktu akademik. |
+| `/ns semester simulation date <DD> [MM]` | Mengatur tanggal simulasi (DD: Hari 1-31, MM: Bulan 1-12) dan menghitung offset waktu. |
+| `/ns semester end` | Melakukan pemutaran/sinkronisasi semester baru (asinkron). |
 | `/ns semester reset` | Menyelaraskan status semester aktif kembali dengan waktu kalender real-life. |
 | `/ns exam open` | Membuka akses portal ujian kelulusan secara paksa (bypass jadwal). |
 | `/ns exam close` | Menutup portal ujian kelulusan secara paksa. |
@@ -326,6 +349,9 @@ NaturalSchool mengekspos variabel data internal siswa menggunakan pengidentifika
 | `%naturalschool_class_cash%` | Menampilkan saldo kas kelas siswa saat ini | `25,000` |
 | `%naturalschool_class_fee%` | Menampilkan biaya kas mingguan kelas siswa | `1,000` |
 | `%naturalschool_class_fee_status%` | Menampilkan status keaktifan kas mingguan kelas | `Aktif` |
+| `%naturalschool_semester_phase%` | Menampilkan fase akademik aktif (`UTS`, `US`, `UAS`, atau `TRANSISI`) | `UTS` |
+| `%naturalschool_semester%` | Menampilkan nama semester aktif (`GANJIL` atau `GENAP`) | `GANJIL` |
+| `%naturalschool_academic_year%` | Menampilkan nama tahun akademik aktif | `JUNI 2026` |
 
 ### 7.2 Log Discord Terintegrasi (Discord Webhooks)
 Plugin menembakkan log peristiwa penting dalam format Rich Embed secara asinkron ke URL webhook Discord yang dikonfigurasi di `api.discord-webhook-url`:

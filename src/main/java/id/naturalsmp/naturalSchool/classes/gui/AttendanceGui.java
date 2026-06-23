@@ -158,8 +158,8 @@ public class AttendanceGui {
                     session.getAttendanceReasonMap().put(p.getUniqueId(), reason.trim());
                     p.sendMessage(MiniMessage.miniMessage().deserialize("<green>Izin Anda berhasil diajukan dengan alasan: " + reason.trim() + "</green>"));
 
-                    // Teleport outside class
-                    teleportOutsideClassroom(p, data);
+                    // Add player to WorldGuard members so they can enter/exit freely
+                    plugin.getClassManager().setWorldGuardMember(session.getIdKelas(), p.getUniqueId(), true);
                 }
             }, ClickCallback.Options.builder().uses(1).build()))
             .build();
@@ -256,8 +256,8 @@ public class AttendanceGui {
                 session.getAttendanceReasonMap().put(player.getUniqueId(), reason.trim());
                 player.sendMessage(MiniMessage.miniMessage().deserialize("<green>Izin Anda berhasil diajukan dengan alasan: " + reason.trim() + "</green>"));
 
-                // Teleport outside class
-                teleportOutsideClassroom(player, data);
+                // Add player to WorldGuard members so they can enter/exit freely
+                plugin.getClassManager().setWorldGuardMember(session.getIdKelas(), player.getUniqueId(), true);
             });
 
         FloodgateApi.getInstance().sendForm(player.getUniqueId(), formBuilder.build());

@@ -586,11 +586,7 @@ public class ExamGui {
             return;
         }
 
-        if (("UTS".equalsIgnoreCase(examType) || "UAS".equalsIgnoreCase(examType))
-            && plugin.getExamManager().isSemesterBreak()) {
-            openExamGuiJava(player, "subject_select", examType, "Sedang masa jeda/istirahat antar mata pelajaran.");
-            return;
-        }
+        // Removed semester break validation check
 
         boolean active;
         if ("UH".equalsIgnoreCase(examType)) {
@@ -1010,11 +1006,7 @@ public class ExamGui {
             return;
         }
 
-        if (("UTS".equalsIgnoreCase(examType) || "UAS".equalsIgnoreCase(examType))
-            && plugin.getExamManager().isSemesterBreak()) {
-            openExamGuiBedrock(player, "subject_select", examType, "Sedang masa jeda/istirahat antar mata pelajaran.");
-            return;
-        }
+        // Removed semester break validation check
 
         boolean active;
         if ("UH".equalsIgnoreCase(examType)) {

@@ -160,6 +160,18 @@ public class NaturalSchoolExpansion extends PlaceholderExpansion {
                 }
                 return "Nonaktif";
 
+            case "semester_phase": {
+                java.time.ZonedDateTime now = plugin.getSemesterManager().getCurrentTime();
+                id.naturalsmp.naturalSchool.semester.SemesterManager.AcademicState state = plugin.getSemesterManager().getAcademicState(now);
+                return state.getPhase();
+            }
+
+            case "semester":
+                return plugin.getSemesterManager().getCurrentSemester();
+
+            case "academic_year":
+                return plugin.getSemesterManager().getCurrentAcademicYear();
+
             default:
                 return null;
         }
