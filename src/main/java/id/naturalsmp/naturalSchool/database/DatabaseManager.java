@@ -154,6 +154,8 @@ public class DatabaseManager {
         String createFundPaymentsTableSQL;
         String createFundTransactionsTableSQL;
         String createPrefixesSQL;
+        String createTeachersSQL;
+        String createViolationsSQL;
         
         if ("MYSQL".equals(storageType)) {
             createTableSQL = "CREATE TABLE IF NOT EXISTS nschool_students ("
@@ -316,6 +318,28 @@ public class DatabaseManager {
                     + "prefix VARCHAR(255) NOT NULL, "
                     + "PRIMARY KEY (target_type, target_key)"
                     + ");";
+            createTeachersSQL = "CREATE TABLE IF NOT EXISTS nschool_teachers ("
+                    + "teacher_uuid VARCHAR(36) PRIMARY KEY, "
+                    + "teacher_name VARCHAR(16) NOT NULL, "
+                    + "teacher_type VARCHAR(10) NOT NULL, "
+                    + "teacher_role VARCHAR(10) NOT NULL, "
+                    + "salary_rate DOUBLE DEFAULT 1000.0, "
+                    + "unpaid_salary_balance DOUBLE DEFAULT 0.0, "
+                    + "last_salary_claim_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+                    + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+                    + ");";
+            createViolationsSQL = "CREATE TABLE IF NOT EXISTS nschool_student_violations ("
+                    + "id INT AUTO_INCREMENT PRIMARY KEY, "
+                    + "student_uuid VARCHAR(36) NOT NULL, "
+                    + "student_name VARCHAR(16) NOT NULL, "
+                    + "student_nis VARCHAR(20) NULL, "
+                    + "reporter_uuid VARCHAR(36) NOT NULL, "
+                    + "reporter_name VARCHAR(16) NOT NULL, "
+                    + "violation_type VARCHAR(50) NOT NULL, "
+                    + "comment TEXT, "
+                    + "points INT NOT NULL, "
+                    + "recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+                    + ");";
         } else {
             createTableSQL = "CREATE TABLE IF NOT EXISTS nschool_students ("
                     + "uuid TEXT PRIMARY KEY, "
@@ -467,6 +491,28 @@ public class DatabaseManager {
                     + "prefix TEXT NOT NULL, "
                     + "PRIMARY KEY (target_type, target_key)"
                     + ");";
+            createTeachersSQL = "CREATE TABLE IF NOT EXISTS nschool_teachers ("
+                    + "teacher_uuid TEXT PRIMARY KEY, "
+                    + "teacher_name TEXT NOT NULL, "
+                    + "teacher_type TEXT NOT NULL, "
+                    + "teacher_role TEXT NOT NULL, "
+                    + "salary_rate REAL DEFAULT 1000.0, "
+                    + "unpaid_salary_balance REAL DEFAULT 0.0, "
+                    + "last_salary_claim_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+                    + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+                    + ");";
+            createViolationsSQL = "CREATE TABLE IF NOT EXISTS nschool_student_violations ("
+                    + "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                    + "student_uuid TEXT NOT NULL, "
+                    + "student_name TEXT NOT NULL, "
+                    + "student_nis TEXT NULL, "
+                    + "reporter_uuid TEXT NOT NULL, "
+                    + "reporter_name TEXT NOT NULL, "
+                    + "violation_type TEXT NOT NULL, "
+                    + "comment TEXT, "
+                    + "points INTEGER NOT NULL, "
+                    + "recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+                    + ");";
         }
 
         try (Connection conn = getConnection()) {
@@ -494,6 +540,8 @@ public class DatabaseManager {
                 stmt.execute(createFundPaymentsTableSQL);
                 stmt.execute(createFundTransactionsTableSQL);
                 stmt.execute(createPrefixesSQL);
+                stmt.execute(createTeachersSQL);
+                stmt.execute(createViolationsSQL);
                 
                 if (!"MYSQL".equals(storageType)) {
                     stmt.execute("CREATE INDEX IF NOT EXISTS idx_questions_packet ON nschool_exam_questions (packet_id);");
@@ -506,6 +554,7 @@ public class DatabaseManager {
                     stmt.execute("CREATE INDEX IF NOT EXISTS idx_rapor_player ON nschool_e_rapor_digital (player_uuid);");
                     stmt.execute("CREATE INDEX IF NOT EXISTS idx_lesson_files_jenjang ON nschool_lesson_files (jenjang, mata_pelajaran);");
                     stmt.execute("CREATE INDEX IF NOT EXISTS idx_lesson_files_tipe ON nschool_lesson_files (tipe);");
+                    stmt.execute("CREATE INDEX IF NOT EXISTS idx_violations_student ON nschool_student_violations (student_uuid);");
                 }
 
                 // Seed default 7 subjects
@@ -1559,5 +1608,181 @@ public class DatabaseManager {
         } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "Error saving prefix if absent for " + targetType + ":" + targetKey, e);
         }
+    }
+
+    public void saveTeacher(UUID uuid, String name, String type, String role, double salaryRate, double unpaidBalance, Timestamp lastClaimTime) {
+        String query;
+        if ("MYSQL".equals(storageType)) {
+            query = "INSERT INTO nschool_teachers (teacher_uuid, teacher_name, teacher_type, teacher_role, salary_rate, unpaid_salary_balance, last_salary_claim_time) VALUES (?, ?, ?, ?, ?, ?, ?) "
+                  + "ON DUPLICATE KEY UPDATE teacher_name = VALUES(teacher_name), teacher_type = VALUES(teacher_type), teacher_role = VALUES(teacher_role), "
+                  + "salary_rate = VALUES(salary_rate), unpaid_salary_balance = VALUES(unpaid_salary_balance), last_salary_claim_time = VALUES(last_salary_claim_time);";
+        } else {
+            query = "INSERT OR REPLACE INTO nschool_teachers (teacher_uuid, teacher_name, teacher_type, teacher_role, salary_rate, unpaid_salary_balance, last_salary_claim_time) VALUES (?, ?, ?, ?, ?, ?, ?);";
+        }
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setString(1, uuid.toString());
+            ps.setString(2, name);
+            ps.setString(3, type);
+            ps.setString(4, role);
+            ps.setDouble(5, salaryRate);
+            ps.setDouble(6, unpaidBalance);
+            ps.setTimestamp(7, lastClaimTime);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error saving teacher " + name, e);
+        }
+    }
+
+    public Map<String, Object> getTeacher(UUID uuid) {
+        String query = "SELECT * FROM nschool_teachers WHERE teacher_uuid = ?;";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setString(1, uuid.toString());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("teacher_uuid", rs.getString("teacher_uuid"));
+                    map.put("teacher_name", rs.getString("teacher_name"));
+                    map.put("teacher_type", rs.getString("teacher_type"));
+                    map.put("teacher_role", rs.getString("teacher_role"));
+                    map.put("salary_rate", rs.getDouble("salary_rate"));
+                    map.put("unpaid_salary_balance", rs.getDouble("unpaid_salary_balance"));
+                    map.put("last_salary_claim_time", rs.getTimestamp("last_salary_claim_time"));
+                    map.put("created_at", rs.getTimestamp("created_at"));
+                    return map;
+                }
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error getting teacher " + uuid, e);
+        }
+        return null;
+    }
+
+    public Map<String, Object> getTeacherByName(String name) {
+        String query = "SELECT * FROM nschool_teachers WHERE teacher_name = ?;";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setString(1, name);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("teacher_uuid", rs.getString("teacher_uuid"));
+                    map.put("teacher_name", rs.getString("teacher_name"));
+                    map.put("teacher_type", rs.getString("teacher_type"));
+                    map.put("teacher_role", rs.getString("teacher_role"));
+                    map.put("salary_rate", rs.getDouble("salary_rate"));
+                    map.put("unpaid_salary_balance", rs.getDouble("unpaid_salary_balance"));
+                    map.put("last_salary_claim_time", rs.getTimestamp("last_salary_claim_time"));
+                    map.put("created_at", rs.getTimestamp("created_at"));
+                    return map;
+                }
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error getting teacher by name " + name, e);
+        }
+        return null;
+    }
+
+    public void deleteTeacher(UUID uuid) {
+        String query = "DELETE FROM nschool_teachers WHERE teacher_uuid = ?;";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setString(1, uuid.toString());
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error deleting teacher " + uuid, e);
+        }
+    }
+
+    public List<Map<String, Object>> getAllTeachers() {
+        List<Map<String, Object>> list = new ArrayList<>();
+        String query = "SELECT * FROM nschool_teachers;";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                Map<String, Object> map = new HashMap<>();
+                map.put("teacher_uuid", rs.getString("teacher_uuid"));
+                map.put("teacher_name", rs.getString("teacher_name"));
+                map.put("teacher_type", rs.getString("teacher_type"));
+                map.put("teacher_role", rs.getString("teacher_role"));
+                map.put("salary_rate", rs.getDouble("salary_rate"));
+                map.put("unpaid_salary_balance", rs.getDouble("unpaid_salary_balance"));
+                map.put("last_salary_claim_time", rs.getTimestamp("last_salary_claim_time"));
+                map.put("created_at", rs.getTimestamp("created_at"));
+                list.add(map);
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error listing all teachers", e);
+        }
+        return list;
+    }
+
+    public void saveViolation(UUID studentUuid, String studentName, String studentNis, UUID reporterUuid, String reporterName, String violationType, String comment, int points) {
+        String query = "INSERT INTO nschool_student_violations (student_uuid, student_name, student_nis, reporter_uuid, reporter_name, violation_type, comment, points) VALUES (?, ?, ?, ?, ?, ?, ?, ?);";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setString(1, studentUuid.toString());
+            ps.setString(2, studentName);
+            if (studentNis == null) ps.setNull(3, java.sql.Types.VARCHAR); else ps.setString(3, studentNis);
+            ps.setString(4, reporterUuid.toString());
+            ps.setString(5, reporterName);
+            ps.setString(6, violationType);
+            if (comment == null) ps.setNull(7, java.sql.Types.VARCHAR); else ps.setString(7, comment);
+            ps.setInt(8, points);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error saving violation for " + studentName, e);
+        }
+    }
+
+    public List<Map<String, Object>> getStudentViolations(UUID studentUuid) {
+        List<Map<String, Object>> list = new ArrayList<>();
+        String query = "SELECT * FROM nschool_student_violations WHERE student_uuid = ? ORDER BY recorded_at DESC;";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setString(1, studentUuid.toString());
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("id", rs.getInt("id"));
+                    map.put("student_uuid", rs.getString("student_uuid"));
+                    map.put("student_name", rs.getString("student_name"));
+                    map.put("student_nis", rs.getString("student_nis"));
+                    map.put("reporter_uuid", rs.getString("reporter_uuid"));
+                    map.put("reporter_name", rs.getString("reporter_name"));
+                    map.put("violation_type", rs.getString("violation_type"));
+                    map.put("comment", rs.getString("comment"));
+                    map.put("points", rs.getInt("points"));
+                    map.put("recorded_at", rs.getTimestamp("recorded_at"));
+                    list.add(map);
+                }
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error listing violations for student " + studentUuid, e);
+        }
+        return list;
+    }
+
+    public List<Map<String, String>> searchStudents(String usernameQuery) {
+        List<Map<String, String>> list = new ArrayList<>();
+        String query = "SELECT uuid, username, nis FROM nschool_students WHERE username LIKE ? LIMIT 50;";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setString(1, "%" + usernameQuery + "%");
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, String> map = new HashMap<>();
+                    map.put("uuid", rs.getString("uuid"));
+                    map.put("username", rs.getString("username"));
+                    map.put("nis", rs.getString("nis"));
+                    list.add(map);
+                }
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error searching students with query: " + usernameQuery, e);
+        }
+        return list;
     }
 }

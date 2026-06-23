@@ -37,6 +37,8 @@ public final class NaturalSchool extends JavaPlugin {
     private ClassroomManager classroomManager;
     private ClassChatManager classChatManager;
     private ClassCashManager classCashManager;
+    private id.naturalsmp.naturalSchool.teacher.TeacherManager teacherManager;
+    private id.naturalsmp.naturalSchool.classes.ViolationManager violationManager;
 
     @Override
     public void onEnable() {
@@ -56,6 +58,11 @@ public final class NaturalSchool extends JavaPlugin {
         classCashManager = new ClassCashManager(this);
         classCashManager.setupEconomy();
         classManager = new ClassManager(this);
+
+        // Initialize Teacher and Violation managers
+        teacherManager = new id.naturalsmp.naturalSchool.teacher.TeacherManager(this);
+        teacherManager.initialize();
+        violationManager = new id.naturalsmp.naturalSchool.classes.ViolationManager(this);
 
         // Initialize & Register Developer API
         NaturalSchoolAPIImpl apiImpl = new NaturalSchoolAPIImpl(this);
@@ -261,6 +268,14 @@ public final class NaturalSchool extends JavaPlugin {
 
     public ClassCashManager getClassCashManager() {
         return classCashManager;
+    }
+
+    public id.naturalsmp.naturalSchool.teacher.TeacherManager getTeacherManager() {
+        return teacherManager;
+    }
+
+    public id.naturalsmp.naturalSchool.classes.ViolationManager getViolationManager() {
+        return violationManager;
     }
 
     public boolean isExamOpen() {

@@ -52,7 +52,9 @@ public class SchoolCommand implements CommandExecutor, TabCompleter {
                 "<yellow>/school info</yellow> - <gray>Menampilkan GUI dialog Informasi Pelajar Anda.</gray>\n" +
                 "<yellow>/school class [class/player]</yellow> - <gray>Menampilkan informasi struktur organisasi kelas.</gray>\n" +
                 "<yellow>/school semester</yellow> - <gray>Menampilkan kalender akademik dan sisa waktu semester.</gray>\n" +
-                "<yellow>/school exam</yellow> - <gray>Membuka Portal Ujian sekolah.</gray>"
+                "<yellow>/school exam</yellow> - <gray>Membuka Portal Ujian sekolah.</gray>\n" +
+                "<yellow>/school teacher salary [claim]</yellow> - <gray>Melihat dan mengklaim gaji guru.</gray>\n" +
+                "<yellow>/school student violation</yellow> - <gray>Mencatat pelanggaran murid oleh Staf BK.</gray>"
             ));
             return true;
         }
@@ -175,6 +177,39 @@ public class SchoolCommand implements CommandExecutor, TabCompleter {
 
             displayClassroomInfo(player, classNum);
             return true;
+        } else if (subCommand.equals("teacher")) {
+            if (args.length >= 2 && args[1].equalsIgnoreCase("salary")) {
+                if (args.length >= 3 && args[2].equalsIgnoreCase("claim")) {
+                    id.naturalsmp.naturalSchool.teacher.TeacherManager.ClaimResult res = plugin.getTeacherManager().claimSalary(player);
+                    if (res.isSuccess()) {
+                        player.sendMessage(MiniMessage.miniMessage().deserialize("<green>" + res.getMessage() + "</green>"));
+                    } else {
+                        player.sendMessage(MiniMessage.miniMessage().deserialize("<red>" + res.getMessage() + "</red>"));
+                    }
+                    return true;
+                }
+                plugin.getUiManager().getTeacherSalaryGui().openSalaryGui(player);
+                return true;
+            }
+            player.sendMessage(MiniMessage.miniMessage().deserialize("<red>Gunakan: /school teacher salary [claim]</red>"));
+            return true;
+        } else if (subCommand.equals("student")) {
+            if (args.length >= 2 && args[1].equalsIgnoreCase("violation")) {
+                id.naturalsmp.naturalSchool.profile.SchoolRank rank = profile.getRank();
+                boolean isStaffBK = rank == id.naturalsmp.naturalSchool.profile.SchoolRank.GURU_BK || 
+                                    rank == id.naturalsmp.naturalSchool.profile.SchoolRank.KOMISI_DISIPLIN || 
+                                    player.hasPermission("naturalschool.admin") || 
+                                    player.isOp() || 
+                                    rank.getPriority() >= 50;
+                if (!isStaffBK) {
+                    player.sendMessage(MiniMessage.miniMessage().deserialize("<red>Hanya Staf BK, Komisi Disiplin, atau Guru yang dapat menggunakan command ini!</red>"));
+                    return true;
+                }
+                plugin.getUiManager().getBkGui().openSearchGui(player);
+                return true;
+            }
+            player.sendMessage(MiniMessage.miniMessage().deserialize("<red>Gunakan: /school student violation</red>"));
+            return true;
         }
 
 
@@ -245,7 +280,7 @@ public class SchoolCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 1) {
-            return Arrays.asList("info", "class", "exam", "semester", "help").stream()
+            return Arrays.asList("info", "class", "exam", "semester", "teacher", "student", "help").stream()
                     .filter(s -> s.toLowerCase().startsWith(args[0].toLowerCase()))
                     .collect(Collectors.toList());
         }
@@ -259,6 +294,24 @@ public class SchoolCommand implements CommandExecutor, TabCompleter {
                 suggestions.add(p.getName());
             }
             return suggestions.stream()
+                    .filter(s -> s.toLowerCase().startsWith(args[1].toLowerCase()))
+                    .collect(Collectors.toList());
+        }
+
+        if (args.length == 2 && args[0].equalsIgnoreCase("teacher")) {
+            return Collections.singletonList("salary").stream()
+                    .filter(s -> s.toLowerCase().startsWith(args[1].toLowerCase()))
+                    .collect(Collectors.toList());
+        }
+
+        if (args.length == 3 && args[0].equalsIgnoreCase("teacher") && args[1].equalsIgnoreCase("salary")) {
+            return Collections.singletonList("claim").stream()
+                    .filter(s -> s.toLowerCase().startsWith(args[2].toLowerCase()))
+                    .collect(Collectors.toList());
+        }
+
+        if (args.length == 2 && args[0].equalsIgnoreCase("student")) {
+            return Collections.singletonList("violation").stream()
                     .filter(s -> s.toLowerCase().startsWith(args[1].toLowerCase()))
                     .collect(Collectors.toList());
         }

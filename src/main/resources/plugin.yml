@@ -37,6 +37,7 @@ permissions:
       naturalschool.semester: true
       naturalschool.exam: true
       naturalschool.class: true
+      naturalschool.teacher: true
   naturalschool.general:
     description: Access to reload configurations and view student profile information.
     default: op
@@ -63,4 +64,7 @@ permissions:
     default: op
   naturalschool.class:
     description: Access to spy on class chats and configure class properties, zones, and door selections.
+    default: op
+  naturalschool.teacher:
+    description: Access to teacher payroll management.
     default: op

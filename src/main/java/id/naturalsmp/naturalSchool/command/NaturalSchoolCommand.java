@@ -96,6 +96,8 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
                 return "exam";
             case "class":
                 return "class";
+            case "teacher":
+                return "teacher";
             default:
                 return null;
         }
@@ -151,6 +153,9 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
             case "class":
                 handleClassCommand(sender, args);
                 break;
+            case "teacher":
+                handleTeacherCommand(sender, args);
+                break;
             default:
                 sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Unknown subcommand. Use /naturalschool for help.</red>"));
                 break;
@@ -188,6 +193,9 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
         }
         if (hasSubCommandPermission(sender, "class")) {
             sb.append("\n<yellow>/naturalschool class ...</yellow> - <gray>Manage classrooms, homerooms, areas, and doors. Type /ns class for sub-help.</gray>");
+        }
+        if (hasSubCommandPermission(sender, "teacher")) {
+            sb.append("\n<yellow>/naturalschool teacher ...</yellow> - <gray>Manage staff teachers, salaries, and details. Type /ns teacher for sub-help.</gray>");
         }
         sender.sendMessage(MiniMessage.miniMessage().deserialize(sb.toString()));
     }
@@ -1231,7 +1239,7 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 1) {
-            List<String> subCommands = Arrays.asList("reload", "info", "rank", "setclass", "setstage", "nis", "gui", "semester", "exam", "class");
+            List<String> subCommands = Arrays.asList("reload", "info", "rank", "setclass", "setstage", "nis", "gui", "semester", "exam", "class", "teacher");
             List<String> allowed = new ArrayList<>();
             for (String sub : subCommands) {
                 String group = getPermissionGroup(sub);
@@ -1261,6 +1269,8 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
                         .map(Player::getName)
                         .collect(Collectors.toList());
                 return filterList(players, args[1]);
+            } else if ("teacher".equals(subCommand)) {
+                return filterList(Arrays.asList("add", "remove", "edit", "list"), args[1]);
             }
         }
 
@@ -1295,6 +1305,14 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
                         classes.add("kelas" + i);
                     }
                     return filterList(classes, args[2]);
+                }
+            } else if ("teacher".equals(subCommand)) {
+                String subTeach = args[1].toLowerCase();
+                if (Arrays.asList("add", "remove", "edit").contains(subTeach)) {
+                    List<String> players = Bukkit.getOnlinePlayers().stream()
+                            .map(Player::getName)
+                            .collect(Collectors.toList());
+                    return filterList(players, args[2]);
                 }
             } else if ("rank".equals(subCommand)) {
                 String subRank = args[1].toLowerCase();
@@ -1368,6 +1386,13 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
                 if ("simulation".equals(subSem) && "date".equalsIgnoreCase(args[2])) {
                     return filterList(Collections.singletonList("<DD>"), args[3]);
                 }
+            } else if ("teacher".equals(subCommand)) {
+                String subTeach = args[1].toLowerCase();
+                if ("add".equals(subTeach)) {
+                    return filterList(Arrays.asList("TETAP", "HONORER"), args[3]);
+                } else if ("edit".equals(subTeach)) {
+                    return filterList(Arrays.asList("rate", "type", "role"), args[3]);
+                }
             }
         }
 
@@ -1381,6 +1406,18 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
                 String subSem = args[1].toLowerCase();
                 if ("simulation".equals(subSem) && "date".equalsIgnoreCase(args[2])) {
                     return filterList(Collections.singletonList("[MM]"), args[4]);
+                }
+            } else if ("teacher".equals(subCommand)) {
+                String subTeach = args[1].toLowerCase();
+                if ("add".equals(subTeach)) {
+                    return filterList(Arrays.asList("MAPEL", "GURU"), args[4]);
+                } else if ("edit".equals(subTeach)) {
+                    String field = args[3].toLowerCase();
+                    if (field.equals("type")) {
+                        return filterList(Arrays.asList("TETAP", "HONORER"), args[4]);
+                    } else if (field.equals("role")) {
+                        return filterList(Arrays.asList("MAPEL", "GURU"), args[4]);
+                    }
                 }
             }
         }
@@ -1435,6 +1472,118 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
         } catch (Throwable t) {
             plugin.getLogger().warning("Error getting WorldEdit selection: " + t.getMessage());
             return null;
+        }
+    }
+
+    private void handleTeacherCommand(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            sender.sendMessage(MiniMessage.miniMessage().deserialize(
+                "<gold>=== NaturalSchool Admin Teacher Commands ===</gold>\n" +
+                "<yellow>/ns teacher add <player> <TETAP|HONORER> <MAPEL|GURU> [salary_rate]</yellow> - <gray>Add a teacher.</gray>\n" +
+                "<yellow>/ns teacher remove <player></yellow> - <gray>Remove a teacher.</gray>\n" +
+                "<yellow>/ns teacher edit <player> <rate|type|role> <value></yellow> - <gray>Edit teacher settings.</gray>\n" +
+                "<yellow>/ns teacher list</yellow> - <gray>List all registered teachers.</gray>"
+            ));
+            return;
+        }
+
+        String sub = args[1].toLowerCase();
+        if (sub.equals("add")) {
+            if (args.length < 5) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Gunakan: /ns teacher add <player> <TETAP|HONORER> <MAPEL|GURU> [salary_rate]</red>"));
+                return;
+            }
+            String targetName = args[2];
+            String typeStr = args[3].toUpperCase();
+            String roleStr = args[4].toUpperCase();
+            double rate = 1000.0;
+            if (args.length >= 6) {
+                try {
+                    rate = Double.parseDouble(args[5]);
+                } catch (NumberFormatException e) {
+                    sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Tarif gaji (salary_rate) harus berupa angka!</red>"));
+                    return;
+                }
+            }
+
+            id.naturalsmp.naturalSchool.teacher.TeacherType type;
+            id.naturalsmp.naturalSchool.teacher.TeacherRole role;
+            try {
+                type = id.naturalsmp.naturalSchool.teacher.TeacherType.valueOf(typeStr);
+            } catch (IllegalArgumentException e) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Tipe kepegawaian tidak valid! (Pilih: TETAP atau HONORER)</red>"));
+                return;
+            }
+            try {
+                role = id.naturalsmp.naturalSchool.teacher.TeacherRole.valueOf(roleStr);
+            } catch (IllegalArgumentException e) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Peran guru tidak valid! (Pilih: MAPEL atau GURU)</red>"));
+                return;
+            }
+
+            org.bukkit.OfflinePlayer targetOp = org.bukkit.Bukkit.getOfflinePlayer(targetName);
+            if (targetOp.getUniqueId() == null || targetOp.getName() == null) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Pemain '" + targetName + "' tidak ditemukan.</red>"));
+                return;
+            }
+
+            if (plugin.getTeacherManager().isTeacher(targetOp.getUniqueId())) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Pemain '" + targetOp.getName() + "' sudah terdaftar sebagai Guru.</red>"));
+                return;
+            }
+
+            plugin.getTeacherManager().addTeacher(targetOp.getUniqueId(), targetOp.getName(), type, role, rate);
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>Berhasil mendaftarkan Guru <yellow>" + targetOp.getName() + "</yellow> (" + type.name() + " / " + role.name() + ") dengan tarif $" + rate + "</green>"));
+        } else if (sub.equals("remove")) {
+            if (args.length < 3) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Gunakan: /ns teacher remove <player></red>"));
+                return;
+            }
+            String targetName = args[2];
+            id.naturalsmp.naturalSchool.teacher.Teacher teacher = plugin.getTeacherManager().getTeacherByName(targetName);
+            if (teacher == null) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Guru '" + targetName + "' tidak ditemukan dalam daftar.</red>"));
+                return;
+            }
+
+            plugin.getTeacherManager().removeTeacher(teacher.getUuid());
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>Berhasil menghapus Guru <yellow>" + teacher.getName() + "</yellow> dari daftar staff pengajar.</green>"));
+        } else if (sub.equals("edit")) {
+            if (args.length < 5) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Gunakan: /ns teacher edit <player> <rate|type|role> <value></red>"));
+                return;
+            }
+            String targetName = args[2];
+            String field = args[3].toLowerCase();
+            String value = args[4];
+
+            id.naturalsmp.naturalSchool.teacher.Teacher teacher = plugin.getTeacherManager().getTeacherByName(targetName);
+            if (teacher == null) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Guru '" + targetName + "' tidak ditemukan dalam daftar.</red>"));
+                return;
+            }
+
+            boolean success = plugin.getTeacherManager().editTeacher(teacher.getUuid(), field, value);
+            if (success) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>Berhasil memperbarui parameter <yellow>" + field + "</yellow> menjadi <white>" + value + "</white> untuk Guru " + teacher.getName() + ".</green>"));
+            } else {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Gagal memperbarui parameter! Pastikan parameter dan nilai valid.</red>"));
+            }
+        } else if (sub.equals("list")) {
+            java.util.Collection<id.naturalsmp.naturalSchool.teacher.Teacher> teachers = plugin.getTeacherManager().getAllTeachers();
+            if (teachers.isEmpty()) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<gray>Belum ada staff pengajar yang terdaftar.</gray>"));
+                return;
+            }
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<gold>=== Daftar Staff Pengajar Guru (" + teachers.size() + ") ===</gold>"));
+            for (id.naturalsmp.naturalSchool.teacher.Teacher t : teachers) {
+                String rateUnit = t.getType() == id.naturalsmp.naturalSchool.teacher.TeacherType.TETAP ? "/minggu (RL)" : "/sesi";
+                sender.sendMessage(MiniMessage.miniMessage().deserialize(
+                    "<yellow>• " + t.getName() + ":</yellow> <white>" + t.getType().name() + " | " + t.getRole().name() + " (Rate: $" + t.getSalaryRate() + rateUnit + ", Unpaid: $" + String.format("%,.2f", t.getUnpaidSalaryBalance()) + ")</white>"
+                ));
+            }
+        } else {
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Subcommand guru tidak dikenal. Gunakan /ns teacher untuk bantuan.</red>"));
         }
     }
 }

@@ -244,6 +244,12 @@ public class ClassManager {
     }
 
     public void rekapSessionInternal(ClassSession session) {
+        // Honorer Teacher pay increment
+        UUID teacherUuid = session.getTeacherUuid();
+        if (teacherUuid != null && plugin.getTeacherManager() != null) {
+            plugin.getTeacherManager().rewardHonorerSession(teacherUuid);
+        }
+
         String idKelas = session.getIdKelas();
         int classNum = getClassNumber(idKelas);
         String jenjang = getJenjangFromId(idKelas);

@@ -39,6 +39,8 @@ public class UIManager {
     private final ExamGui          examGui;
     private final ClassCashGui     classCashGui;
     private final AttendanceGui    attendanceGui;
+    private final id.naturalsmp.naturalSchool.classes.gui.BKGui bkGui;
+    private final id.naturalsmp.naturalSchool.teacher.TeacherSalaryGui teacherSalaryGui;
 
     private BedrockHandler bedrockHandler;
     private final boolean floodgateEnabled;
@@ -58,6 +60,8 @@ public class UIManager {
         this.examGui          = new ExamGui(plugin);
         this.classCashGui     = new ClassCashGui(plugin);
         this.attendanceGui    = new AttendanceGui(plugin);
+        this.bkGui            = new id.naturalsmp.naturalSchool.classes.gui.BKGui(plugin);
+        this.teacherSalaryGui = new id.naturalsmp.naturalSchool.teacher.TeacherSalaryGui(plugin);
 
         this.floodgateEnabled = Bukkit.getPluginManager().isPluginEnabled("floodgate");
         if (this.floodgateEnabled) {
@@ -81,6 +85,14 @@ public class UIManager {
 
     public AttendanceGui getAttendanceGui() {
         return attendanceGui;
+    }
+
+    public id.naturalsmp.naturalSchool.classes.gui.BKGui getBkGui() {
+        return bkGui;
+    }
+
+    public id.naturalsmp.naturalSchool.teacher.TeacherSalaryGui getTeacherSalaryGui() {
+        return teacherSalaryGui;
     }
 
     public void openAttendanceGui(Player player) {
