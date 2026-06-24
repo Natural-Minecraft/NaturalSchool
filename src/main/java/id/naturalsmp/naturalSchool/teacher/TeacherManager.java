@@ -32,14 +32,13 @@ public class TeacherManager {
             try {
                 UUID uuid = UUID.fromString((String) data.get("teacher_uuid"));
                 String name = (String) data.get("teacher_name");
-                TeacherType type = TeacherType.valueOf(((String) data.get("teacher_type")).toUpperCase());
                 TeacherRole role = TeacherRole.valueOf(((String) data.get("teacher_role")).toUpperCase());
                 double rate = (Double) data.get("salary_rate");
                 double unpaid = (Double) data.get("unpaid_salary_balance");
                 Timestamp claimTime = (Timestamp) data.get("last_salary_claim_time");
                 Timestamp created = (Timestamp) data.get("created_at");
 
-                Teacher teacher = new Teacher(uuid, name, type, role, rate, unpaid, claimTime, created);
+                Teacher teacher = new Teacher(uuid, name, role, rate, unpaid, claimTime, created);
                 teachersCache.put(uuid, teacher);
             } catch (Exception e) {
                 plugin.getLogger().log(Level.SEVERE, "Failed to load teacher from database data: " + data, e);
@@ -71,14 +70,13 @@ public class TeacherManager {
                 UUID uuid = UUID.fromString((String) data.get("teacher_uuid"));
                 // Load to cache if not present
                 if (!teachersCache.containsKey(uuid)) {
-                    TeacherType type = TeacherType.valueOf(((String) data.get("teacher_type")).toUpperCase());
                     TeacherRole role = TeacherRole.valueOf(((String) data.get("teacher_role")).toUpperCase());
                     double rate = (Double) data.get("salary_rate");
                     double unpaid = (Double) data.get("unpaid_salary_balance");
                     Timestamp claimTime = (Timestamp) data.get("last_salary_claim_time");
                     Timestamp created = (Timestamp) data.get("created_at");
 
-                    Teacher teacher = new Teacher(uuid, name, type, role, rate, unpaid, claimTime, created);
+                    Teacher teacher = new Teacher(uuid, name, role, rate, unpaid, claimTime, created);
                     teachersCache.put(uuid, teacher);
                     return teacher;
                 }
@@ -92,12 +90,12 @@ public class TeacherManager {
         return uuid != null && teachersCache.containsKey(uuid);
     }
 
-    public void addTeacher(UUID uuid, String name, TeacherType type, TeacherRole role, double salaryRate) {
+    public void addTeacher(UUID uuid, String name, TeacherRole role, double salaryRate) {
         Timestamp now = new Timestamp(System.currentTimeMillis());
-        Teacher teacher = new Teacher(uuid, name, type, role, salaryRate, 0.0, now, now);
+        Teacher teacher = new Teacher(uuid, name, role, salaryRate, 0.0, now, now);
         teachersCache.put(uuid, teacher);
         
-        plugin.getDatabaseManager().saveTeacher(uuid, name, type.name(), role.name(), salaryRate, 0.0, now);
+        plugin.getDatabaseManager().saveTeacher(uuid, name, role.name(), salaryRate, 0.0, now);
     }
 
     public void removeTeacher(UUID uuid) {
@@ -116,11 +114,6 @@ public class TeacherManager {
                     double rate = Double.parseDouble(value);
                     teacher.setSalaryRate(rate);
                     break;
-                case "type":
-                case "teacher_type":
-                    TeacherType type = TeacherType.valueOf(value.toUpperCase());
-                    teacher.setType(type);
-                    break;
                 case "role":
                 case "teacher_role":
                     TeacherRole role = TeacherRole.valueOf(value.toUpperCase());
@@ -132,7 +125,6 @@ public class TeacherManager {
             plugin.getDatabaseManager().saveTeacher(
                     teacher.getUuid(),
                     teacher.getName(),
-                    teacher.getType().name(),
                     teacher.getRole().name(),
                     teacher.getSalaryRate(),
                     teacher.getUnpaidSalaryBalance(),
@@ -149,7 +141,7 @@ public class TeacherManager {
         Teacher teacher = teachersCache.get(uuid);
         if (teacher == null) return 0.0;
 
-        if (teacher.getType() == TeacherType.TETAP) {
+        if (teacher.getType(plugin) == Teacher.TeacherType.TETAP) {
             long lastClaim = teacher.getLastSalaryClaimTime().getTime();
             long now = System.currentTimeMillis();
             long elapsedMs = now - lastClaim;
@@ -170,14 +162,13 @@ public class TeacherManager {
         Teacher teacher = teachersCache.get(teacherUuid);
         if (teacher == null) return;
 
-        if (teacher.getType() == TeacherType.HONORER) {
+        if (teacher.getType(plugin) == Teacher.TeacherType.HONORER) {
             double newBalance = teacher.getUnpaidSalaryBalance() + teacher.getSalaryRate();
             teacher.setUnpaidSalaryBalance(newBalance);
             
             plugin.getDatabaseManager().saveTeacher(
                     teacher.getUuid(),
                     teacher.getName(),
-                    teacher.getType().name(),
                     teacher.getRole().name(),
                     teacher.getSalaryRate(),
                     newBalance,
@@ -214,7 +205,6 @@ public class TeacherManager {
         plugin.getDatabaseManager().saveTeacher(
                 teacher.getUuid(),
                 teacher.getName(),
-                teacher.getType().name(),
                 teacher.getRole().name(),
                 teacher.getSalaryRate(),
                 0.0,

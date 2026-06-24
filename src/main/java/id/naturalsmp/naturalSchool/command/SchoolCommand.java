@@ -53,6 +53,7 @@ public class SchoolCommand implements CommandExecutor, TabCompleter {
                 "<yellow>/school class [class/player]</yellow> - <gray>Menampilkan informasi struktur organisasi kelas.</gray>\n" +
                 "<yellow>/school semester</yellow> - <gray>Menampilkan kalender akademik dan sisa waktu semester.</gray>\n" +
                 "<yellow>/school exam</yellow> - <gray>Membuka Portal Ujian sekolah.</gray>\n" +
+                "<yellow>/school mail</yellow> - <gray>Membuka Sistem Surat sekolah.</gray>\n" +
                 "<yellow>/school teacher salary [claim]</yellow> - <gray>Melihat dan mengklaim gaji guru.</gray>\n" +
                 "<yellow>/school student violation</yellow> - <gray>Mencatat pelanggaran murid oleh Staf BK.</gray>"
             ));
@@ -210,6 +211,9 @@ public class SchoolCommand implements CommandExecutor, TabCompleter {
             }
             player.sendMessage(MiniMessage.miniMessage().deserialize("<red>Gunakan: /school student violation</red>"));
             return true;
+        } else if (subCommand.equals("mail")) {
+            plugin.getUiManager().getMailGui().openMailMenu(player);
+            return true;
         }
 
 
@@ -280,7 +284,7 @@ public class SchoolCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 1) {
-            return Arrays.asList("info", "class", "exam", "semester", "teacher", "student", "help").stream()
+            return Arrays.asList("info", "class", "exam", "semester", "mail", "teacher", "student", "help").stream()
                     .filter(s -> s.toLowerCase().startsWith(args[0].toLowerCase()))
                     .collect(Collectors.toList());
         }

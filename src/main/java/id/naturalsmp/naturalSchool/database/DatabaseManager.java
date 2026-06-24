@@ -156,6 +156,7 @@ public class DatabaseManager {
         String createPrefixesSQL;
         String createTeachersSQL;
         String createViolationsSQL;
+        String createMailsSQL;
         
         if ("MYSQL".equals(storageType)) {
             createTableSQL = "CREATE TABLE IF NOT EXISTS nschool_students ("
@@ -321,7 +322,6 @@ public class DatabaseManager {
             createTeachersSQL = "CREATE TABLE IF NOT EXISTS nschool_teachers ("
                     + "teacher_uuid VARCHAR(36) PRIMARY KEY, "
                     + "teacher_name VARCHAR(16) NOT NULL, "
-                    + "teacher_type VARCHAR(10) NOT NULL, "
                     + "teacher_role VARCHAR(10) NOT NULL, "
                     + "salary_rate DOUBLE DEFAULT 1000.0, "
                     + "unpaid_salary_balance DOUBLE DEFAULT 0.0, "
@@ -339,6 +339,22 @@ public class DatabaseManager {
                     + "comment TEXT, "
                     + "points INT NOT NULL, "
                     + "recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+                    + ");";
+            createMailsSQL = "CREATE TABLE IF NOT EXISTS nschool_mails ("
+                    + "id INT AUTO_INCREMENT PRIMARY KEY, "
+                    + "parent_id INT DEFAULT 0, "
+                    + "sender_uuid VARCHAR(36) NOT NULL, "
+                    + "sender_name VARCHAR(16) NOT NULL, "
+                    + "recipient_uuid VARCHAR(36) NOT NULL, "
+                    + "recipient_type VARCHAR(10) NOT NULL DEFAULT 'PLAYER', "
+                    + "mail_type VARCHAR(20) NOT NULL DEFAULT 'PERSONAL', "
+                    + "subject VARCHAR(100) NOT NULL, "
+                    + "body TEXT NOT NULL, "
+                    + "is_read TINYINT DEFAULT 0, "
+                    + "is_archived TINYINT DEFAULT 0, "
+                    + "sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+                    + "INDEX idx_mails_rec (recipient_uuid), "
+                    + "INDEX idx_mails_parent (parent_id)"
                     + ");";
         } else {
             createTableSQL = "CREATE TABLE IF NOT EXISTS nschool_students ("
@@ -494,7 +510,6 @@ public class DatabaseManager {
             createTeachersSQL = "CREATE TABLE IF NOT EXISTS nschool_teachers ("
                     + "teacher_uuid TEXT PRIMARY KEY, "
                     + "teacher_name TEXT NOT NULL, "
-                    + "teacher_type TEXT NOT NULL, "
                     + "teacher_role TEXT NOT NULL, "
                     + "salary_rate REAL DEFAULT 1000.0, "
                     + "unpaid_salary_balance REAL DEFAULT 0.0, "
@@ -512,6 +527,20 @@ public class DatabaseManager {
                     + "comment TEXT, "
                     + "points INTEGER NOT NULL, "
                     + "recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+                    + ");";
+            createMailsSQL = "CREATE TABLE IF NOT EXISTS nschool_mails ("
+                    + "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                    + "parent_id INTEGER DEFAULT 0, "
+                    + "sender_uuid TEXT NOT NULL, "
+                    + "sender_name TEXT NOT NULL, "
+                    + "recipient_uuid TEXT NOT NULL, "
+                    + "recipient_type TEXT NOT NULL DEFAULT 'PLAYER', "
+                    + "mail_type TEXT NOT NULL DEFAULT 'PERSONAL', "
+                    + "subject TEXT NOT NULL, "
+                    + "body TEXT NOT NULL, "
+                    + "is_read INTEGER DEFAULT 0, "
+                    + "is_archived INTEGER DEFAULT 0, "
+                    + "sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
                     + ");";
         }
 
@@ -542,6 +571,7 @@ public class DatabaseManager {
                 stmt.execute(createPrefixesSQL);
                 stmt.execute(createTeachersSQL);
                 stmt.execute(createViolationsSQL);
+                stmt.execute(createMailsSQL);
                 
                 if (!"MYSQL".equals(storageType)) {
                     stmt.execute("CREATE INDEX IF NOT EXISTS idx_questions_packet ON nschool_exam_questions (packet_id);");
@@ -555,6 +585,8 @@ public class DatabaseManager {
                     stmt.execute("CREATE INDEX IF NOT EXISTS idx_lesson_files_jenjang ON nschool_lesson_files (jenjang, mata_pelajaran);");
                     stmt.execute("CREATE INDEX IF NOT EXISTS idx_lesson_files_tipe ON nschool_lesson_files (tipe);");
                     stmt.execute("CREATE INDEX IF NOT EXISTS idx_violations_student ON nschool_student_violations (student_uuid);");
+                    stmt.execute("CREATE INDEX IF NOT EXISTS idx_mails_rec ON nschool_mails (recipient_uuid);");
+                    stmt.execute("CREATE INDEX IF NOT EXISTS idx_mails_parent ON nschool_mails (parent_id);");
                 }
 
                 // Seed default 7 subjects
@@ -1610,24 +1642,23 @@ public class DatabaseManager {
         }
     }
 
-    public void saveTeacher(UUID uuid, String name, String type, String role, double salaryRate, double unpaidBalance, Timestamp lastClaimTime) {
+    public void saveTeacher(UUID uuid, String name, String role, double salaryRate, double unpaidBalance, Timestamp lastClaimTime) {
         String query;
         if ("MYSQL".equals(storageType)) {
-            query = "INSERT INTO nschool_teachers (teacher_uuid, teacher_name, teacher_type, teacher_role, salary_rate, unpaid_salary_balance, last_salary_claim_time) VALUES (?, ?, ?, ?, ?, ?, ?) "
-                  + "ON DUPLICATE KEY UPDATE teacher_name = VALUES(teacher_name), teacher_type = VALUES(teacher_type), teacher_role = VALUES(teacher_role), "
+            query = "INSERT INTO nschool_teachers (teacher_uuid, teacher_name, teacher_role, salary_rate, unpaid_salary_balance, last_salary_claim_time) VALUES (?, ?, ?, ?, ?, ?) "
+                  + "ON DUPLICATE KEY UPDATE teacher_name = VALUES(teacher_name), teacher_role = VALUES(teacher_role), "
                   + "salary_rate = VALUES(salary_rate), unpaid_salary_balance = VALUES(unpaid_salary_balance), last_salary_claim_time = VALUES(last_salary_claim_time);";
         } else {
-            query = "INSERT OR REPLACE INTO nschool_teachers (teacher_uuid, teacher_name, teacher_type, teacher_role, salary_rate, unpaid_salary_balance, last_salary_claim_time) VALUES (?, ?, ?, ?, ?, ?, ?);";
+            query = "INSERT OR REPLACE INTO nschool_teachers (teacher_uuid, teacher_name, teacher_role, salary_rate, unpaid_salary_balance, last_salary_claim_time) VALUES (?, ?, ?, ?, ?, ?);";
         }
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(query)) {
             ps.setString(1, uuid.toString());
             ps.setString(2, name);
-            ps.setString(3, type);
-            ps.setString(4, role);
-            ps.setDouble(5, salaryRate);
-            ps.setDouble(6, unpaidBalance);
-            ps.setTimestamp(7, lastClaimTime);
+            ps.setString(3, role);
+            ps.setDouble(4, salaryRate);
+            ps.setDouble(5, unpaidBalance);
+            ps.setTimestamp(6, lastClaimTime);
             ps.executeUpdate();
         } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "Error saving teacher " + name, e);
@@ -1644,7 +1675,6 @@ public class DatabaseManager {
                     Map<String, Object> map = new HashMap<>();
                     map.put("teacher_uuid", rs.getString("teacher_uuid"));
                     map.put("teacher_name", rs.getString("teacher_name"));
-                    map.put("teacher_type", rs.getString("teacher_type"));
                     map.put("teacher_role", rs.getString("teacher_role"));
                     map.put("salary_rate", rs.getDouble("salary_rate"));
                     map.put("unpaid_salary_balance", rs.getDouble("unpaid_salary_balance"));
@@ -1669,7 +1699,6 @@ public class DatabaseManager {
                     Map<String, Object> map = new HashMap<>();
                     map.put("teacher_uuid", rs.getString("teacher_uuid"));
                     map.put("teacher_name", rs.getString("teacher_name"));
-                    map.put("teacher_type", rs.getString("teacher_type"));
                     map.put("teacher_role", rs.getString("teacher_role"));
                     map.put("salary_rate", rs.getDouble("salary_rate"));
                     map.put("unpaid_salary_balance", rs.getDouble("unpaid_salary_balance"));
@@ -1705,7 +1734,6 @@ public class DatabaseManager {
                 Map<String, Object> map = new HashMap<>();
                 map.put("teacher_uuid", rs.getString("teacher_uuid"));
                 map.put("teacher_name", rs.getString("teacher_name"));
-                map.put("teacher_type", rs.getString("teacher_type"));
                 map.put("teacher_role", rs.getString("teacher_role"));
                 map.put("salary_rate", rs.getDouble("salary_rate"));
                 map.put("unpaid_salary_balance", rs.getDouble("unpaid_salary_balance"));
@@ -1784,5 +1812,202 @@ public class DatabaseManager {
             plugin.getLogger().log(Level.SEVERE, "Error searching students with query: " + usernameQuery, e);
         }
         return list;
+    }
+
+    public void saveMail(int parentId, UUID sender, String senderName, String recipientUuidStr, String recipientType, String mailType, String subject, String body) {
+        String query = "INSERT INTO nschool_mails (parent_id, sender_uuid, sender_name, recipient_uuid, recipient_type, mail_type, subject, body, is_read, is_archived) "
+                     + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0);";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query, Statement.RETURN_GENERATED_KEYS)) {
+            ps.setInt(1, parentId);
+            ps.setString(2, sender.toString());
+            ps.setString(3, senderName);
+            ps.setString(4, recipientUuidStr);
+            ps.setString(5, recipientType);
+            ps.setString(6, mailType);
+            ps.setString(7, subject);
+            ps.setString(8, body);
+            ps.executeUpdate();
+            
+            if (parentId == 0) {
+                try (ResultSet rs = ps.getGeneratedKeys()) {
+                    if (rs.next()) {
+                        int newId = rs.getInt(1);
+                        String updateQuery = "UPDATE nschool_mails SET parent_id = ? WHERE id = ?;";
+                        try (PreparedStatement ups = conn.prepareStatement(updateQuery)) {
+                            ups.setInt(1, newId);
+                            ups.setInt(2, newId);
+                            ups.executeUpdate();
+                        }
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error saving mail", e);
+        }
+    }
+
+    public int getUnreadMailCount(UUID recipient) {
+        String query = "SELECT COUNT(*) FROM nschool_mails WHERE recipient_uuid = ? AND is_read = 0 AND is_archived = 0;";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setString(1, recipient.toString());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error getting unread mail count", e);
+        }
+        return 0;
+    }
+
+    public int getTotalSentMailCount(UUID sender) {
+        String query = "SELECT COUNT(*) FROM nschool_mails WHERE sender_uuid = ?;";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setString(1, sender.toString());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error getting total sent mail count", e);
+        }
+        return 0;
+    }
+
+    public List<Map<String, Object>> getMails(UUID recipient, boolean archived) {
+        List<Map<String, Object>> list = new ArrayList<>();
+        String query;
+        if ("MYSQL".equals(storageType)) {
+            query = "SELECT m1.* FROM nschool_mails m1 "
+                  + "INNER JOIN (SELECT parent_id, MAX(sent_at) as max_sent FROM nschool_mails WHERE recipient_uuid = ? AND is_archived = ? GROUP BY parent_id) m2 "
+                  + "ON m1.parent_id = m2.parent_id AND m1.sent_at = m2.max_sent ORDER BY m1.sent_at DESC;";
+        } else {
+            query = "SELECT * FROM nschool_mails WHERE recipient_uuid = ? AND is_archived = ? GROUP BY parent_id HAVING max(sent_at) ORDER BY sent_at DESC;";
+        }
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setString(1, recipient.toString());
+            ps.setInt(2, archived ? 1 : 0);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("id", rs.getInt("id"));
+                    map.put("parent_id", rs.getInt("parent_id"));
+                    map.put("sender_uuid", rs.getString("sender_uuid"));
+                    map.put("sender_name", rs.getString("sender_name"));
+                    map.put("recipient_uuid", rs.getString("recipient_uuid"));
+                    map.put("recipient_type", rs.getString("recipient_type"));
+                    map.put("mail_type", rs.getString("mail_type"));
+                    map.put("subject", rs.getString("subject"));
+                    map.put("body", rs.getString("body"));
+                    map.put("is_read", rs.getInt("is_read"));
+                    map.put("is_archived", rs.getInt("is_archived"));
+                    map.put("sent_at", rs.getTimestamp("sent_at"));
+                    list.add(map);
+                }
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error listing mails", e);
+        }
+        return list;
+    }
+
+    public List<Map<String, Object>> getMailThread(int rootMailId) {
+        List<Map<String, Object>> list = new ArrayList<>();
+        String query = "SELECT * FROM nschool_mails WHERE parent_id = ? ORDER BY sent_at ASC;";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setInt(1, rootMailId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("id", rs.getInt("id"));
+                    map.put("parent_id", rs.getInt("parent_id"));
+                    map.put("sender_uuid", rs.getString("sender_uuid"));
+                    map.put("sender_name", rs.getString("sender_name"));
+                    map.put("recipient_uuid", rs.getString("recipient_uuid"));
+                    map.put("recipient_type", rs.getString("recipient_type"));
+                    map.put("mail_type", rs.getString("mail_type"));
+                    map.put("subject", rs.getString("subject"));
+                    map.put("body", rs.getString("body"));
+                    map.put("is_read", rs.getInt("is_read"));
+                    map.put("is_archived", rs.getInt("is_archived"));
+                    map.put("sent_at", rs.getTimestamp("sent_at"));
+                    list.add(map);
+                }
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error getting mail thread", e);
+        }
+        return list;
+    }
+
+    public void setMailReadStatus(int mailId, boolean read) {
+        String query = "UPDATE nschool_mails SET is_read = ? WHERE id = ?;";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setInt(1, read ? 1 : 0);
+            ps.setInt(2, mailId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error setting mail read status", e);
+        }
+    }
+
+    public void setMailArchivedStatus(int rootMailId, boolean archived) {
+        String query = "UPDATE nschool_mails SET is_archived = ? WHERE parent_id = ?;";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setInt(1, archived ? 1 : 0);
+            ps.setInt(2, rootMailId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error setting mail archived status", e);
+        }
+    }
+
+    public void deleteMailThread(int rootMailId) {
+        String query = "DELETE FROM nschool_mails WHERE parent_id = ?;";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setInt(1, rootMailId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error deleting mail thread", e);
+        }
+    }
+
+    public Map<String, Object> getMailById(int id) {
+        String query = "SELECT * FROM nschool_mails WHERE id = ?;";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setInt(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("id", rs.getInt("id"));
+                    map.put("parent_id", rs.getInt("parent_id"));
+                    map.put("sender_uuid", rs.getString("sender_uuid"));
+                    map.put("sender_name", rs.getString("sender_name"));
+                    map.put("recipient_uuid", rs.getString("recipient_uuid"));
+                    map.put("recipient_type", rs.getString("recipient_type"));
+                    map.put("mail_type", rs.getString("mail_type"));
+                    map.put("subject", rs.getString("subject"));
+                    map.put("body", rs.getString("body"));
+                    map.put("is_read", rs.getInt("is_read"));
+                    map.put("is_archived", rs.getInt("is_archived"));
+                    map.put("sent_at", rs.getTimestamp("sent_at"));
+                    return map;
+                }
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Error getting mail by id", e);
+        }
+        return null;
     }
 }

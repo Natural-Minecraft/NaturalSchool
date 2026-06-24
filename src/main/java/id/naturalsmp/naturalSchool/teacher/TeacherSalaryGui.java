@@ -66,10 +66,10 @@ public class TeacherSalaryGui {
 
         bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<gold>=== Slip Gaji Kepegawaian Guru ===</gold>")));
         bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Nama:</yellow> <white>" + teacher.getName() + "</white>")));
-        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Status Kepegawaian:</yellow> <white>" + teacher.getType().name() + "</white>")));
+        bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Status Kepegawaian:</yellow> <white>" + teacher.getType(plugin).name() + "</white>")));
         bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Peran:</yellow> <white>" + teacher.getRole().name() + "</white>")));
         
-        String rateUnit = teacher.getType() == TeacherType.TETAP ? "/minggu (Real-Life)" : "/sesi kelas";
+        String rateUnit = teacher.getType(plugin) == Teacher.TeacherType.TETAP ? "/minggu (Real-Life)" : "/sesi kelas";
         bodies.add(DialogBody.plainMessage(MiniMessage.miniMessage().deserialize("<yellow>Tarif Gaji:</yellow> <white>$" + String.format("%,.2f", teacher.getSalaryRate()) + " " + rateUnit + "</white>")));
         
         double pending = plugin.getTeacherManager().calculatePendingSalary(player.getUniqueId());
@@ -124,7 +124,7 @@ public class TeacherSalaryGui {
             return;
         }
 
-        String rateUnit = teacher.getType() == TeacherType.TETAP ? "/minggu (Real-Life)" : "/sesi kelas";
+        String rateUnit = teacher.getType(plugin) == Teacher.TeacherType.TETAP ? "/minggu (Real-Life)" : "/sesi kelas";
         double pending = plugin.getTeacherManager().calculatePendingSalary(player.getUniqueId());
         String lastClaimStr = teacher.getLastSalaryClaimTime() != null ? dateFormat.format(new Date(teacher.getLastSalaryClaimTime().getTime())) : "Belum Pernah";
 
@@ -133,7 +133,7 @@ public class TeacherSalaryGui {
             sb.append(message).append("\n\n");
         }
         sb.append("Nama: ").append(teacher.getName()).append("\n")
-          .append("Status Kepegawaian: ").append(teacher.getType().name()).append("\n")
+          .append("Status Kepegawaian: ").append(teacher.getType(plugin).name()).append("\n")
           .append("Peran: ").append(teacher.getRole().name()).append("\n")
           .append("Tarif Gaji: $").append(String.format("%,.2f", teacher.getSalaryRate())).append(" ").append(rateUnit).append("\n")
           .append("Gaji Belum Diklaim: $").append(String.format("%,.2f", pending)).append("\n")

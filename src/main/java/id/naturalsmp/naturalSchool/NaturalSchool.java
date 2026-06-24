@@ -19,6 +19,7 @@ import id.naturalsmp.naturalSchool.placeholder.NaturalSchoolExpansion;
 import id.naturalsmp.naturalSchool.ui.UIManager;
 import id.naturalsmp.naturalSchool.exam.ExamManager;
 import id.naturalsmp.naturalSchool.semester.SemesterManager;
+import id.naturalsmp.naturalSchool.mail.MailManager;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.ServicePriority;
@@ -39,6 +40,7 @@ public final class NaturalSchool extends JavaPlugin {
     private ClassCashManager classCashManager;
     private id.naturalsmp.naturalSchool.teacher.TeacherManager teacherManager;
     private id.naturalsmp.naturalSchool.classes.ViolationManager violationManager;
+    private MailManager mailManager;
 
     @Override
     public void onEnable() {
@@ -63,6 +65,7 @@ public final class NaturalSchool extends JavaPlugin {
         teacherManager = new id.naturalsmp.naturalSchool.teacher.TeacherManager(this);
         teacherManager.initialize();
         violationManager = new id.naturalsmp.naturalSchool.classes.ViolationManager(this);
+        mailManager = new MailManager(this);
 
         // Initialize & Register Developer API
         NaturalSchoolAPIImpl apiImpl = new NaturalSchoolAPIImpl(this);
@@ -110,6 +113,13 @@ public final class NaturalSchool extends JavaPlugin {
         if (classCmd != null) {
             classCmd.setExecutor(classCommand);
             classCmd.setTabCompleter(classCommand);
+        }
+
+        id.naturalsmp.naturalSchool.command.MailCommand mailCommand = new id.naturalsmp.naturalSchool.command.MailCommand(this);
+        org.bukkit.command.PluginCommand mailCmd = getCommand("mail");
+        if (mailCmd != null) {
+            mailCmd.setExecutor(mailCommand);
+            mailCmd.setTabCompleter(mailCommand);
         }
 
         // Register PlaceholderAPI Expansion if PAPI is present on the server
@@ -276,6 +286,10 @@ public final class NaturalSchool extends JavaPlugin {
 
     public id.naturalsmp.naturalSchool.classes.ViolationManager getViolationManager() {
         return violationManager;
+    }
+
+    public MailManager getMailManager() {
+        return mailManager;
     }
 
     public boolean isExamOpen() {

@@ -11,6 +11,7 @@ import id.naturalsmp.naturalSchool.ui.gui.RegistrationGui;
 import id.naturalsmp.naturalSchool.ui.gui.StaffPanelGui;
 import id.naturalsmp.naturalSchool.classes.gui.ClassCashGui;
 import id.naturalsmp.naturalSchool.classes.gui.AttendanceGui;
+import id.naturalsmp.naturalSchool.mail.gui.MailGui;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -41,6 +42,7 @@ public class UIManager {
     private final AttendanceGui    attendanceGui;
     private final id.naturalsmp.naturalSchool.classes.gui.BKGui bkGui;
     private final id.naturalsmp.naturalSchool.teacher.TeacherSalaryGui teacherSalaryGui;
+    private final MailGui mailGui;
 
     private BedrockHandler bedrockHandler;
     private final boolean floodgateEnabled;
@@ -62,6 +64,7 @@ public class UIManager {
         this.attendanceGui    = new AttendanceGui(plugin);
         this.bkGui            = new id.naturalsmp.naturalSchool.classes.gui.BKGui(plugin);
         this.teacherSalaryGui = new id.naturalsmp.naturalSchool.teacher.TeacherSalaryGui(plugin);
+        this.mailGui          = new MailGui(plugin);
 
         this.floodgateEnabled = Bukkit.getPluginManager().isPluginEnabled("floodgate");
         if (this.floodgateEnabled) {
@@ -93,6 +96,10 @@ public class UIManager {
 
     public id.naturalsmp.naturalSchool.teacher.TeacherSalaryGui getTeacherSalaryGui() {
         return teacherSalaryGui;
+    }
+
+    public MailGui getMailGui() {
+        return mailGui;
     }
 
     public void openAttendanceGui(Player player) {

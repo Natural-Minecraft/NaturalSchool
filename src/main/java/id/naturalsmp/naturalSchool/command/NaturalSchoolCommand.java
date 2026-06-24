@@ -59,7 +59,7 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
         if (sender.hasPermission("naturalschool.admin") || sender.hasPermission("naturalschool.*")) {
             return true;
         }
-        for (String perm : Arrays.asList("general", "rank", "setclass", "setstage", "nis", "gui", "semester", "exam", "class")) {
+        for (String perm : Arrays.asList("general", "rank", "setclass", "setstage", "nis", "gui", "semester", "exam", "class", "teacher", "mail")) {
             if (sender.hasPermission("naturalschool." + perm)) {
                 return true;
             }
@@ -98,6 +98,8 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
                 return "class";
             case "teacher":
                 return "teacher";
+            case "mail":
+                return "mail";
             default:
                 return null;
         }
@@ -156,6 +158,9 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
             case "teacher":
                 handleTeacherCommand(sender, args);
                 break;
+            case "mail":
+                handleMailCommand(sender, args);
+                break;
             default:
                 sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Unknown subcommand. Use /naturalschool for help.</red>"));
                 break;
@@ -196,6 +201,10 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
         }
         if (hasSubCommandPermission(sender, "teacher")) {
             sb.append("\n<yellow>/naturalschool teacher ...</yellow> - <gray>Manage staff teachers, salaries, and details. Type /ns teacher for sub-help.</gray>");
+        }
+        if (hasSubCommandPermission(sender, "mail")) {
+            sb.append("\n<yellow>/naturalschool mail sendall <subject> <body></yellow> - <gray>Send official broadcast mail to all players.</gray>");
+            sb.append("\n<yellow>/naturalschool mail sendclass <kelas> <subject> <body></yellow> - <gray>Send official class mail.</gray>");
         }
         sender.sendMessage(MiniMessage.miniMessage().deserialize(sb.toString()));
     }
@@ -1479,9 +1488,9 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
         if (args.length < 2) {
             sender.sendMessage(MiniMessage.miniMessage().deserialize(
                 "<gold>=== NaturalSchool Admin Teacher Commands ===</gold>\n" +
-                "<yellow>/ns teacher add <player> <TETAP|HONORER> <MAPEL|GURU> [salary_rate]</yellow> - <gray>Add a teacher.</gray>\n" +
+                "<yellow>/ns teacher add <player> <MAPEL|GURU> [salary_rate]</yellow> - <gray>Add a teacher.</gray>\n" +
                 "<yellow>/ns teacher remove <player></yellow> - <gray>Remove a teacher.</gray>\n" +
-                "<yellow>/ns teacher edit <player> <rate|type|role> <value></yellow> - <gray>Edit teacher settings.</gray>\n" +
+                "<yellow>/ns teacher edit <player> <rate|role> <value></yellow> - <gray>Edit teacher settings.</gray>\n" +
                 "<yellow>/ns teacher list</yellow> - <gray>List all registered teachers.</gray>"
             ));
             return;
@@ -1489,31 +1498,23 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
 
         String sub = args[1].toLowerCase();
         if (sub.equals("add")) {
-            if (args.length < 5) {
-                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Gunakan: /ns teacher add <player> <TETAP|HONORER> <MAPEL|GURU> [salary_rate]</red>"));
+            if (args.length < 4) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Gunakan: /ns teacher add <player> <MAPEL|GURU> [salary_rate]</red>"));
                 return;
             }
             String targetName = args[2];
-            String typeStr = args[3].toUpperCase();
-            String roleStr = args[4].toUpperCase();
+            String roleStr = args[3].toUpperCase();
             double rate = 1000.0;
-            if (args.length >= 6) {
+            if (args.length >= 5) {
                 try {
-                    rate = Double.parseDouble(args[5]);
+                    rate = Double.parseDouble(args[4]);
                 } catch (NumberFormatException e) {
                     sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Tarif gaji (salary_rate) harus berupa angka!</red>"));
                     return;
                 }
             }
 
-            id.naturalsmp.naturalSchool.teacher.TeacherType type;
             id.naturalsmp.naturalSchool.teacher.TeacherRole role;
-            try {
-                type = id.naturalsmp.naturalSchool.teacher.TeacherType.valueOf(typeStr);
-            } catch (IllegalArgumentException e) {
-                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Tipe kepegawaian tidak valid! (Pilih: TETAP atau HONORER)</red>"));
-                return;
-            }
             try {
                 role = id.naturalsmp.naturalSchool.teacher.TeacherRole.valueOf(roleStr);
             } catch (IllegalArgumentException e) {
@@ -1532,8 +1533,8 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
                 return;
             }
 
-            plugin.getTeacherManager().addTeacher(targetOp.getUniqueId(), targetOp.getName(), type, role, rate);
-            sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>Berhasil mendaftarkan Guru <yellow>" + targetOp.getName() + "</yellow> (" + type.name() + " / " + role.name() + ") dengan tarif $" + rate + "</green>"));
+            plugin.getTeacherManager().addTeacher(targetOp.getUniqueId(), targetOp.getName(), role, rate);
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>Berhasil mendaftarkan Guru <yellow>" + targetOp.getName() + "</yellow> (" + role.name() + ") dengan tarif $" + rate + "</green>"));
         } else if (sub.equals("remove")) {
             if (args.length < 3) {
                 sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Gunakan: /ns teacher remove <player></red>"));
@@ -1550,7 +1551,7 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>Berhasil menghapus Guru <yellow>" + teacher.getName() + "</yellow> dari daftar staff pengajar.</green>"));
         } else if (sub.equals("edit")) {
             if (args.length < 5) {
-                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Gunakan: /ns teacher edit <player> <rate|type|role> <value></red>"));
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Gunakan: /ns teacher edit <player> <rate|role> <value></red>"));
                 return;
             }
             String targetName = args[2];
@@ -1577,13 +1578,141 @@ public class NaturalSchoolCommand implements CommandExecutor, TabCompleter {
             }
             sender.sendMessage(MiniMessage.miniMessage().deserialize("<gold>=== Daftar Staff Pengajar Guru (" + teachers.size() + ") ===</gold>"));
             for (id.naturalsmp.naturalSchool.teacher.Teacher t : teachers) {
-                String rateUnit = t.getType() == id.naturalsmp.naturalSchool.teacher.TeacherType.TETAP ? "/minggu (RL)" : "/sesi";
+                String rateUnit = t.getType(plugin) == id.naturalsmp.naturalSchool.teacher.Teacher.TeacherType.TETAP ? "/minggu (RL)" : "/sesi";
                 sender.sendMessage(MiniMessage.miniMessage().deserialize(
-                    "<yellow>• " + t.getName() + ":</yellow> <white>" + t.getType().name() + " | " + t.getRole().name() + " (Rate: $" + t.getSalaryRate() + rateUnit + ", Unpaid: $" + String.format("%,.2f", t.getUnpaidSalaryBalance()) + ")</white>"
+                    "<yellow>• " + t.getName() + ":</yellow> <white>" + t.getType(plugin).name() + " | " + t.getRole().name() + " (Rate: $" + t.getSalaryRate() + rateUnit + ", Unpaid: $" + String.format("%,.2f", t.getUnpaidSalaryBalance()) + ")</white>"
                 ));
             }
         } else {
             sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Subcommand guru tidak dikenal. Gunakan /ns teacher untuk bantuan.</red>"));
+        }
+    }
+
+    private void handleMailCommand(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            sender.sendMessage(MiniMessage.miniMessage().deserialize(
+                "<gold>=== NaturalSchool Admin Mail Commands ===</gold>\n" +
+                "<yellow>/ns mail sendall <subject> <body></yellow> - <gray>Send official broadcast mail to all players.</gray>\n" +
+                "<yellow>/ns mail sendclass <kelas> <subject> <body></yellow> - <gray>Send official class mail.</gray>"
+            ));
+            return;
+        }
+
+        String sub = args[1].toLowerCase();
+        if (sub.equals("sendall")) {
+            if (args.length < 4) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Gunakan: /ns mail sendall <subject> <body></red>"));
+                return;
+            }
+            String subject = args[2];
+            StringBuilder sb = new StringBuilder();
+            for (int i = 3; i < args.length; i++) {
+                sb.append(args[i]).append(" ");
+            }
+            String body = sb.toString().trim();
+
+            UUID senderUuid = sender instanceof Player ? ((Player) sender).getUniqueId() : new UUID(0L, 0L);
+            String senderName = sender.getName();
+
+            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+                List<UUID> recipientUuids = new ArrayList<>();
+                try (java.sql.Connection conn = plugin.getDatabaseManager().getConnection();
+                     java.sql.PreparedStatement ps = conn.prepareStatement("SELECT uuid FROM nschool_students WHERE nis IS NOT NULL;");
+                     java.sql.ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        recipientUuids.add(UUID.fromString(rs.getString("uuid")));
+                    }
+                } catch (java.sql.SQLException e) {
+                    sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Gagal mengambil data murid dari database!</red>"));
+                    return;
+                }
+
+                if (recipientUuids.isEmpty()) {
+                    sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Tidak ada murid terdaftar untuk menerima surat.</red>"));
+                    return;
+                }
+
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>Mengirim surat global ke " + recipientUuids.size() + " murid...</green>"));
+
+                for (UUID targetUuid : recipientUuids) {
+                    plugin.getMailManager().sendMail(
+                        0,
+                        senderUuid,
+                        senderName,
+                        targetUuid.toString(),
+                        "PLAYER",
+                        "BROADCAST",
+                        subject,
+                        body
+                    );
+                }
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>Surat global berhasil terkirim ke semua murid!</green>"));
+            });
+        } else if (sub.equals("sendclass")) {
+            if (args.length < 5) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Gunakan: /ns mail sendclass <kelas> <subject> <body></red>"));
+                return;
+            }
+            int classNum;
+            try {
+                classNum = Integer.parseInt(args[2]);
+            } catch (NumberFormatException e) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Kelas harus berupa angka (1-12)!</red>"));
+                return;
+            }
+            if (classNum < 1 || classNum > 12) {
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Kelas tidak valid (Pilih: 1-12)!</red>"));
+                return;
+            }
+
+            String subject = args[3];
+            StringBuilder sb = new StringBuilder();
+            for (int i = 4; i < args.length; i++) {
+                sb.append(args[i]).append(" ");
+            }
+            String body = sb.toString().trim();
+
+            UUID senderUuid = sender instanceof Player ? ((Player) sender).getUniqueId() : new UUID(0L, 0L);
+            String senderName = sender.getName();
+
+            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+                List<UUID> recipientUuids = new ArrayList<>();
+                try (java.sql.Connection conn = plugin.getDatabaseManager().getConnection();
+                     java.sql.PreparedStatement ps = conn.prepareStatement("SELECT uuid FROM nschool_students WHERE academic_class = ? AND nis IS NOT NULL;")) {
+                    ps.setInt(1, classNum);
+                    try (java.sql.ResultSet rs = ps.executeQuery()) {
+                        while (rs.next()) {
+                            recipientUuids.add(UUID.fromString(rs.getString("uuid")));
+                        }
+                    }
+                } catch (java.sql.SQLException e) {
+                    sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Gagal mengambil data kelas dari database!</red>"));
+                    return;
+                }
+
+                if (recipientUuids.isEmpty()) {
+                    sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Tidak ada murid terdaftar di kelas " + classNum + ".</red>"));
+                    return;
+                }
+
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>Mengirim surat kelas ke " + recipientUuids.size() + " murid di kelas " + classNum + "...</green>"));
+
+                for (UUID targetUuid : recipientUuids) {
+                    plugin.getMailManager().sendMail(
+                        0,
+                        senderUuid,
+                        senderName,
+                        targetUuid.toString(),
+                        "PLAYER",
+                        "OFFICIAL",
+                        subject,
+                        body
+                    );
+                }
+                sender.sendMessage(MiniMessage.miniMessage().deserialize("<green>Surat kelas berhasil terkirim ke kelas " + classNum + "!</green>"));
+            });
+        } else {
+            sender.sendMessage(MiniMessage.miniMessage().deserialize("<red>Subcommand mail tidak dikenal. Gunakan /ns mail untuk bantuan.</red>"));
         }
     }
 }

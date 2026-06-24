@@ -49,6 +49,24 @@ public class ViolationManager {
                     "<yellow>» Keterangan:</yellow> <white>" + (comment != null && !comment.trim().isEmpty() ? comment : "-") + "</white>\n" +
                     "<yellow>» Dilaporkan Oleh:</yellow> <gray>" + reporterName + "</gray>\n"
             ));
+        } else {
+            String subject = "Peringatan BK: " + violationType;
+            String body = "Detail Pelanggaran:\n" +
+                          "- Tipe Pelanggaran: " + violationType + " (+" + points + " Poin)\n" +
+                          "- Keterangan: " + (comment != null && !comment.trim().isEmpty() ? comment : "-") + "\n" +
+                          "- Dilaporkan Oleh: " + reporterName + "\n" +
+                          "- Tanggal: " + new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(new java.util.Date());
+
+            plugin.getMailManager().sendMail(
+                0,
+                new UUID(0L, 0L),
+                "Bimbingan Konseling (BK)",
+                studentUuid.toString(),
+                "PLAYER",
+                "OFFICIAL",
+                subject,
+                body
+            );
         }
     }
 }

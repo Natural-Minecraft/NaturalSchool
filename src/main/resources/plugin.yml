@@ -17,6 +17,9 @@ commands:
   class:
     description: Perintah manajemen kelas bagi Guru, Helper dan Siswa.
     aliases: [kelas]
+  mail:
+    description: NaturalSchool Mail System command.
+    aliases: [surat]
 
 permissions:
   naturalschool.admin:

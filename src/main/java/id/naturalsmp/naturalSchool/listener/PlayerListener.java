@@ -45,21 +45,40 @@ public class PlayerListener implements Listener {
             profileManager.loadProfile(uuid, playerName);
 
             StudentProfile profile = profileManager.getProfile(uuid);
-            if (profile != null && profile.getNis() == null) {
-                // Freezing and onboarding trigger must be synchronous
-                Bukkit.getScheduler().runTask(plugin, () -> {
-                    if (player.isOnline()) {
-                        // Freeze player immediately
-                        plugin.getUiManager().freezePlayer(player);
+            if (profile != null) {
+                if (profile.getNis() == null) {
+                    // Freezing and onboarding trigger must be synchronous
+                    Bukkit.getScheduler().runTask(plugin, () -> {
+                        if (player.isOnline()) {
+                            // Freeze player immediately
+                            plugin.getUiManager().freezePlayer(player);
 
-                        // Schedule 20-tick (1 second) delayed synchronous task to call openMenu
-                        Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                            if (player.isOnline()) {
-                                plugin.getUiManager().openMenu(player, SchoolMenuType.REGISTRATION);
-                            }
-                        }, 20L);
-                    }
-                });
+                            // Schedule 20-tick (1 second) delayed synchronous task to call openMenu
+                            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                                if (player.isOnline()) {
+                                    plugin.getUiManager().openMenu(player, SchoolMenuType.REGISTRATION);
+                                }
+                            }, 20L);
+                        }
+                    });
+                }
+
+                // Check for unread mails
+                int unread = plugin.getDatabaseManager().getUnreadMailCount(uuid);
+                if (unread > 0) {
+                    Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                        if (player.isOnline()) {
+                            id.naturalsmp.naturalSchool.util.ToastUtil.sendToast(
+                                plugin,
+                                player,
+                                "Pesan Belum Dibaca",
+                                "Ada " + unread + " surat masuk baru.",
+                                "minecraft:paper",
+                                "task"
+                            );
+                        }
+                    }, 40L);
+                }
             }
         });
     }

@@ -2,21 +2,27 @@ package id.naturalsmp.naturalSchool.teacher;
 
 import java.sql.Timestamp;
 import java.util.UUID;
+import id.naturalsmp.naturalSchool.NaturalSchool;
+import id.naturalsmp.naturalSchool.profile.SchoolRank;
+import id.naturalsmp.naturalSchool.profile.StudentProfile;
 
 public class Teacher {
+    public enum TeacherType {
+        TETAP,
+        HONORER
+    }
+
     private final UUID uuid;
     private final String name;
-    private TeacherType type;
     private TeacherRole role;
     private double salaryRate;
     private double unpaidSalaryBalance;
     private Timestamp lastSalaryClaimTime;
     private final Timestamp createdAt;
 
-    public Teacher(UUID uuid, String name, TeacherType type, TeacherRole role, double salaryRate, double unpaidSalaryBalance, Timestamp lastSalaryClaimTime, Timestamp createdAt) {
+    public Teacher(UUID uuid, String name, TeacherRole role, double salaryRate, double unpaidSalaryBalance, Timestamp lastSalaryClaimTime, Timestamp createdAt) {
         this.uuid = uuid;
         this.name = name;
-        this.type = type;
         this.role = role;
         this.salaryRate = salaryRate;
         this.unpaidSalaryBalance = unpaidSalaryBalance;
@@ -32,12 +38,12 @@ public class Teacher {
         return name;
     }
 
-    public TeacherType getType() {
-        return type;
-    }
-
-    public void setType(TeacherType type) {
-        this.type = type;
+    public TeacherType getType(NaturalSchool plugin) {
+        StudentProfile profile = plugin.getProfileManager().getProfile(uuid);
+        if (profile != null && profile.getRank() == SchoolRank.GURU_HONORER) {
+            return TeacherType.HONORER;
+        }
+        return TeacherType.TETAP;
     }
 
     public TeacherRole getRole() {
