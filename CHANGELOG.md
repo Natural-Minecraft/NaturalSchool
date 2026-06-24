@@ -2,6 +2,24 @@
 
 All notable changes to the NaturalSchool project will be documented in this file.
 
+## [1.7.7] - 2026-06-24
+### Added
+- **Integrated Mail (Surat) System**: Implemented a cross-platform asynchronous messaging subsystem allowing students, teachers, and administrators to send and receive letters, announcements, and official school notices.
+  - `/mail` (or `/surat` alias) opens the main interactive GUI interface.
+  - Multi-tier Java Edition dialogs (Paper Dialog API) and Bedrock Edition forms (Cumulus Geyser/Floodgate SimpleForm/CustomForm).
+  - Volatile caching and asynchronous execution for inbox, archive, and send/reply processes.
+  - Recipient auto-discovery: Searches the database for matching names, prompting a selection interface on multiple hits.
+  - Conversational Threading: Messages are linked via `parent_id` to form collapsible chronological threads.
+- **Developer API Integration (`NaturalSchoolAPI`)**: Exposed Mail System functionality directly to the public API contract:
+  - `sendMail(...)`: Allows external plugins to send asynchronous personal, official, or broadcast notifications.
+  - `getUnreadMailCount(...)`: Queries the database asynchronously for unread, non-archived messages.
+  - `getTotalSentMailCount(...)`: Retrieves total sent count per student/staf.
+  - Registered into Bukkit's `ServicesManager` for runtime plugin depend lookup.
+- **Dynamic Toast Notifications**:
+  - Real-time toast reminders (`ToastUtil`) sent on player's screen when receiving a new personal, class, or global message while online.
+  - Upon server join, players automatically receive a "Pesan Belum Dibaca" toast showing their unread message count if greater than 0.
+- **Relational Mail Database Tables**: Created the `nschool_mails` table structure mapping sender, receiver, message properties, read/archived status flags, and timestamps, with optimization indexes (`idx_mails_rec`, `idx_mails_parent`).
+
 ## [1.7.6] - 2026-06-23
 ### Added
 - **Dynamic Semester Calendar System**: Rewrote Semester Manager to calculate academic semesters and phases dynamically based on the **First Monday of each calendar month** (Anti-Drift timeline).

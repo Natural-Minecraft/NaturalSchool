@@ -478,3 +478,133 @@ graph TD
     D2_3_Form -. Jika error .-> E
     D2_4_Form -. Jika error .-> E
 ```
+
+---
+
+## ✉️ 9. Sistem Surat / Mail System (`/mail` / `/surat`)
+
+NaturalSchool mengimplementasikan Sistem Surat (Mail Subsystem) lintas platform terpadu untuk mendukung komunikasi asinkron antara murid, staf, kelas, maupun pengumuman global sekolah.
+
+### 9.1 Fitur Utama
+* **Cross-Platform UI Engine**: Kompatibel penuh untuk Java Edition (Paper Dialog API) dan Bedrock Edition (Geyser Cumulus SimpleForm/CustomForm).
+* **Toast Notification System**:
+  * Mengirimkan notifikasi toast real-time di layar penerima saat surat berhasil dikirim jika penerima sedang online.
+  * Menampilkan reminder toast "Pesan Belum Dibaca" secara otomatis 2 detik setelah login apabila pemain memiliki surat masuk yang belum dibaca.
+* **Support Thread (Percakapan)**: Surat yang merupakan balasan (`Re:`) dikelompokkan secara terstruktur berdasarkan `parent_id` agar menyerupai utas percakapan (thread).
+* **Multiple Recipient Matches**: Saat menulis nama penerima, sistem secara cerdas melakukan pencarian berbasis nama lengkap/username di basis data. Jika ditemukan beberapa kecocokan nama, sistem akan menampilkan antarmuka pilihan untuk menentukan penerima yang tepat.
+
+### 9.2 Skema Database (`nschool_mails`)
+
+Sistem surat menggunakan tabel `nschool_mails` dengan indeks khusus pada `recipient_uuid` dan `parent_id` untuk memastikan performa pencarian yang tinggi:
+
+1. **MySQL Schema**:
+```sql
+CREATE TABLE IF NOT EXISTS nschool_mails (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    parent_id INT DEFAULT 0,
+    sender_uuid VARCHAR(36) NOT NULL,
+    sender_name VARCHAR(16) NOT NULL,
+    recipient_uuid VARCHAR(36) NOT NULL,
+    recipient_type VARCHAR(10) NOT NULL DEFAULT 'PLAYER',
+    mail_type VARCHAR(20) NOT NULL DEFAULT 'PERSONAL',
+    subject VARCHAR(100) NOT NULL,
+    body TEXT NOT NULL,
+    is_read TINYINT DEFAULT 0,
+    is_archived TINYINT DEFAULT 0,
+    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_mails_rec (recipient_uuid),
+    INDEX idx_mails_parent (parent_id)
+);
+```
+
+2. **SQLite Schema**:
+```sql
+CREATE TABLE IF NOT EXISTS nschool_mails (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    parent_id INTEGER DEFAULT 0,
+    sender_uuid TEXT NOT NULL,
+    sender_name TEXT NOT NULL,
+    recipient_uuid TEXT NOT NULL,
+    recipient_type TEXT NOT NULL DEFAULT 'PLAYER',
+    mail_type TEXT NOT NULL DEFAULT 'PERSONAL',
+    subject TEXT NOT NULL,
+    body TEXT NOT NULL,
+    is_read INTEGER DEFAULT 0,
+    is_archived INTEGER DEFAULT 0,
+    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### 9.3 Tipe Penerima & Surat
+Sistem surat membagi interaksi berdasarkan pengidentifikasi berikut:
+* **Tipe Penerima (`recipient_type`)**:
+  * `PLAYER`: Penerima adalah pemain spesifik (menggunakan UUID string).
+  * `CLASS`: Penerima adalah semua murid di tingkat kelas tertentu (format: `CLASS_X`, cth: `CLASS_10`).
+  * `GLOBAL`: Penerima adalah semua pemain terdaftar di server (pengumuman global).
+* **Tipe Surat (`mail_type`)**:
+  * `PERSONAL`: Pesan pribadi antar murid atau staf.
+  * `OFFICIAL`: Surat resmi dari sekolah/guru (misal: surat peringatan atau panggilan BK).
+  * `BROADCAST`: Pengumuman umum sekolah.
+
+### 9.4 Kamus Perintah & Otoritas
+* **Izin**: Semua murid terdaftar dengan NIS dapat menggunakan perintah ini.
+
+| Perintah | Otoritas | Deskripsi |
+| :--- | :--- | :--- |
+| `/mail` atau `/surat` | Semua Murid | Membuka Hub GUI Utama Mail System. |
+
+### 9.5 Developer API (`NaturalSchoolAPI`)
+
+Sistem Surat dapat diakses secara terprogram oleh plugin eksternal melalui antarmuka `NaturalSchoolAPI`. API ini terdaftar secara otomatis di Bukkit `ServicesManager` saat startup.
+
+#### Metode API yang Tersedia:
+* **`sendMail(...)`**: Mengirim pesan surat baru atau balasan secara asinkron ke database dan memicu notifikasi toast real-time pada pemain online yang memenuhi kriteria.
+  ```java
+  void sendMail(
+      int parentId,
+      UUID sender,
+      String senderName,
+      String recipientUuidStr,
+      String recipientType,
+      String mailType,
+      String subject,
+      String body
+  );
+  ```
+* **`getUnreadMailCount(...)`**: Mendapatkan jumlah surat belum dibaca yang belum diarsipkan untuk pemain tertentu (asinkron).
+  ```java
+  int getUnreadMailCount(UUID recipient);
+  ```
+* **`getTotalSentMailCount(...)`**: Mendapatkan total surat yang pernah dikirim oleh pemain tertentu (asinkron).
+  ```java
+  int getTotalSentMailCount(UUID sender);
+  ```
+
+#### Contoh Integrasi API (Java):
+```java
+import id.naturalsmp.naturalSchool.api.NaturalSchoolAPI;
+import id.naturalsmp.naturalSchool.api.NaturalSchoolProvider;
+import org.bukkit.plugin.java.JavaPlugin;
+import java.util.UUID;
+
+public class MyPlugin extends JavaPlugin {
+    
+    public void sendOfficialWarning(UUID studentUuid, String studentName, String reason) {
+        // Mendapatkan instance API
+        NaturalSchoolAPI api = NaturalSchoolProvider.get();
+        if (api == null) return;
+        
+        // Mengirim surat resmi sekolah (Official)
+        api.sendMail(
+            0,                                     // parentId (0 untuk utas baru)
+            UUID.fromString("00000000-0000-0000-0000-000000000000"), // System/Console Sender UUID
+            "Kementerian Sekolah",                  // Nama pengirim
+            studentUuid.toString(),                 // UUID penerima (String)
+            "PLAYER",                               // recipientType
+            "OFFICIAL",                             // mailType
+            "Surat Peringatan Akademik",            // Subjek
+            "Anda menerima peringatan resmi karena: " + reason // Isi surat
+        );
+    }
+}
+```

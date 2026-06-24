@@ -90,4 +90,34 @@ public interface NaturalSchoolAPI {
      * @return ClassManager instance
      */
     id.naturalsmp.naturalSchool.classes.ClassManager getClassManager();
+
+    /**
+     * Sends a mail message and triggers real-time toast notifications if recipients are online.
+     *
+     * @param parentId         The parent message ID (0 for root messages/threads)
+     * @param sender           The sender's UUID
+     * @param senderName       The sender's display name
+     * @param recipientUuidStr The recipient's UUID string (or CLASS_X / GLOBAL)
+     * @param recipientType    The recipient type (PLAYER, CLASS, GLOBAL)
+     * @param mailType         The mail type (PERSONAL, OFFICIAL, BROADCAST)
+     * @param subject          The mail subject
+     * @param body             The mail body content
+     */
+    void sendMail(int parentId, UUID sender, String senderName, String recipientUuidStr, String recipientType, String mailType, String subject, String body);
+
+    /**
+     * Gets the number of unread mails for a player.
+     *
+     * @param recipient Player UUID
+     * @return count of unread mails
+     */
+    int getUnreadMailCount(UUID recipient);
+
+    /**
+     * Gets the total number of mails sent by a player.
+     *
+     * @param sender Player UUID
+     * @return total count of sent mails
+     */
+    int getTotalSentMailCount(UUID sender);
 }

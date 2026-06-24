@@ -217,4 +217,21 @@ public class NaturalSchoolAPIImpl implements NaturalSchoolAPI {
     public id.naturalsmp.naturalSchool.classes.ClassManager getClassManager() {
         return plugin.getClassManager();
     }
+
+    @Override
+    public void sendMail(int parentId, UUID sender, String senderName, String recipientUuidStr, String recipientType, String mailType, String subject, String body) {
+        plugin.getMailManager().sendMail(parentId, sender, senderName, recipientUuidStr, recipientType, mailType, subject, body);
+    }
+
+    @Override
+    public int getUnreadMailCount(UUID recipient) {
+        if (recipient == null) return 0;
+        return plugin.getDatabaseManager().getUnreadMailCount(recipient);
+    }
+
+    @Override
+    public int getTotalSentMailCount(UUID sender) {
+        if (sender == null) return 0;
+        return plugin.getDatabaseManager().getTotalSentMailCount(sender);
+    }
 }
